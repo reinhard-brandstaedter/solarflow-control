@@ -9,7 +9,6 @@ log = logging.getLogger("")
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
-SF_ACCOUNT_ID = os.environ.get('SF_ACCOUNT_ID',None)
 SF_DEVICE_ID = os.environ.get('SF_DEVICE_ID',None)
 SF_PRODUCT_ID = os.environ.get('SF_PRODUCT_ID',"73bkTV")
 MQTT_USER = os.environ.get('MQTT_USER',None)
@@ -17,8 +16,8 @@ MQTT_PW = os.environ.get('MQTT_PW',None)
 MQTT_HOST = os.environ.get('MQTT_HOST',None)
 MQTT_PORT = os.environ.get('MQTT_PORT',1883)
 
-if SF_ACCOUNT_ID is None or SF_DEVICE_ID is None:
-    log.error(f'Please set SF_ACCOUNT_ID and SF_DEVICE_ID environment variables! Exiting!')
+if SF_DEVICE_ID is None:
+    log.error(f'SF_DEVICE_ID environment variables! Exiting!')
     sys.exit()
 
 if MQTT_HOST is None:
@@ -36,7 +35,6 @@ port = MQTT_PORT
 topic_house = "tele/E220/SENSOR"
 #topic_acinput = "inverter/HM-600/ch0/P_AC"
 topic_acinput = "solar/ac/power"
-topic_solarflow = f'{SF_ACCOUNT_ID}/{SF_DEVICE_ID}/state'
 topic_solarflow_solarinput = "solarflow-hub/telemetry/solarInputPower"
 topic_solarflow_electriclevel = "solarflow-hub/telemetry/electricLevel"
 topic_solarflow_outputpack = "solarflow-hub/telemetry/outputPackPower"
@@ -150,8 +148,6 @@ def on_message(client, userdata, msg):
         on_solarflow_outputpack(msg.payload.decode()) 
     if msg.topic == topic_solarflow_outputhome:
         on_solarflow_outputhome(msg.payload.decode()) 
-    if msg.topic == topic_solarflow:
-        on_solarflow_update(msg.payload.decode())
     if msg.topic == topic_house:
         on_smartmeter_update(msg.payload.decode())
 
