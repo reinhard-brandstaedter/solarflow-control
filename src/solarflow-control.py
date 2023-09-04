@@ -1,4 +1,4 @@
-import random, json, time, logging, sys, requests, os
+import random, json, time, logging, sys, getopt, os
 from datetime import datetime
 from functools import reduce
 from paho.mqtt import client as mqtt_client
@@ -9,33 +9,23 @@ log = logging.getLogger("")
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
-SF_DEVICE_ID = os.environ.get('SF_DEVICE_ID',None)
-SF_PRODUCT_ID = os.environ.get('SF_PRODUCT_ID',"73bkTV")
-MQTT_USER = os.environ.get('MQTT_USER',None)
-MQTT_PW = os.environ.get('MQTT_PW',None)
-MQTT_HOST = os.environ.get('MQTT_HOST',None)
-MQTT_PORT = os.environ.get('MQTT_PORT',1883)
+sf_device_id = os.environ.get('SF_DEVICE_ID',None)
+sf_product_id = os.environ.get('SF_PRODUCT_ID',"73bkTV")
+mqtt_user = os.environ.get('MQTT_USER',None)
+mqtt_pwd = os.environ.get('MQTT_PWD',None)
+mqtt_host = os.environ.get('MQTT_HOST',None)
+mqtt_port = os.environ.get('MQTT_PORT',1883)
 MIN_CHARGE_LEVEL = int(os.environ.get('MIN_CHARGE_LEVEL',125))          # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
 MAX_DISCHARGE_LEVEL = int(os.environ.get('MAX_DISCHARGE_LEVEL',145))    # The maximum discharge level of the battery. Even if there is more demand it will not go beyond that
-OVERAGE_LIMIT = 30                                                      # if we produce more than what we need we can feed that much to the grid
+OVERAGE_LIMIT = 15                                                      # if we produce more than what we need we can feed that much to the grid
 BATTERY_LOW = int(os.environ.get('BATTERY_LOW',10)) 
 BATTERY_HIGH = int(os.environ.get('BATTERY_HIGH',98))
 
-if SF_DEVICE_ID is None:
-    log.error(f'SF_DEVICE_ID environment variables! Exiting!')
-    sys.exit()
-
-if MQTT_HOST is None:
-    log.error("You need a local MQTT broker set (environment variable MQTT_HOST)!")
-    sys.exit(0)
-
-if MQTT_USER is None or MQTT_PW is None:
-    log.info(f'MQTT_USER or MQTT_PW is not set, assuming authentication not needed')
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
-topic_house = "tele/E220/SENSOR"                
+topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")              
 # topic for the microinverter input to home (e.g. from OpenDTU, AhouyDTU)
-topic_acinput = "solar/ac/power"
+topic_acinput = os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
 # topics for telemetry read from Solarflow Hub                                                       
 topic_solarflow_solarinput = "solarflow-hub/telemetry/solarInputPower"
 topic_solarflow_electriclevel = "solarflow-hub/telemetry/electricLevel"
@@ -43,7 +33,7 @@ topic_solarflow_outputpack = "solarflow-hub/telemetry/outputPackPower"
 topic_solarflow_outputhome = "solarflow-hub/telemetry/outputHomePower"
 
 # topic to control the Solarflow Hub (used to set output limit)
-topic_limit_solarflow = f'iot/{SF_PRODUCT_ID}/{SF_DEVICE_ID}/properties/write'
+topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
 
 # optional topic for controlling the inverter limit
 #topic_ahoylimit = "inverter/ctrl/limit/0"                                              #AhoyDTU
@@ -132,10 +122,10 @@ def on_connect(client, userdata, flags, rc):
 
 def connect_mqtt() -> mqtt_client:
     client = mqtt_client.Client(client_id)
-    if MQTT_USER is not None and MQTT_PW is not None:
-        client.username_pw_set(MQTT_USER, MQTT_PW)
+    if mqtt_user is not None and mqtt_pwd is not None:
+        client.username_pw_set(mqtt_user, mqtt_pwd)
     client.on_connect = on_connect
-    client.connect(MQTT_HOST, MQTT_PORT)
+    client.connect(mqtt_host, mqtt_port)
     return client
 
 def subscribe(client: mqtt_client):
@@ -237,5 +227,54 @@ def run():
 
     client.loop_stop()
 
-if __name__ == '__main__':
+def main(argv):
+    global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
+    global sf_device_id
+    global topic_limit_solarflow
+    opts, args = getopt.getopt(argv,"hb:p:u:s:d:",["broker=","port=","user=","password="])
+    for opt, arg in opts:
+        if opt == '-h':
+            log.info('solarflow-control.py -b <MQTT Broker Host> -p <MQTT Broker Port>')
+            sys.exit()
+        elif opt in ("-b", "--broker"):
+            mqtt_host = arg
+        elif opt in ("-p", "--port"):
+            mqtt_port = arg
+        elif opt in ("-u", "--user"):
+            mqtt_user = arg
+        elif opt in ("-s", "--password"):
+            mqtt_pwd = arg
+        elif opt in ("-d", "--device"):
+            sf_device_id = arg
+
+    if mqtt_host is None:
+        log.error("You need to provide a local MQTT broker (environment variable MQTT_HOST or option --broker)!")
+        sys.exit(0)
+    else:
+        log.info(f'MQTT Host: {mqtt_host}:{mqtt_port}')
+
+    if mqtt_user is None or mqtt_pwd is None:
+        log.info(f'MQTT User is not set, assuming authentication not needed')
+    else:
+        log.info(f'MQTT User: {mqtt_user}/{mqtt_pwd}')
+
+    if sf_device_id is None:
+        log.error(f'You need to provide a SF_DEVICE_ID (environment variable SF_DEVICE_ID or option --device)!')
+        sys.exit()
+    else:
+        log.info(f'Solarflow Hub: {sf_product_id}/{sf_device_id}')
+        topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
+
+    log.info("MQTT telemetry topics used (make sure they are populated)!:")
+    log.info(f'  House Consumption: {topic_house}')
+    log.info(f'  Inverter AC input (TOPIC_HOUSE): {topic_acinput}')
+    log.info(f'  Solarflow Solar Input (TOPIC_ACINPUT): {topic_solarflow_solarinput}')
+    log.info(f'  Solarflow Output to home: {topic_solarflow_outputhome}')
+    log.info(f'  Solarflow Battery Level: {topic_solarflow_electriclevel}')
+    log.info(f'  Solarflow Battery Charging: {topic_solarflow_outputpack}')
+    log.info(f'Topic to set Solarflow Output to Home Limit: {topic_limit_solarflow}')
+    
     run()
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
