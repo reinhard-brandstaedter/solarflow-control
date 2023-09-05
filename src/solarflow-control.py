@@ -44,11 +44,12 @@ client_id = f'solarflow-control-{random.randint(0, 100)}'
 # sliding average windows for telemetry data, to remove spikes and drops
 sf_window = int(os.environ.get('SF_WINDOW',5))
 solarflow_values = [0]*sf_window
-sm_window = int(os.environ.get('SM_WINDOW',10))
+sm_window = int(os.environ.get('SM_WINDOW',5))
 smartmeter_values = [0]*sm_window
 inv_window = int(os.environ.get('INV_WINDOW',5))
 inverter_values = [0]*inv_window
-limit_values =  [0]*10
+limit_window = int(os.environ.get('LIMIT_WINDOW',5))
+limit_values =  [0]*limit_window
 
 battery = -1
 charging = 0
@@ -209,7 +210,9 @@ def limitHomeInput(client: mqtt_client):
     limit_values.append(0 if limit<0 else limit)                # to recover faster from negative demands
     limit = int(reduce(lambda a,b: a+b, limit_values)/len(limit_values))
 
-    log.info(f'Demand: {demand}W, Solar: {solarinput}W, Inverter: {inverterinput}W, Home: {home}W, Battery: {battery}% charging: {charging}W => Limit: {limit}W - {limit_values}')
+    sm = ",".join([f'{v:>4}' for v in smartmeter_values])
+    lm = ",".join([f'{v:>4}' for v in limit_values])
+    log.info(f'Smartmeter: [{sm}], Demand: {demand}W, Solar: {solarinput}W, Inverter: {inverterinput}W, Home: {home}W, Battery: {battery}% charging: {charging}W => Limit: {limit}W - [{lm}]')
     # only set the limit if the value has changed
     #if limit != limit_values[-2]:
     #limitInverter(client,limit)
