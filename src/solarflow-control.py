@@ -22,8 +22,8 @@ BATTERY_LOW = int(os.environ.get('BATTERY_LOW',10))
 BATTERY_HIGH = int(os.environ.get('BATTERY_HIGH',98))
 MAX_INVERTER_LIMIT = 800                                                 # the maximum allowed inverter output
 MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
-INVERTER_MPPTS = 4                                                       # the number of inverter inputs or mppts. SF only uses 2 so when limiting we need to adjust for that
-INVERTER_SF_INPUTS_USED = 2                                              # how many Inverter input channels are used by Solarflow   
+INVERTER_MPPTS = int(os.environ.get('INVERTER_MPPTS',4))                 # the number of inverter inputs or mppts. SF only uses 2 so when limiting we need to adjust for that
+INVERTER_SF_INPUTS_USED = int(os.environ.get('INVERTER_SF_INPUTS_USED',2))   # how many Inverter input channels are used by Solarflow   
 
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
