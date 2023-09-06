@@ -83,20 +83,36 @@ def on_solarflow_outputhome(msg):
     home = int(msg)
 
 def on_inverter_update(msg):
+    global inverter_values
     if len(inverter_values) >= inv_window:
         inverter_values.pop(0)
     inverter_values.append(float(msg))
 
 # this needs to be configured for different smartmeter readers (Hichi, PowerOpti, Shelly)
 def on_smartmeter_update(msg):
+    global smartmeter_values
     payload = json.loads(msg)
     if len(smartmeter_values) >= sm_window:
         smartmeter_values.pop(0)
     # replace values from smartmeter that are higher than what we could deliver with MAX_SOLAR_INPUT to smoothen spikes
     value = int(payload["Power"]["Power_curr"])
-    if value > MAX_INVERTER_INPUT:
-        value = MAX_INVERTER_INPUT
+    #if value > MAX_INVERTER_INPUT:
+    #    value = MAX_INVERTER_INPUT
     smartmeter_values.append(value)
+
+    
+    tail = reduce(lambda a,b: a+b, smartmeter_values[:-2])/(len(smartmeter_values)-2)
+    head = reduce(lambda a,b: a+b, smartmeter_values[2:])/(len(smartmeter_values)-2)
+    # detect fast drop in demand
+    if tail > head + MAX_INVERTER_INPUT:
+        log.info(f'Detected a fast drop in demand, enabling accelerated adjustment!')
+        smartmeter_values = head
+
+    # detect fast rise in demand
+    if tail + MAX_INVERTER_INPUT < head:
+        log.info(f'Detected a fast rise in demand, enabling accelerated adjustment!')
+        smartmeter_values = head
+    
 
 def on_message(client, userdata, msg):
     global last_solar_input_update
@@ -170,12 +186,13 @@ def limitSolarflow(client: mqtt_client, limit):
 
 # set the limit on the inverter (when using inverter only mode)
 def limitInverter(client: mqtt_client, limit):
-    client.publish(topic_limit_non_persistent,f'{limit}W')
+    client.publish(topic_limit_non_persistent,f'{limit}')
 
 
 def limitHomeInput(client: mqtt_client):
     global home
     global battery
+    global smartmeter_values, solarflow_values, inverter_values
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
         log.warning(f'Waiting for smartmeter data to make decisions...')
