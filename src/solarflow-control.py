@@ -20,6 +20,10 @@ MAX_DISCHARGE_LEVEL = int(os.environ.get('MAX_DISCHARGE_LEVEL',145))    # The ma
 OVERAGE_LIMIT = 15                                                      # if we produce more than what we need we can feed that much to the grid
 BATTERY_LOW = int(os.environ.get('BATTERY_LOW',10)) 
 BATTERY_HIGH = int(os.environ.get('BATTERY_HIGH',98))
+MAX_INVERTER_LIMIT = 800                                                 # the maximum allowed inverter output
+MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
+INVERTER_MPPTS = 4                                                       # the number of inverter inputs or mppts. SF only uses 2 so when limiting we need to adjust for that
+INVERTER_SF_INPUTS_USED = 2                                              # how many Inverter input channels are used by Solarflow   
 
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
@@ -88,7 +92,11 @@ def on_smartmeter_update(msg):
     payload = json.loads(msg)
     if len(smartmeter_values) >= sm_window:
         smartmeter_values.pop(0)
-    smartmeter_values.append(int(payload["Power"]["Power_curr"]))
+    # replace values from smartmeter that are higher than what we could deliver with MAX_SOLAR_INPUT to smoothen spikes
+    value = int(payload["Power"]["Power_curr"])
+    if value > MAX_INVERTER_INPUT:
+        value = MAX_INVERTER_INPUT
+    smartmeter_values.append(value)
 
 def on_message(client, userdata, msg):
     global last_solar_input_update
@@ -146,10 +154,16 @@ def turnOffBuzzer(client: mqtt_client):
 # limit the output to home setting on the Solarflow hub
 def limitSolarflow(client: mqtt_client, limit):
     # currently the hub doesn't support single steps for limits below 100
-    if 50 < limit <= 100:
+    # to get a fine granular steering at this level we need to fall back to the inverter limit
+    # if controlling the inverter is not possible we should stick to either 0 or 100W
+    if limit <= 100:
+        # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
+        inv_limit = limit*(1/(INVERTER_SF_INPUTS_USED/INVERTER_MPPTS))
+        limitInverter(client,inv_limit)
+        log.info(f'The output limit would be below 100W ({limit}W). Need to limit the inverter to match it precisely!')
         limit = 100
-    if limit < 50:
-        limit = 0
+    else:
+        limitInverter(client,MAX_INVERTER_LIMIT)
 
     outputlimit = {"properties": { "outputLimit": limit }}
     client.publish(topic_limit_solarflow,json.dumps(outputlimit))
@@ -275,8 +289,9 @@ def main(argv):
     log.info(f'  Solarflow Output to home: {topic_solarflow_outputhome}')
     log.info(f'  Solarflow Battery Level: {topic_solarflow_electriclevel}')
     log.info(f'  Solarflow Battery Charging: {topic_solarflow_outputpack}')
-    log.info(f'Topic to set Solarflow Output to Home Limit: {topic_limit_solarflow}')
-    
+    log.info(f'Topic to limit Solarflow Output: {topic_limit_solarflow}')
+    log.info(f'Topic to limit Inverter Output: {topic_limit_non_persistent}')
+
     run()
 
 if __name__ == '__main__':
