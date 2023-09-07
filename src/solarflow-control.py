@@ -6,8 +6,6 @@ from paho.mqtt import client as mqtt_client
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("requests").setLevel(logging.WARNING)
 
 sf_device_id = os.environ.get('SF_DEVICE_ID',None)
 sf_product_id = os.environ.get('SF_PRODUCT_ID',"73bkTV")
@@ -20,7 +18,11 @@ MAX_DISCHARGE_LEVEL = int(os.environ.get('MAX_DISCHARGE_LEVEL',145))    # The ma
 OVERAGE_LIMIT = 15                                                      # if we produce more than what we need we can feed that much to the grid
 BATTERY_LOW = int(os.environ.get('BATTERY_LOW',10)) 
 BATTERY_HIGH = int(os.environ.get('BATTERY_HIGH',98))
-
+MAX_INVERTER_LIMIT = 800                                                 # the maximum allowed inverter output
+MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
+INVERTER_MPPTS = int(os.environ.get('INVERTER_MPPTS',4))                 # the number of inverter inputs or mppts. SF only uses 2 so when limiting we need to adjust for that
+INVERTER_SF_INPUTS_USED = int(os.environ.get('INVERTER_SF_INPUTS_USED',2))   # how many Inverter input channels are used by Solarflow   
+FAST_CHANGE_OFFSET = 200
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")              
@@ -79,16 +81,38 @@ def on_solarflow_outputhome(msg):
     home = int(msg)
 
 def on_inverter_update(msg):
+    global inverter_values
     if len(inverter_values) >= inv_window:
         inverter_values.pop(0)
     inverter_values.append(float(msg))
 
 # this needs to be configured for different smartmeter readers (Hichi, PowerOpti, Shelly)
 def on_smartmeter_update(msg):
+    global smartmeter_values
+    global limit_values
     payload = json.loads(msg)
     if len(smartmeter_values) >= sm_window:
         smartmeter_values.pop(0)
-    smartmeter_values.append(int(payload["Power"]["Power_curr"]))
+    # replace values from smartmeter that are higher than what we could deliver with MAX_SOLAR_INPUT to smoothen spikes
+    value = int(payload["Power"]["Power_curr"])
+    #if value > MAX_INVERTER_INPUT:
+    #    value = MAX_INVERTER_INPUT
+    smartmeter_values.append(value)
+
+    if len(smartmeter_values) >= sm_window:    
+        tail = reduce(lambda a,b: a+b, smartmeter_values[:-2])/(len(smartmeter_values)-2)
+        head = reduce(lambda a,b: a+b, smartmeter_values[-2:])/(len(smartmeter_values)-2)
+        # detect fast drop in demand
+        if tail > head + FAST_CHANGE_OFFSET:
+            log.info(f'Detected a fast drop in demand, enabling accelerated adjustment!')
+            smartmeter_values = smartmeter_values[-2:]
+            limit_values = limit_values[-1:]
+
+        # detect fast rise in demand
+        if tail + FAST_CHANGE_OFFSET < head:
+            log.info(f'Detected a fast rise in demand, enabling accelerated adjustment!')
+            smartmeter_values = smartmeter_values[-2:]
+            limit_values = limit_values[-1:]
 
 def on_message(client, userdata, msg):
     global last_solar_input_update
@@ -146,34 +170,41 @@ def turnOffBuzzer(client: mqtt_client):
 # limit the output to home setting on the Solarflow hub
 def limitSolarflow(client: mqtt_client, limit):
     # currently the hub doesn't support single steps for limits below 100
-    if 50 < limit <= 100:
+    # to get a fine granular steering at this level we need to fall back to the inverter limit
+    # if controlling the inverter is not possible we should stick to either 0 or 100W
+    if limit <= 100:
+        # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
+        inv_limit = limit*(1/(INVERTER_SF_INPUTS_USED/INVERTER_MPPTS))
+        limitInverter(client,inv_limit)
+        log.info(f'The output limit would be below 100W ({limit}W). Need to limit the inverter to match it precisely!')
         limit = 100
-    if limit < 50:
-        limit = 0
+    else:
+        limitInverter(client,MAX_INVERTER_LIMIT)
 
     outputlimit = {"properties": { "outputLimit": limit }}
     client.publish(topic_limit_solarflow,json.dumps(outputlimit))
 
 # set the limit on the inverter (when using inverter only mode)
 def limitInverter(client: mqtt_client, limit):
-    client.publish(topic_limit_non_persistent,f'{limit}W')
+    client.publish(topic_limit_non_persistent,f'{limit}')
 
 
 def limitHomeInput(client: mqtt_client):
     global home
     global battery
+    global smartmeter_values, solarflow_values, inverter_values
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
-        log.warning(f'Waiting for smartmeter data to make decisions...')
+        log.info(f'Waiting for smartmeter data to make decisions...')
         return
     if len(solarflow_values) == 0:
-        log.warning(f'Waiting for solarflow input data to make decisions...')
+        log.info(f'Waiting for solarflow input data to make decisions...')
         return
     if len(inverter_values) == 0:
-        log.warning(f'Waiting for inverter data to make decisions...')
+        log.info(f'Waiting for inverter data to make decisions...')
         return
     if battery < 0:
-        log.warning(f'Waiting for battery state to make decisions...')
+        log.info(f'Waiting for battery state to make decisions...')
         return
         
     smartmeter = reduce(lambda a,b: a+b, smartmeter_values)/len(smartmeter_values)
@@ -206,7 +237,8 @@ def limitHomeInput(client: mqtt_client):
             else:                                               
                 limit = 0                                       # throughout the day use everything to charge
 
-    limit_values.pop(0)
+    if len(limit_values) >= limit_window:
+        limit_values.pop(0)
     limit_values.append(0 if limit<0 else limit)                # to recover faster from negative demands
     limit = int(reduce(lambda a,b: a+b, limit_values)/len(limit_values))
 
@@ -275,8 +307,9 @@ def main(argv):
     log.info(f'  Solarflow Output to home: {topic_solarflow_outputhome}')
     log.info(f'  Solarflow Battery Level: {topic_solarflow_electriclevel}')
     log.info(f'  Solarflow Battery Charging: {topic_solarflow_outputpack}')
-    log.info(f'Topic to set Solarflow Output to Home Limit: {topic_limit_solarflow}')
-    
+    log.info(f'Topic to limit Solarflow Output: {topic_limit_solarflow}')
+    log.info(f'Topic to limit Inverter Output: {topic_limit_non_persistent}')
+
     run()
 
 if __name__ == '__main__':
