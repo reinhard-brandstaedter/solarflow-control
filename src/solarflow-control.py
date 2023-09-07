@@ -106,13 +106,13 @@ def on_smartmeter_update(msg):
         if tail > head + FAST_CHANGE_OFFSET:
             log.info(f'Detected a fast drop in demand, enabling accelerated adjustment!')
             smartmeter_values = smartmeter_values[-2:]
-            limit_values = limit_values[-1:]
+            limit_values = []
 
         # detect fast rise in demand
         if tail + FAST_CHANGE_OFFSET < head:
             log.info(f'Detected a fast rise in demand, enabling accelerated adjustment!')
             smartmeter_values = smartmeter_values[-2:]
-            limit_values = limit_values[-1:]
+            limit_values = []
 
 def on_message(client, userdata, msg):
     global last_solar_input_update
