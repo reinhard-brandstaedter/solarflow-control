@@ -6,8 +6,6 @@ from paho.mqtt import client as mqtt_client
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("requests").setLevel(logging.WARNING)
 
 sf_device_id = os.environ.get('SF_DEVICE_ID',None)
 sf_product_id = os.environ.get('SF_PRODUCT_ID',"73bkTV")
@@ -24,7 +22,7 @@ MAX_INVERTER_LIMIT = 800                                                 # the m
 MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
 INVERTER_MPPTS = int(os.environ.get('INVERTER_MPPTS',4))                 # the number of inverter inputs or mppts. SF only uses 2 so when limiting we need to adjust for that
 INVERTER_SF_INPUTS_USED = int(os.environ.get('INVERTER_SF_INPUTS_USED',2))   # how many Inverter input channels are used by Solarflow   
-
+FAST_CHANGE_OFFSET = 200
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")              
@@ -91,6 +89,7 @@ def on_inverter_update(msg):
 # this needs to be configured for different smartmeter readers (Hichi, PowerOpti, Shelly)
 def on_smartmeter_update(msg):
     global smartmeter_values
+    global limit_values
     payload = json.loads(msg)
     if len(smartmeter_values) >= sm_window:
         smartmeter_values.pop(0)
@@ -100,19 +99,20 @@ def on_smartmeter_update(msg):
     #    value = MAX_INVERTER_INPUT
     smartmeter_values.append(value)
 
-    
-    tail = reduce(lambda a,b: a+b, smartmeter_values[:-2])/(len(smartmeter_values)-2)
-    head = reduce(lambda a,b: a+b, smartmeter_values[2:])/(len(smartmeter_values)-2)
-    # detect fast drop in demand
-    if tail > head + MAX_INVERTER_INPUT:
-        log.info(f'Detected a fast drop in demand, enabling accelerated adjustment!')
-        smartmeter_values = head
+    if len(smartmeter_values) >= sm_window:    
+        tail = reduce(lambda a,b: a+b, smartmeter_values[:-2])/(len(smartmeter_values)-2)
+        head = reduce(lambda a,b: a+b, smartmeter_values[-2:])/(len(smartmeter_values)-2)
+        # detect fast drop in demand
+        if tail > head + FAST_CHANGE_OFFSET:
+            log.info(f'Detected a fast drop in demand, enabling accelerated adjustment!')
+            smartmeter_values = smartmeter_values[-2:]
+            limit_values = limit_values[-1:]
 
-    # detect fast rise in demand
-    if tail + MAX_INVERTER_INPUT < head:
-        log.info(f'Detected a fast rise in demand, enabling accelerated adjustment!')
-        smartmeter_values = head
-    
+        # detect fast rise in demand
+        if tail + FAST_CHANGE_OFFSET < head:
+            log.info(f'Detected a fast rise in demand, enabling accelerated adjustment!')
+            smartmeter_values = smartmeter_values[-2:]
+            limit_values = limit_values[-1:]
 
 def on_message(client, userdata, msg):
     global last_solar_input_update
@@ -195,16 +195,16 @@ def limitHomeInput(client: mqtt_client):
     global smartmeter_values, solarflow_values, inverter_values
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
-        log.warning(f'Waiting for smartmeter data to make decisions...')
+        log.info(f'Waiting for smartmeter data to make decisions...')
         return
     if len(solarflow_values) == 0:
-        log.warning(f'Waiting for solarflow input data to make decisions...')
+        log.info(f'Waiting for solarflow input data to make decisions...')
         return
     if len(inverter_values) == 0:
-        log.warning(f'Waiting for inverter data to make decisions...')
+        log.info(f'Waiting for inverter data to make decisions...')
         return
     if battery < 0:
-        log.warning(f'Waiting for battery state to make decisions...')
+        log.info(f'Waiting for battery state to make decisions...')
         return
         
     smartmeter = reduce(lambda a,b: a+b, smartmeter_values)/len(smartmeter_values)
@@ -237,7 +237,8 @@ def limitHomeInput(client: mqtt_client):
             else:                                               
                 limit = 0                                       # throughout the day use everything to charge
 
-    limit_values.pop(0)
+    if len(limit_values) >= limit_window:
+        limit_values.pop(0)
     limit_values.append(0 if limit<0 else limit)                # to recover faster from negative demands
     limit = int(reduce(lambda a,b: a+b, limit_values)/len(limit_values))
 
