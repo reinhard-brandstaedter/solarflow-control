@@ -94,7 +94,11 @@ def on_smartmeter_update(msg):
     if len(smartmeter_values) >= sm_window:
         smartmeter_values.pop(0)
     # replace values from smartmeter that are higher than what we could deliver with MAX_SOLAR_INPUT to smoothen spikes
-    value = int(payload["Power"]["Power_curr"])
+    if type(payload) is float or type(payload) is int:
+        value = payload
+    else:
+        value = int(payload["Power"]["Power_curr"])
+        
     #if value > MAX_INVERTER_INPUT:
     #    value = MAX_INVERTER_INPUT
     smartmeter_values.append(value)
@@ -106,13 +110,13 @@ def on_smartmeter_update(msg):
         if tail > head + FAST_CHANGE_OFFSET:
             log.info(f'Detected a fast drop in demand, enabling accelerated adjustment!')
             smartmeter_values = smartmeter_values[-2:]
-            limit_values = limit_values[-1:]
+            limit_values = []
 
         # detect fast rise in demand
         if tail + FAST_CHANGE_OFFSET < head:
             log.info(f'Detected a fast rise in demand, enabling accelerated adjustment!')
             smartmeter_values = smartmeter_values[-2:]
-            limit_values = limit_values[-1:]
+            limit_values = []
 
 def on_message(client, userdata, msg):
     global last_solar_input_update
