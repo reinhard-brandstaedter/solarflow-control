@@ -94,7 +94,10 @@ def on_smartmeter_update(msg):
     if len(smartmeter_values) >= sm_window:
         smartmeter_values.pop(0)
     # replace values from smartmeter that are higher than what we could deliver with MAX_SOLAR_INPUT to smoothen spikes
-    value = int(payload["Power"]["Power_curr"])
+    if type(payload) is float or type(payload) is int:
+        value = payload
+    else:
+        value = int(payload["Power"]["Power_curr"])
     #if value > MAX_INVERTER_INPUT:
     #    value = MAX_INVERTER_INPUT
     smartmeter_values.append(value)
