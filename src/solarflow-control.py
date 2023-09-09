@@ -179,7 +179,7 @@ def limitSolarflow(client: mqtt_client, limit):
     # to get a fine granular steering at this level we need to fall back to the inverter limit
     # if controlling the inverter is not possible we should stick to either 0 or 100W
     if limit <= 100:
-        limitInverter(client,inv_limit)
+        limitInverter(client,limit)
         log.info(f'The output limit would be below 100W ({limit}W). Need to limit the inverter to match it precisely!')
         limit = 100 if limit > 50 else 0
     else:
