@@ -24,6 +24,7 @@ MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
 INVERTER_MPPTS = int(os.environ.get('INVERTER_MPPTS',4))                 # the number of inverter inputs or mppts. SF only uses 2 so when limiting we need to adjust for that
 INVERTER_SF_INPUTS_USED = int(os.environ.get('INVERTER_SF_INPUTS_USED',2))   # how many Inverter input channels are used by Solarflow   
 FAST_CHANGE_OFFSET = 200
+limit_inverter = bool(os.environ.get('LIMIT_INVERTER',False))
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")              
@@ -252,8 +253,10 @@ def limitHomeInput(client: mqtt_client):
     log.info(f'Smartmeter: [{sm}], Demand: {demand}W, Solar: {solarinput}W, Inverter: {inverterinput}W, Home: {home}W, Battery: {battery}% charging: {charging}W => Limit: {limit}W - [{lm}]')
     # only set the limit if the value has changed
     #if limit != limit_values[-2]:
-    #limitInverter(client,limit)
-    limitSolarflow(client,limit)
+    if limit_inverter:
+        limitInverter(client,limit)
+    else:
+        limitSolarflow(client,limit)
 
 def run():
     client = connect_mqtt()
@@ -278,6 +281,7 @@ def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
     global sf_device_id
     global topic_limit_solarflow
+    global limit_inverter
     opts, args = getopt.getopt(argv,"hb:p:u:s:d:",["broker=","port=","user=","password="])
     for opt, arg in opts:
         if opt == '-h':
@@ -321,6 +325,7 @@ def main(argv):
     log.info(f'  Solarflow Battery Charging: {topic_solarflow_outputpack}')
     log.info(f'Topic to limit Solarflow Output: {topic_limit_solarflow}')
     log.info(f'Topic to limit Inverter Output: {topic_limit_non_persistent}')
+    log.info(f'Limit via inverter: {limit_inverter}')
 
     run()
 
