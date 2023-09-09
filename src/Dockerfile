@@ -5,5 +5,5 @@ WORKDIR /
 
 COPY solarflow-control.py /
 
-RUN pip install paho-mqtt
+RUN pip install paho-mqtt click
 ENTRYPOINT ["python","solarflow-control.py"]
