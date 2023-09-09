@@ -2,6 +2,7 @@ import random, json, time, logging, sys, getopt, os
 from datetime import datetime
 from functools import reduce
 from paho.mqtt import client as mqtt_client
+import click
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -180,7 +181,7 @@ def limitSolarflow(client: mqtt_client, limit):
         inv_limit = limit*(1/(INVERTER_SF_INPUTS_USED/INVERTER_MPPTS))
         limitInverter(client,inv_limit)
         log.info(f'The output limit would be below 100W ({limit}W). Need to limit the inverter to match it precisely!')
-        limit = 100
+        limit = 100 if limit > 50 else 0
     else:
         limitInverter(client,MAX_INVERTER_LIMIT)
 
@@ -265,6 +266,13 @@ def run():
 
     client.loop_stop()
 
+@click.command
+@click.option("--limit-via", type=click.Choice(['inverter','hub'], case_sensitive=False))
+@click.option("--broker","-b",help="IP/Hostname of the local MQTT broker to use")
+@click.option("--port","-p",help="Port of the local MQTT broker, if different from default (1883)")
+@click.option("--user","-u", help="Login name for local MQTT broker")
+@click.option("--secret","-s", help="Password for the local MQTT broker user")
+@click.option("--offline/--online", default=True, help="Offline/Online mode: either connect to the Zendure API/MQTT or not (requires local MQTT with hub data present)")
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
     global sf_device_id
