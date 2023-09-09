@@ -99,6 +99,7 @@ def on_smartmeter_update(msg):
         value = payload
     else:
         value = int(payload["Power"]["Power_curr"])
+        
     #if value > MAX_INVERTER_INPUT:
     #    value = MAX_INVERTER_INPUT
     smartmeter_values.append(value)
