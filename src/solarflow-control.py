@@ -24,6 +24,7 @@ MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
 INVERTER_MPPTS = int(os.environ.get('INVERTER_MPPTS',4))                 # the number of inverter inputs or mppts. SF only uses 2 so when limiting we need to adjust for that
 INVERTER_SF_INPUTS_USED = int(os.environ.get('INVERTER_SF_INPUTS_USED',2))   # how many Inverter input channels are used by Solarflow   
 FAST_CHANGE_OFFSET = 200
+limit_inverter = bool(os.environ.get('LIMIT_INVERTER',False))
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")              
@@ -178,8 +179,6 @@ def limitSolarflow(client: mqtt_client, limit):
     # to get a fine granular steering at this level we need to fall back to the inverter limit
     # if controlling the inverter is not possible we should stick to either 0 or 100W
     if limit <= 100:
-        # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
-        inv_limit = limit*(1/(INVERTER_SF_INPUTS_USED/INVERTER_MPPTS))
         limitInverter(client,inv_limit)
         log.info(f'The output limit would be below 100W ({limit}W). Need to limit the inverter to match it precisely!')
         limit = 100 if limit > 50 else 0
@@ -191,7 +190,9 @@ def limitSolarflow(client: mqtt_client, limit):
 
 # set the limit on the inverter (when using inverter only mode)
 def limitInverter(client: mqtt_client, limit):
-    client.publish(topic_limit_non_persistent,f'{limit}')
+    # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
+    inv_limit = limit*(1/(INVERTER_SF_INPUTS_USED/INVERTER_MPPTS))
+    client.publish(topic_limit_non_persistent,f'{inv_limit}')
 
 
 def limitHomeInput(client: mqtt_client):
@@ -252,8 +253,10 @@ def limitHomeInput(client: mqtt_client):
     log.info(f'Smartmeter: [{sm}], Demand: {demand}W, Solar: {solarinput}W, Inverter: {inverterinput}W, Home: {home}W, Battery: {battery}% charging: {charging}W => Limit: {limit}W - [{lm}]')
     # only set the limit if the value has changed
     #if limit != limit_values[-2]:
-    #limitInverter(client,limit)
-    limitSolarflow(client,limit)
+    if limit_inverter:
+        limitInverter(client,limit)
+    else:
+        limitSolarflow(client,limit)
 
 def run():
     client = connect_mqtt()
@@ -267,17 +270,18 @@ def run():
 
     client.loop_stop()
 
-@click.command
-@click.option("--limit-via", type=click.Choice(['inverter','hub'], case_sensitive=False))
-@click.option("--broker","-b",help="IP/Hostname of the local MQTT broker to use")
-@click.option("--port","-p",help="Port of the local MQTT broker, if different from default (1883)")
-@click.option("--user","-u", help="Login name for local MQTT broker")
-@click.option("--secret","-s", help="Password for the local MQTT broker user")
-@click.option("--offline/--online", default=True, help="Offline/Online mode: either connect to the Zendure API/MQTT or not (requires local MQTT with hub data present)")
+#@click.command
+#@click.option("--limit-via", type=click.Choice(['inverter','hub'], case_sensitive=False))
+#@click.option("--broker","-b",help="IP/Hostname of the local MQTT broker to use")
+#@click.option("--port","-p",help="Port of the local MQTT broker, if different from default (1883)")
+#@click.option("--user","-u", help="Login name for local MQTT broker")
+#@click.option("--secret","-s", help="Password for the local MQTT broker user")
+#@click.option("--offline/--online", default=True, help="Offline/Online mode: either connect to the Zendure API/MQTT or not (requires local MQTT with hub data present)")
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
     global sf_device_id
     global topic_limit_solarflow
+    global limit_inverter
     opts, args = getopt.getopt(argv,"hb:p:u:s:d:",["broker=","port=","user=","password="])
     for opt, arg in opts:
         if opt == '-h':
@@ -321,6 +325,7 @@ def main(argv):
     log.info(f'  Solarflow Battery Charging: {topic_solarflow_outputpack}')
     log.info(f'Topic to limit Solarflow Output: {topic_limit_solarflow}')
     log.info(f'Topic to limit Inverter Output: {topic_limit_non_persistent}')
+    log.info(f'Limit via inverter: {limit_inverter}')
 
     run()
 
