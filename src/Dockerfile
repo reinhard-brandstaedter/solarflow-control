@@ -5,5 +5,5 @@ WORKDIR /
 
 COPY solarflow-control.py /
 
-RUN pip install paho-mqtt click
+RUN pip install paho-mqtt astral click
 ENTRYPOINT ["python","solarflow-control.py"]

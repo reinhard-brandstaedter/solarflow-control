@@ -1,7 +1,9 @@
 import random, json, time, logging, sys, getopt, os
-from datetime import datetime
+from datetime import datetime, date
 from functools import reduce
 from paho.mqtt import client as mqtt_client
+from astral import LocationInfo
+from astral.sun import sun
 import click
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
@@ -26,6 +28,10 @@ INVERTER_SF_INPUTS_USED = int(os.environ.get('INVERTER_SF_INPUTS_USED',2))   # h
 FAST_CHANGE_OFFSET = 200
 limit_inverter = bool(os.environ.get('LIMIT_INVERTER',False))
 
+# Location Info
+LAT=float(os.environ.get('LATITUDE',48.147381))
+LONG=float(os.environ.get('LONGITUDE',11.730140))
+
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")              
 # topic for the microinverter input to home (e.g. from OpenDTU, AhouyDTU)
@@ -34,6 +40,7 @@ topic_acinput = os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
 topic_solarflow_solarinput = "solarflow-hub/telemetry/solarInputPower"
 topic_solarflow_electriclevel = "solarflow-hub/telemetry/electricLevel"
 topic_solarflow_outputpack = "solarflow-hub/telemetry/outputPackPower"
+topic_solarflow_packinput = "solarflow-hub/telemetry/packInputPower"
 topic_solarflow_outputhome = "solarflow-hub/telemetry/outputHomePower"
 
 # topic to control the Solarflow Hub (used to set output limit)
@@ -42,6 +49,9 @@ topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
 # optional topic for controlling the inverter limit
 #topic_ahoylimit = "inverter/ctrl/limit/0"                                              #AhoyDTU
 topic_limit_non_persistent = "solar/116491132532/cmd/limit_nonpersistent_absolute"      #OpenDTU
+
+# location info for determining sunrise/sunset
+loc = LocationInfo(timezone='Europe/Berlin',latitude=LAT, longitude=LONG)
 
 client_id = f'solarflow-control-{random.randint(0, 100)}'
 
@@ -77,6 +87,11 @@ def on_solarflow_outputpack(msg):
     #log.info(f'Received outputPack: {msg}')
     global charging
     charging = int(msg)
+
+def on_solarflow_packinput(msg):
+    #log.info(f'Received packInput: {msg}')
+    global charging
+    charging = -int(msg)
 
 def on_solarflow_outputhome(msg):
     global home
@@ -140,6 +155,8 @@ def on_message(client, userdata, msg):
         on_solarflow_electriclevel(msg.payload.decode()) 
     if msg.topic == topic_solarflow_outputpack:
         on_solarflow_outputpack(msg.payload.decode()) 
+    if msg.topic == topic_solarflow_packinput:
+        on_solarflow_packinput(msg.payload.decode()) 
     if msg.topic == topic_solarflow_outputhome:
         on_solarflow_outputhome(msg.payload.decode()) 
     if msg.topic == topic_house:
@@ -165,6 +182,7 @@ def subscribe(client: mqtt_client):
     client.subscribe(topic_solarflow_solarinput)
     client.subscribe(topic_solarflow_electriclevel)
     client.subscribe(topic_solarflow_outputpack)
+    client.subscribe(topic_solarflow_packinput)
     client.subscribe(topic_solarflow_outputhome)
     client.on_message = on_message
 
@@ -219,14 +237,17 @@ def limitHomeInput(client: mqtt_client):
     demand = int(round((smartmeter + inverterinput)))
     limit = 0
 
-    hour = datetime.now().hour
+    now = datetime.now(tz=loc.tzinfo)   
+    s = sun(loc.observer, date=now, tzinfo=loc.timezone)
+    sunrise = s['sunrise']
+    sunset = s['sunset']
 
     # now all the logic when/how to set limit
     if battery > BATTERY_HIGH:
         if solarinput > 0 and solarinput > MIN_CHARGE_LEVEL:    # producing more than what is needed => only take what is needed and charge, giving a bit extra to demand
             limit = min(demand + OVERAGE_LIMIT,solarinput + OVERAGE_LIMIT)
         if solarinput > 0 and solarinput <= MIN_CHARGE_LEVEL:   # producing less than the minimum charge level 
-            if hour <= 6 or hour >= 16:                         # in the morning keep using battery
+            if now <= sunrise or now > sunset:                         # in the morning keep using battery
                 limit = MAX_DISCHARGE_LEVEL
             else:                                               
                 limit = solarinput + OVERAGE_LIMIT              # everything goes to the house throughout the day, in case SF regulated solarinput down we need to demand a bit more stepwise
@@ -238,10 +259,13 @@ def limitHomeInput(client: mqtt_client):
         if solarinput > 0 and solarinput > MIN_CHARGE_LEVEL:
             limit = min(demand,solarinput - MIN_CHARGE_LEVEL - 10)   # give charging precedence
         if solarinput <= MIN_CHARGE_LEVEL:                      # producing less than the minimum charge level 
-            if hour <= 6 or hour >= 16:                         
+            if now < sunrise or now > sunset:                         
                 limit = min(demand,MAX_DISCHARGE_LEVEL)         # in the morning keep using battery, in the evening start using battery
-            else:                                               
-                limit = 0                                       # throughout the day use everything to charge
+            else:
+                if battery > BATTERY_LOW:
+                    limit = min(solarinput, demand)             # battery is over minimum limit, feed to house
+                else:                                           
+                    limit = 0                                   # throughout the day use everything to charge
 
     if len(limit_values) >= limit_window:
         limit_values.pop(0)
@@ -250,7 +274,7 @@ def limitHomeInput(client: mqtt_client):
 
     sm = ",".join([f'{v:>4}' for v in smartmeter_values])
     lm = ",".join([f'{v:>4}' for v in limit_values])
-    log.info(f'Smartmeter: [{sm}], Demand: {demand}W, Solar: {solarinput}W, Inverter: {inverterinput}W, Home: {home}W, Battery: {battery}% charging: {charging}W => Limit: {limit}W - [{lm}]')
+    log.info(f'Smartmeter: [{sm}], Demand: {demand}W, Solar: {solarinput}W, Inverter: {inverterinput}W, Home: {home}W, Battery: {battery}% {"dis" if charging<0 else ""}charging: {charging}W => Limit: {limit}W - [{lm}]')
     # only set the limit if the value has changed
     #if limit != limit_values[-2]:
     if limit_inverter:
