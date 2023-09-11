@@ -4,6 +4,8 @@ from functools import reduce
 from paho.mqtt import client as mqtt_client
 from astral import LocationInfo
 from astral.sun import sun
+import requests
+from ip2geotools.databases.noncommercial import DbIpCity
 import click
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
@@ -30,7 +32,7 @@ limit_inverter = bool(os.environ.get('LIMIT_INVERTER',False))
 
 # Location Info
 LAT=float(os.environ.get('LATITUDE',48.147381))
-LONG=float(os.environ.get('LONGITUDE',11.730140))
+LNG=float(os.environ.get('LONGITUDE',11.730140))
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")              
@@ -51,7 +53,7 @@ topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
 topic_limit_non_persistent = "solar/116491132532/cmd/limit_nonpersistent_absolute"      #OpenDTU
 
 # location info for determining sunrise/sunset
-loc = LocationInfo(timezone='Europe/Berlin',latitude=LAT, longitude=LONG)
+loc = LocationInfo(timezone='Europe/Berlin',latitude=LAT, longitude=LNG)
 
 client_id = f'solarflow-control-{random.randint(0, 100)}'
 
@@ -69,6 +71,27 @@ battery = -1
 charging = 0
 home = 0
 last_solar_input_update = datetime.now()
+
+
+class MyLocation:
+    ip = ""
+
+    def __init__(self) -> None:
+        try:
+            result = requests.get("https://ifconfig.me")
+            self.ip = result.text
+        except:
+            log.error(f'Can\'t determine my IP. Auto-location detection failed')
+            return None
+        
+        
+    def getCoordinates(self) -> tuple:
+        res = DbIpCity.get(self.ip, api_key="free")
+        log.info(f"IP Address: {res.ip_address}")
+        log.info(f"Location: {res.city}, {res.region}, {res.country}")
+        log.info(f"Coordinates: (Lat: {res.latitude}, Lng: {res.longitude})")
+        return (res.latitude,res.longitude)
+
 
 def on_solarflow_solarinput(msg):
     #log.info(f'Received solarInput: {msg}')
@@ -116,8 +139,6 @@ def on_smartmeter_update(msg):
     else:
         value = int(payload["Power"]["Power_curr"])
         
-    #if value > MAX_INVERTER_INPUT:
-    #    value = MAX_INVERTER_INPUT
     smartmeter_values.append(value)
 
     if len(smartmeter_values) >= sm_window:    
@@ -259,13 +280,10 @@ def limitHomeInput(client: mqtt_client):
         if solarinput > 0 and solarinput > MIN_CHARGE_LEVEL:
             limit = min(demand,solarinput - MIN_CHARGE_LEVEL - 10)   # give charging precedence
         if solarinput <= MIN_CHARGE_LEVEL:                      # producing less than the minimum charge level 
-            if now < sunrise or now > sunset:                         
+            if (now < sunrise or now > sunset) or battery > BATTERY_LOW:                         
                 limit = min(demand,MAX_DISCHARGE_LEVEL)         # in the morning keep using battery, in the evening start using battery
-            else:
-                if battery > BATTERY_LOW:
-                    limit = min(solarinput, demand)             # battery is over minimum limit, feed to house
-                else:                                           
-                    limit = 0                                   # throughout the day use everything to charge
+            else:                                     
+                limit = 0                                   # throughout the day use everything to charge
 
     if len(limit_values) >= limit_window:
         limit_values.pop(0)
@@ -274,7 +292,7 @@ def limitHomeInput(client: mqtt_client):
 
     sm = ",".join([f'{v:>4}' for v in smartmeter_values])
     lm = ",".join([f'{v:>4}' for v in limit_values])
-    log.info(f'Smartmeter: [{sm}], Demand: {demand}W, Solar: {solarinput}W, Inverter: {inverterinput}W, Home: {home}W, Battery: {battery}% {"dis" if charging<0 else ""}charging: {charging}W => Limit: {limit}W - [{lm}]')
+    log.info(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")}, Smartmeter: [{sm}], Demand: {demand}W, Solar: {solarinput}W, Inverter: {inverterinput}W, Home: {home}W, Battery: {battery}% {"dis" if charging<0 else ""}charging: {charging}W => Limit: {limit}W - [{lm}]')
     # only set the limit if the value has changed
     #if limit != limit_values[-2]:
     if limit_inverter:
@@ -350,6 +368,12 @@ def main(argv):
     log.info(f'Topic to limit Solarflow Output: {topic_limit_solarflow}')
     log.info(f'Topic to limit Inverter Output: {topic_limit_non_persistent}')
     log.info(f'Limit via inverter: {limit_inverter}')
+    
+    loc = MyLocation()
+    coordinates = loc.getCoordinates()
+    if loc is None:
+        coordinates = (LAT,LNG)
+        log.info(f'Geocoordinates: {coordinates}')
 
     run()
 

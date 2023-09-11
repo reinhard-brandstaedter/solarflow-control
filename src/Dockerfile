@@ -5,5 +5,5 @@ WORKDIR /
 
 COPY solarflow-control.py /
 
-RUN pip install paho-mqtt astral click
+RUN pip install paho-mqtt astral click ip2geotools
 ENTRYPOINT ["python","solarflow-control.py"]
