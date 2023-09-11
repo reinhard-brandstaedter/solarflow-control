@@ -264,25 +264,38 @@ def limitHomeInput(client: mqtt_client):
     sunset = s['sunset']
 
     # now all the logic when/how to set limit
+    path = ""
     if battery > BATTERY_HIGH:
+        path = "1."
         if solarinput > 0 and solarinput > MIN_CHARGE_LEVEL:    # producing more than what is needed => only take what is needed and charge, giving a bit extra to demand
+            path += "1."
             limit = min(demand + OVERAGE_LIMIT,solarinput + OVERAGE_LIMIT)
         if solarinput > 0 and solarinput <= MIN_CHARGE_LEVEL:   # producing less than the minimum charge level 
-            if now <= sunrise or now > sunset:                         # in the morning keep using battery
+            path += "2."
+            if now <= sunrise or now > sunset:
+                path += "1"                         # in the morning keep using battery
                 limit = MAX_DISCHARGE_LEVEL
-            else:                                               
+            else:         
+                path += "2"                                      
                 limit = solarinput + OVERAGE_LIMIT              # everything goes to the house throughout the day, in case SF regulated solarinput down we need to demand a bit more stepwise
-        if solarinput <= 0:                                     
+        if solarinput <= 0:
+            path += "3"                                     
             limit = min(demand,MAX_DISCHARGE_LEVEL)             # not producing and demand is less than discharge limit => discharge with what is needed but limit to MAX
-    elif battery <= BATTERY_LOW:                                         
+    elif battery <= BATTERY_LOW:
+        path = "2."                                         
         limit = 0                                               # battery is at low stage, stop discharging
     else:
+        path = "3."
         if solarinput > 0 and solarinput > MIN_CHARGE_LEVEL:
+            path += "1." 
             limit = min(demand,solarinput - MIN_CHARGE_LEVEL - 10)   # give charging precedence
-        if solarinput <= MIN_CHARGE_LEVEL:                      # producing less than the minimum charge level 
-            if (now < sunrise or now > sunset) or battery > BATTERY_LOW:                         
+        if solarinput <= MIN_CHARGE_LEVEL:  
+            path += "2."                    # producing less than the minimum charge level 
+            if (now < sunrise or now > sunset) or battery > BATTERY_LOW: 
+                path += "1"                        
                 limit = min(demand,MAX_DISCHARGE_LEVEL)         # in the morning keep using battery, in the evening start using battery
-            else:                                     
+            else:
+                path += "2"                                     
                 limit = 0                                   # throughout the day use everything to charge
 
     if len(limit_values) >= limit_window:
@@ -292,7 +305,7 @@ def limitHomeInput(client: mqtt_client):
 
     sm = ",".join([f'{v:>4}' for v in smartmeter_values])
     lm = ",".join([f'{v:>4}' for v in limit_values])
-    log.info(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")}, Smartmeter: [{sm}], Demand: {demand}W, Solar: {solarinput}W, Inverter: {inverterinput}W, Home: {home}W, Battery: {battery}% {"dis" if charging<0 else ""}charging: {charging}W => Limit: {limit}W - [{lm}]')
+    log.info(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")}, Smartmeter: [{sm}], Demand: {demand}W, Solar: {solarinput}W, Inverter: {inverterinput}W, Home: {home}W, Battery: {battery}% {"dis" if charging<0 else ""}charging: {charging}W => Limit: {limit}W - [{lm}] - path: {path}')
     # only set the limit if the value has changed
     #if limit != limit_values[-2]:
     if limit_inverter:
