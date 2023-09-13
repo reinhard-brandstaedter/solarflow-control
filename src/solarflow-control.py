@@ -1,7 +1,11 @@
 import random, json, time, logging, sys, getopt, os
-from datetime import datetime
+from datetime import datetime, date
 from functools import reduce
 from paho.mqtt import client as mqtt_client
+from astral import LocationInfo
+from astral.sun import sun
+import requests
+from ip2geotools.databases.noncommercial import DbIpCity
 import click
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
@@ -15,7 +19,8 @@ mqtt_pwd = os.environ.get('MQTT_PWD',None)
 mqtt_host = os.environ.get('MQTT_HOST',None)
 mqtt_port = os.environ.get('MQTT_PORT',1883)
 MIN_CHARGE_LEVEL = int(os.environ.get('MIN_CHARGE_LEVEL',125))          # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
-MAX_DISCHARGE_LEVEL = int(os.environ.get('MAX_DISCHARGE_LEVEL',145))    # The maximum discharge level of the battery. Even if there is more demand it will not go beyond that
+MAX_DISCHARGE_LEVEL = int(os.environ.get('MAX_DISCHARGE_LEVEL',145))    # The maximum discharge level of the packSoc. Even if there is more demand it will not go beyond that
+DAY_DISCHARGE_SOC = int(os.environ.get('MAX_DISCHARGE_LEVEL',50))      # The minimum state of charge of the battery to start discharging also throughout the day
 OVERAGE_LIMIT = 15                                                      # if we produce more than what we need we can feed that much to the grid
 BATTERY_LOW = int(os.environ.get('BATTERY_LOW',10)) 
 BATTERY_HIGH = int(os.environ.get('BATTERY_HIGH',98))
@@ -26,6 +31,10 @@ INVERTER_SF_INPUTS_USED = int(os.environ.get('INVERTER_SF_INPUTS_USED',2))   # h
 FAST_CHANGE_OFFSET = 200
 limit_inverter = bool(os.environ.get('LIMIT_INVERTER',False))
 
+# Location Info
+LAT=float(os.environ.get('LATITUDE',48.147381))
+LNG=float(os.environ.get('LONGITUDE',11.730140))
+
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")              
 # topic for the microinverter input to home (e.g. from OpenDTU, AhouyDTU)
@@ -34,7 +43,10 @@ topic_acinput = os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
 topic_solarflow_solarinput = "solarflow-hub/telemetry/solarInputPower"
 topic_solarflow_electriclevel = "solarflow-hub/telemetry/electricLevel"
 topic_solarflow_outputpack = "solarflow-hub/telemetry/outputPackPower"
+topic_solarflow_packinput = "solarflow-hub/telemetry/packInputPower"
 topic_solarflow_outputhome = "solarflow-hub/telemetry/outputHomePower"
+topic_solarflow_maxtemp = "solarflow-hub/telemetry/batteries/+/maxTemp"
+topic_solarflow_battery_soclevel = "solarflow-hub/telemetry/batteries/+/socLevel"
 
 # topic to control the Solarflow Hub (used to set output limit)
 topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
@@ -42,6 +54,9 @@ topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
 # optional topic for controlling the inverter limit
 #topic_ahoylimit = "inverter/ctrl/limit/0"                                              #AhoyDTU
 topic_limit_non_persistent = "solar/116491132532/cmd/limit_nonpersistent_absolute"      #OpenDTU
+
+# location info for determining sunrise/sunset
+loc = LocationInfo(timezone='Europe/Berlin',latitude=LAT, longitude=LNG)
 
 client_id = f'solarflow-control-{random.randint(0, 100)}'
 
@@ -55,10 +70,33 @@ inverter_values = [0]*inv_window
 limit_window = int(os.environ.get('LIMIT_WINDOW',5))
 limit_values =  [0]*limit_window
 
-battery = -1
+packSoc = -1
 charging = 0
 home = 0
+maxtemp = 1000
+batterySocs = {"dummy": -1}
 last_solar_input_update = datetime.now()
+
+
+class MyLocation:
+    ip = ""
+
+    def __init__(self) -> None:
+        try:
+            result = requests.get("https://ifconfig.me")
+            self.ip = result.text
+        except:
+            log.error(f'Can\'t determine my IP. Auto-location detection failed')
+            return None
+        
+        
+    def getCoordinates(self) -> tuple:
+        res = DbIpCity.get(self.ip, api_key="free")
+        log.info(f"IP Address: {res.ip_address}")
+        log.info(f"Location: {res.city}, {res.region}, {res.country}")
+        log.info(f"Coordinates: (Lat: {res.latitude}, Lng: {res.longitude})")
+        return (res.latitude,res.longitude)
+
 
 def on_solarflow_solarinput(msg):
     #log.info(f'Received solarInput: {msg}')
@@ -70,17 +108,31 @@ def on_solarflow_solarinput(msg):
 
 def on_solarflow_electriclevel(msg):
     #log.info(f'Received electricLevel: {msg}')
-    global battery
-    battery = int(msg)
+    global packSoc
+    packSoc = int(msg)
 
 def on_solarflow_outputpack(msg):
     #log.info(f'Received outputPack: {msg}')
     global charging
     charging = int(msg)
 
+def on_solarflow_packinput(msg):
+    #log.info(f'Received packInput: {msg}')
+    global charging
+    charging = -int(msg)
+
 def on_solarflow_outputhome(msg):
     global home
     home = int(msg)
+
+def on_solarflow_maxtemp(msg):
+    global maxtemp
+    maxtemp = int(msg)
+
+def on_solarflow_battery_soclevel(sn, msg):
+    global batterySocs
+    batterySocs.pop("dummy",None)
+    batterySocs.update({sn:int(msg)})
 
 def on_inverter_update(msg):
     global inverter_values
@@ -101,8 +153,6 @@ def on_smartmeter_update(msg):
     else:
         value = int(payload["Power"]["Power_curr"])
         
-    #if value > MAX_INVERTER_INPUT:
-    #    value = MAX_INVERTER_INPUT
     smartmeter_values.append(value)
 
     if len(smartmeter_values) >= sm_window:    
@@ -122,7 +172,7 @@ def on_smartmeter_update(msg):
 
 def on_message(client, userdata, msg):
     global last_solar_input_update
-    if msg.topic.startswith("solarflow-status"):
+    if msg.topic.startswith("solarflow-hub"):
         now = datetime.now()
         diff = now - last_solar_input_update
         seconds = diff.total_seconds()
@@ -140,10 +190,18 @@ def on_message(client, userdata, msg):
         on_solarflow_electriclevel(msg.payload.decode()) 
     if msg.topic == topic_solarflow_outputpack:
         on_solarflow_outputpack(msg.payload.decode()) 
+    if msg.topic == topic_solarflow_packinput:
+        on_solarflow_packinput(msg.payload.decode()) 
     if msg.topic == topic_solarflow_outputhome:
         on_solarflow_outputhome(msg.payload.decode()) 
+    if "maxTemp" in msg.topic and "batteries" in msg.topic:
+        on_solarflow_maxtemp(msg.payload.decode()) 
+    if "socLevel" in msg.topic and "batteries" in msg.topic:
+        sn = msg.topic.split('/')[-2]
+        on_solarflow_battery_soclevel(sn, msg.payload.decode())
     if msg.topic == topic_house:
         on_smartmeter_update(msg.payload.decode())
+    
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -165,13 +223,23 @@ def subscribe(client: mqtt_client):
     client.subscribe(topic_solarflow_solarinput)
     client.subscribe(topic_solarflow_electriclevel)
     client.subscribe(topic_solarflow_outputpack)
+    client.subscribe(topic_solarflow_packinput)
     client.subscribe(topic_solarflow_outputhome)
+    client.subscribe(topic_solarflow_battery_soclevel)
     client.on_message = on_message
 
 # this ensures that the buzzerSwitch (audio confirmation upon commands) is off
 def turnOffBuzzer(client: mqtt_client):
     buzzer = {"properties": { "buzzerSwitch": 0 }}
     client.publish(topic_limit_solarflow,json.dumps(buzzer))
+
+# this can be used to completely disable charging (e.g. on low packSoc temperature)
+def checkCharging(client: mqtt_client):
+    global maxtemp
+    socset = {"properties": { "socSet": 0 }}
+    if maxtemp < 1000:
+        log.warning(f'The maximum measured battery temperature is {maxtemp/100}. Disabling charging to avoid damage! Please reset manually one temperature is high enough!')
+        client.publish(topic_limit_solarflow,json.dumps(socset))
 
 # limit the output to home setting on the Solarflow hub
 def limitSolarflow(client: mqtt_client, limit):
@@ -197,7 +265,7 @@ def limitInverter(client: mqtt_client, limit):
 
 def limitHomeInput(client: mqtt_client):
     global home
-    global battery
+    global packSoc, batterySocs
     global smartmeter_values, solarflow_values, inverter_values
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
@@ -209,8 +277,8 @@ def limitHomeInput(client: mqtt_client):
     if len(inverter_values) == 0:
         log.info(f'Waiting for inverter data to make decisions...')
         return
-    if battery < 0:
-        log.info(f'Waiting for battery state to make decisions...')
+    if packSoc < 0:
+        log.info(f'Waiting for state of charge to make decisions...')
         return
         
     smartmeter = reduce(lambda a,b: a+b, smartmeter_values)/len(smartmeter_values)
@@ -219,29 +287,45 @@ def limitHomeInput(client: mqtt_client):
     demand = int(round((smartmeter + inverterinput)))
     limit = 0
 
-    hour = datetime.now().hour
+    now = datetime.now(tz=loc.tzinfo)   
+    s = sun(loc.observer, date=now, tzinfo=loc.timezone)
+    sunrise = s['sunrise']
+    sunset = s['sunset']
 
     # now all the logic when/how to set limit
-    if battery > BATTERY_HIGH:
+    path = ""
+    if packSoc > BATTERY_HIGH:
+        path = "1."
         if solarinput > 0 and solarinput > MIN_CHARGE_LEVEL:    # producing more than what is needed => only take what is needed and charge, giving a bit extra to demand
+            path += "1."
             limit = min(demand + OVERAGE_LIMIT,solarinput + OVERAGE_LIMIT)
         if solarinput > 0 and solarinput <= MIN_CHARGE_LEVEL:   # producing less than the minimum charge level 
-            if hour <= 6 or hour >= 16:                         # in the morning keep using battery
+            path += "2."
+            if now <= sunrise or now > sunset:
+                path += "1"                         # in the morning keep using packSoc
                 limit = MAX_DISCHARGE_LEVEL
-            else:                                               
+            else:         
+                path += "2"                                      
                 limit = solarinput + OVERAGE_LIMIT              # everything goes to the house throughout the day, in case SF regulated solarinput down we need to demand a bit more stepwise
-        if solarinput <= 0:                                     
+        if solarinput <= 0:
+            path += "3"                                     
             limit = min(demand,MAX_DISCHARGE_LEVEL)             # not producing and demand is less than discharge limit => discharge with what is needed but limit to MAX
-    elif battery <= BATTERY_LOW:                                         
-        limit = 0                                               # battery is at low stage, stop discharging
+    elif packSoc <= BATTERY_LOW:
+        path = "2."                                         
+        limit = 0                                               # packSoc is at low stage, stop discharging
     else:
+        path = "3."
         if solarinput > 0 and solarinput > MIN_CHARGE_LEVEL:
+            path += "1." 
             limit = min(demand,solarinput - MIN_CHARGE_LEVEL - 10)   # give charging precedence
-        if solarinput <= MIN_CHARGE_LEVEL:                      # producing less than the minimum charge level 
-            if hour <= 6 or hour >= 16:                         
-                limit = min(demand,MAX_DISCHARGE_LEVEL)         # in the morning keep using battery, in the evening start using battery
-            else:                                               
-                limit = 0                                       # throughout the day use everything to charge
+        if solarinput <= MIN_CHARGE_LEVEL:  
+            path += "2."                    # producing less than the minimum charge level 
+            if (now < sunrise or now > sunset) or min(batterySocs.values()) > DAY_DISCHARGE_SOC: 
+                path += "1"                        
+                limit = min(demand,MAX_DISCHARGE_LEVEL)         # in the morning keep using packSoc, in the evening start using packSoc
+            else:
+                path += "2"                                     
+                limit = 0                                   # throughout the day use everything to charge
 
     if len(limit_values) >= limit_window:
         limit_values.pop(0)
@@ -250,9 +334,18 @@ def limitHomeInput(client: mqtt_client):
 
     sm = ",".join([f'{v:>4}' for v in smartmeter_values])
     lm = ",".join([f'{v:>4}' for v in limit_values])
-    log.info(f'Smartmeter: [{sm}], Demand: {demand}W, Solar: {solarinput}W, Inverter: {inverterinput}W, Home: {home}W, Battery: {battery}% charging: {charging}W => Limit: {limit}W - [{lm}]')
-    # only set the limit if the value has changed
-    #if limit != limit_values[-2]:
+    batSoc = "|".join("{}%".format(v) for k, v in batterySocs.items())
+
+    log.info(' '.join(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")}, \
+             Smartmeter: [{sm}], \
+             Demand: {demand}W, \
+             Solar: {solarinput}W, \
+             Inverter: {inverterinput}W, \
+             Home: {home}W, \
+             Battery: {packSoc}% ({batSoc}), \
+             {"dis" if charging<0 else ""}charging: {charging}W \
+             => Limit: {limit}W - [{lm}] - decisionpath: {path}'.split()))
+
     if limit_inverter:
         limitInverter(client,limit)
     else:
@@ -266,7 +359,9 @@ def run():
 
     while True:
         time.sleep(15)
+        checkCharging(client)
         limitHomeInput(client)
+        
 
     client.loop_stop()
 
@@ -326,6 +421,12 @@ def main(argv):
     log.info(f'Topic to limit Solarflow Output: {topic_limit_solarflow}')
     log.info(f'Topic to limit Inverter Output: {topic_limit_non_persistent}')
     log.info(f'Limit via inverter: {limit_inverter}')
+
+    loc = MyLocation()
+    coordinates = loc.getCoordinates()
+    if loc is None:
+        coordinates = (LAT,LNG)
+        log.info(f'Geocoordinates: {coordinates}')
 
     run()
 
