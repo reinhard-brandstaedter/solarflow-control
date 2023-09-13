@@ -7,7 +7,7 @@ pipeline {
         LOG_LEVEL = "INFO"
         BUILD_NUMBER = "${BUILD_NUMBER}"
         TAG = "0.${BUILD_NUMBER}"
-        DOCKERHUB_LOGIN = credentials('dockerhub-login')
+        DOCKERHUB_LOGIN = credentials('docker-login-private')
         GITHUB_AUTH_TOKEN = credentials('github_auth_token')
         git_branch = "${GIT_BRANCH}"
         BRANCH_NAME = git_branch.substring(git_branch.lastIndexOf('/') + 1, git_branch.length())
