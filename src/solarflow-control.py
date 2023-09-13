@@ -421,7 +421,7 @@ def main(argv):
     log.info(f'Topic to limit Solarflow Output: {topic_limit_solarflow}')
     log.info(f'Topic to limit Inverter Output: {topic_limit_non_persistent}')
     log.info(f'Limit via inverter: {limit_inverter}')
-    
+
     loc = MyLocation()
     coordinates = loc.getCoordinates()
     if loc is None:
