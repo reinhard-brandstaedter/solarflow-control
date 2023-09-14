@@ -36,7 +36,11 @@ LAT=float(os.environ.get('LATITUDE',48.147381))
 LNG=float(os.environ.get('LONGITUDE',11.730140))
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
-topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")              
+# if there is no single topic wich aggregates multiple phases (e.g. shelly 3EM) you can specify the topic in an array like this
+# topic_house = [shellies/shellyem3/emeter/1/power, shellies/shellyem3/emeter/2/power, shellies/shellyem3/emeter/3/power]
+topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")
+topics_house = [ t.strip() for t in topic_house.split(',')]
+
 # topic for the microinverter input to home (e.g. from OpenDTU, AhouyDTU)
 topic_acinput = os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
 # topics for telemetry read from Solarflow Hub                                                       
@@ -75,6 +79,7 @@ charging = 0
 home = 0
 maxtemp = 1000
 batterySocs = {"dummy": -1}
+phase_values = {}
 last_solar_input_update = datetime.now()
 
 
@@ -147,11 +152,45 @@ def on_smartmeter_update(msg):
     payload = json.loads(msg)
     if len(smartmeter_values) >= sm_window:
         smartmeter_values.pop(0)
-    # replace values from smartmeter that are higher than what we could deliver with MAX_SOLAR_INPUT to smoothen spikes
+
     if type(payload) is float or type(payload) is int:
         value = payload
     else:
         value = int(payload["Power"]["Power_curr"])
+        
+    smartmeter_values.append(value)
+
+    if len(smartmeter_values) >= sm_window:    
+        tail = reduce(lambda a,b: a+b, smartmeter_values[:-2])/(len(smartmeter_values)-2)
+        head = reduce(lambda a,b: a+b, smartmeter_values[-2:])/(len(smartmeter_values)-2)
+        # detect fast drop in demand
+        if tail > head + FAST_CHANGE_OFFSET:
+            log.info(f'Detected a fast drop in demand, enabling accelerated adjustment!')
+            smartmeter_values = smartmeter_values[-2:]
+            limit_values = []
+
+        # detect fast rise in demand
+        if tail + FAST_CHANGE_OFFSET < head:
+            log.info(f'Detected a fast rise in demand, enabling accelerated adjustment!')
+            smartmeter_values = smartmeter_values[-2:]
+            limit_values = []
+
+# Shelly 3EM reports one metric per phase and doesn't aggregate, so we need to do this by ourselves
+def on_shelly3em_update(msg):
+    global smartmeter_values
+    global limit_values
+    global phase_values
+    payload = json.loads(msg.payload.decode())
+    topic = msg.topic
+
+    if len(smartmeter_values) >= sm_window:
+        smartmeter_values.pop(0)
+
+    if type(payload) is float or type(payload) is int:
+        value = payload
+
+    phase_values.update({topic:value})
+    value = sum(phase_values.values())
         
     smartmeter_values.append(value)
 
@@ -199,8 +238,10 @@ def on_message(client, userdata, msg):
     if "socLevel" in msg.topic and "batteries" in msg.topic:
         sn = msg.topic.split('/')[-2]
         on_solarflow_battery_soclevel(sn, msg.payload.decode())
-    if msg.topic == topic_house:
-        on_smartmeter_update(msg.payload.decode())
+    if msg.topic in topics_house:
+        if len(topics_house) == 1:
+            on_smartmeter_update(msg.payload.decode())
+        if len(topics_house) > 1:
     
 
 def on_connect(client, userdata, flags, rc):
@@ -218,7 +259,9 @@ def connect_mqtt() -> mqtt_client:
     return client
 
 def subscribe(client: mqtt_client):
-    client.subscribe(topic_house)
+    for th in topic_house:
+        client.subscribe(th)
+
     client.subscribe(topic_acinput)
     client.subscribe(topic_solarflow_solarinput)
     client.subscribe(topic_solarflow_electriclevel)
