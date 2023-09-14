@@ -146,37 +146,8 @@ def on_inverter_update(msg):
     inverter_values.append(float(msg))
 
 # this needs to be configured for different smartmeter readers (Hichi, PowerOpti, Shelly)
-def on_smartmeter_update(msg):
-    global smartmeter_values
-    global limit_values
-    payload = json.loads(msg)
-    if len(smartmeter_values) >= sm_window:
-        smartmeter_values.pop(0)
-
-    if type(payload) is float or type(payload) is int:
-        value = payload
-    else:
-        value = int(payload["Power"]["Power_curr"])
-        
-    smartmeter_values.append(value)
-
-    if len(smartmeter_values) >= sm_window:    
-        tail = reduce(lambda a,b: a+b, smartmeter_values[:-2])/(len(smartmeter_values)-2)
-        head = reduce(lambda a,b: a+b, smartmeter_values[-2:])/(len(smartmeter_values)-2)
-        # detect fast drop in demand
-        if tail > head + FAST_CHANGE_OFFSET:
-            log.info(f'Detected a fast drop in demand, enabling accelerated adjustment!')
-            smartmeter_values = smartmeter_values[-2:]
-            limit_values = []
-
-        # detect fast rise in demand
-        if tail + FAST_CHANGE_OFFSET < head:
-            log.info(f'Detected a fast rise in demand, enabling accelerated adjustment!')
-            smartmeter_values = smartmeter_values[-2:]
-            limit_values = []
-
 # Shelly 3EM reports one metric per phase and doesn't aggregate, so we need to do this by ourselves
-def on_shelly3em_update(msg):
+def on_smartmeter_update(msg):
     global smartmeter_values
     global limit_values
     global phase_values
@@ -188,9 +159,11 @@ def on_shelly3em_update(msg):
 
     if type(payload) is float or type(payload) is int:
         value = payload
-
-    phase_values.update({topic:value})
-    value = sum(phase_values.values())
+        phase_values.update({topic:value})
+        value = sum(phase_values.values())
+    else:
+        # special case if current power is json format  (Hichi reader) 
+        value = int(payload["Power"]["Power_curr"])
         
     smartmeter_values.append(value)
 
@@ -239,9 +212,7 @@ def on_message(client, userdata, msg):
         sn = msg.topic.split('/')[-2]
         on_solarflow_battery_soclevel(sn, msg.payload.decode())
     if msg.topic in topics_house:
-        if len(topics_house) == 1:
-            on_smartmeter_update(msg.payload.decode())
-        if len(topics_house) > 1:
+        on_smartmeter_update(msg)
     
 
 def on_connect(client, userdata, flags, rc):
