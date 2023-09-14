@@ -190,7 +190,7 @@ def on_message(client, userdata, msg):
         seconds = diff.total_seconds()
         if seconds > 120:
             #if we haven't received any update on solarInputPower we assume it's not producing
-            log.info(f'No solarInputPower measurement received for {seconds}s')
+            #log.info(f'No solarInputPower measurement received for {seconds}s')
             solarflow_values.pop(0)
             solarflow_values.append(0)
 
