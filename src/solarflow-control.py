@@ -249,7 +249,9 @@ def limitSolarflow(client: mqtt_client, limit):
     if limit <= 100:
         limitInverter(client,limit)
         log.info(f'The output limit would be below 100W ({limit}W). Need to limit the inverter to match it precisely!')
-        limit = 100 if limit > 50 else 0
+        m = divmod(limit,30)[0]
+        r = divmod(limit,30)[1]
+        limit = 30 * m + 30 * (r // 15)
     else:
         limitInverter(client,MAX_INVERTER_LIMIT)
 
@@ -312,20 +314,20 @@ def limitHomeInput(client: mqtt_client):
             limit = min(demand,MAX_DISCHARGE_LEVEL)             # not producing and demand is less than discharge limit => discharge with what is needed but limit to MAX
     elif packSoc <= BATTERY_LOW:
         path = "2."                                         
-        limit = 0                                               # packSoc is at low stage, stop discharging
+        limit = 0                                               # battery is at low stage, stop discharging
     else:
         path = "3."
         if solarinput > 0 and solarinput > MIN_CHARGE_LEVEL:
             path += "1." 
-            limit = min(demand,solarinput - MIN_CHARGE_LEVEL - 10)   # give charging precedence
+            limit = min(demand,solarinput - MIN_CHARGE_LEVEL - 10)      # give charging precedence
         if solarinput <= MIN_CHARGE_LEVEL:  
-            path += "2."                    # producing less than the minimum charge level 
+            path += "2."                                                # producing less than the minimum charge level 
             if (now < sunrise or now > sunset) or min(batterySocs.values()) > DAY_DISCHARGE_SOC: 
                 path += "1"                        
-                limit = min(demand,MAX_DISCHARGE_LEVEL)         # in the morning keep using packSoc, in the evening start using packSoc
+                limit = min(demand,MAX_DISCHARGE_LEVEL)                 # in the morning keep using battery, in the evening start using battery
             else:
                 path += "2"                                     
-                limit = 0                                   # throughout the day use everything to charge
+                limit = 0                                               # throughout the day use everything to charge
 
     if len(limit_values) >= limit_window:
         limit_values.pop(0)
