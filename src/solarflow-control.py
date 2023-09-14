@@ -230,7 +230,7 @@ def connect_mqtt() -> mqtt_client:
     return client
 
 def subscribe(client: mqtt_client):
-    for th in topic_house:
+    for th in topics_house:
         client.subscribe(th)
 
     client.subscribe(topic_acinput)
