@@ -20,7 +20,7 @@ mqtt_host = os.environ.get('MQTT_HOST',None)
 mqtt_port = os.environ.get('MQTT_PORT',1883)
 MIN_CHARGE_LEVEL = int(os.environ.get('MIN_CHARGE_LEVEL',125))          # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
 MAX_DISCHARGE_LEVEL = int(os.environ.get('MAX_DISCHARGE_LEVEL',145))    # The maximum discharge level of the packSoc. Even if there is more demand it will not go beyond that
-DAY_DISCHARGE_SOC = int(os.environ.get('MAX_DISCHARGE_LEVEL',50))      # The minimum state of charge of the battery to start discharging also throughout the day
+DAY_DISCHARGE_SOC = int(os.environ.get('DAY_DISCHARGE_SOC',50))         # The minimum state of charge of the battery to start discharging also throughout the day
 OVERAGE_LIMIT = 15                                                      # if we produce more than what we need we can feed that much to the grid
 BATTERY_LOW = int(os.environ.get('BATTERY_LOW',10)) 
 BATTERY_HIGH = int(os.environ.get('BATTERY_HIGH',98))
@@ -36,7 +36,11 @@ LAT=float(os.environ.get('LATITUDE',48.147381))
 LNG=float(os.environ.get('LONGITUDE',11.730140))
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
-topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")              
+# if there is no single topic wich aggregates multiple phases (e.g. shelly 3EM) you can specify the topic in an array like this
+# topic_house = [shellies/shellyem3/emeter/1/power, shellies/shellyem3/emeter/2/power, shellies/shellyem3/emeter/3/power]
+topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")
+topics_house = [ t.strip() for t in topic_house.split(',')]
+
 # topic for the microinverter input to home (e.g. from OpenDTU, AhouyDTU)
 topic_acinput = os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
 # topics for telemetry read from Solarflow Hub                                                       
@@ -75,6 +79,7 @@ charging = 0
 home = 0
 maxtemp = 1000
 batterySocs = {"dummy": -1}
+phase_values = {}
 last_solar_input_update = datetime.now()
 
 
@@ -141,16 +146,23 @@ def on_inverter_update(msg):
     inverter_values.append(float(msg))
 
 # this needs to be configured for different smartmeter readers (Hichi, PowerOpti, Shelly)
+# Shelly 3EM reports one metric per phase and doesn't aggregate, so we need to do this by ourselves
 def on_smartmeter_update(msg):
     global smartmeter_values
     global limit_values
-    payload = json.loads(msg)
+    global phase_values
+    payload = json.loads(msg.payload.decode())
+    topic = msg.topic
+
     if len(smartmeter_values) >= sm_window:
         smartmeter_values.pop(0)
-    # replace values from smartmeter that are higher than what we could deliver with MAX_SOLAR_INPUT to smoothen spikes
+
     if type(payload) is float or type(payload) is int:
         value = payload
+        phase_values.update({topic:value})
+        value = sum(phase_values.values())
     else:
+        # special case if current power is json format  (Hichi reader) 
         value = int(payload["Power"]["Power_curr"])
         
     smartmeter_values.append(value)
@@ -199,8 +211,8 @@ def on_message(client, userdata, msg):
     if "socLevel" in msg.topic and "batteries" in msg.topic:
         sn = msg.topic.split('/')[-2]
         on_solarflow_battery_soclevel(sn, msg.payload.decode())
-    if msg.topic == topic_house:
-        on_smartmeter_update(msg.payload.decode())
+    if msg.topic in topics_house:
+        on_smartmeter_update(msg)
     
 
 def on_connect(client, userdata, flags, rc):
@@ -218,7 +230,9 @@ def connect_mqtt() -> mqtt_client:
     return client
 
 def subscribe(client: mqtt_client):
-    client.subscribe(topic_house)
+    for th in topics_house:
+        client.subscribe(th)
+
     client.subscribe(topic_acinput)
     client.subscribe(topic_solarflow_solarinput)
     client.subscribe(topic_solarflow_electriclevel)
@@ -249,7 +263,9 @@ def limitSolarflow(client: mqtt_client, limit):
     if limit <= 100:
         limitInverter(client,limit)
         log.info(f'The output limit would be below 100W ({limit}W). Need to limit the inverter to match it precisely!')
-        limit = 100 if limit > 50 else 0
+        m = divmod(limit,30)[0]
+        r = divmod(limit,30)[1]
+        limit = 30 * m + 30 * (r // 15)
     else:
         limitInverter(client,MAX_INVERTER_LIMIT)
 
@@ -312,20 +328,20 @@ def limitHomeInput(client: mqtt_client):
             limit = min(demand,MAX_DISCHARGE_LEVEL)             # not producing and demand is less than discharge limit => discharge with what is needed but limit to MAX
     elif packSoc <= BATTERY_LOW:
         path = "2."                                         
-        limit = 0                                               # packSoc is at low stage, stop discharging
+        limit = 0                                               # battery is at low stage, stop discharging
     else:
         path = "3."
         if solarinput > 0 and solarinput > MIN_CHARGE_LEVEL:
             path += "1." 
-            limit = min(demand,solarinput - MIN_CHARGE_LEVEL - 10)   # give charging precedence
+            limit = min(demand,solarinput - MIN_CHARGE_LEVEL - 10)      # give charging precedence
         if solarinput <= MIN_CHARGE_LEVEL:  
-            path += "2."                    # producing less than the minimum charge level 
+            path += "2."                                                # producing less than the minimum charge level 
             if (now < sunrise or now > sunset) or min(batterySocs.values()) > DAY_DISCHARGE_SOC: 
                 path += "1"                        
-                limit = min(demand,MAX_DISCHARGE_LEVEL)         # in the morning keep using packSoc, in the evening start using packSoc
+                limit = min(demand,MAX_DISCHARGE_LEVEL)                 # in the morning keep using battery, in the evening start using battery
             else:
                 path += "2"                                     
-                limit = 0                                   # throughout the day use everything to charge
+                limit = 0                                               # throughout the day use everything to charge
 
     if len(limit_values) >= limit_window:
         limit_values.pop(0)
