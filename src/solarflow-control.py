@@ -147,7 +147,7 @@ def on_inverter_update(msg):
 
 # this needs to be configured for different smartmeter readers (Hichi, PowerOpti, Shelly)
 # Shelly 3EM reports one metric per phase and doesn't aggregate, so we need to do this by ourselves
-def on_smartmeter_update(msg):
+def on_smartmeter_update(client,msg):
     global smartmeter_values
     global limit_values
     global phase_values
@@ -160,12 +160,14 @@ def on_smartmeter_update(msg):
     if type(payload) is float or type(payload) is int:
         value = payload
         phase_values.update({topic:value})
-        value = sum(phase_values.values())
+        value = int(sum(phase_values.values()))
     else:
         # special case if current power is json format  (Hichi reader) 
         value = int(payload["Power"]["Power_curr"])
         
-    smartmeter_values.append(int(value))
+    smartmeter_values.append(value)
+    # also report value to MQTT (for statuspage)
+    client.publish("solarflow-hub/control/homeUsage",value)
 
     if len(smartmeter_values) >= sm_window:    
         tail = reduce(lambda a,b: a+b, smartmeter_values[:-2])/(len(smartmeter_values)-2)
@@ -212,7 +214,7 @@ def on_message(client, userdata, msg):
         sn = msg.topic.split('/')[-2]
         on_solarflow_battery_soclevel(sn, msg.payload.decode())
     if msg.topic in topics_house:
-        on_smartmeter_update(msg)
+        on_smartmeter_update(client,msg)
     
 
 def on_connect(client, userdata, flags, rc):
@@ -272,12 +274,14 @@ def limitSolarflow(client: mqtt_client, limit):
 
     outputlimit = {"properties": { "outputLimit": limit }}
     client.publish(topic_limit_solarflow,json.dumps(outputlimit))
+    return limit
 
 # set the limit on the inverter (when using inverter only mode)
 def limitInverter(client: mqtt_client, limit):
     # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
     inv_limit = limit*(1/(INVERTER_SF_INPUTS_USED/INVERTER_MPPTS))
     client.publish(topic_limit_non_persistent,f'{inv_limit}')
+    return inv_limit
 
 
 def limitHomeInput(client: mqtt_client):
