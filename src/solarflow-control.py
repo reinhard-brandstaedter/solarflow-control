@@ -161,6 +161,7 @@ def on_smartmeter_update(client,msg):
         value = payload
         phase_values.update({topic:value})
         value = int(sum(phase_values.values()))
+
     else:
         # special case if current power is json format  (Hichi reader) 
         value = int(payload["Power"]["Power_curr"])
@@ -215,7 +216,7 @@ def on_message(client, userdata, msg):
         on_solarflow_battery_soclevel(sn, msg.payload.decode())
     if msg.topic in topics_house:
         on_smartmeter_update(client,msg)
-    
+ 
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
