@@ -57,7 +57,7 @@ topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
 
 # optional topic for controlling the inverter limit
 #topic_ahoylimit = "inverter/ctrl/limit/0"                                              #AhoyDTU
-topic_limit_non_persistent = "solar/116491132532/cmd/limit_nonpersistent_absolute"      #OpenDTU
+topic_limit_non_persistent = os.environ.get('TOPIC_LIMIT_OPENDTU',"solar/116491132532/cmd/limit_nonpersistent_absolute")      #OpenDTU
 
 # location info for determining sunrise/sunset
 loc = LocationInfo(timezone='Europe/Berlin',latitude=LAT, longitude=LNG)
