@@ -165,7 +165,7 @@ def on_smartmeter_update(msg):
         # special case if current power is json format  (Hichi reader) 
         value = int(payload["Power"]["Power_curr"])
         
-    smartmeter_values.append(value)
+    smartmeter_values.append(int(value))
 
     if len(smartmeter_values) >= sm_window:    
         tail = reduce(lambda a,b: a+b, smartmeter_values[:-2])/(len(smartmeter_values)-2)
@@ -262,10 +262,11 @@ def limitSolarflow(client: mqtt_client, limit):
     # if controlling the inverter is not possible we should stick to either 0 or 100W
     if limit <= 100:
         limitInverter(client,limit)
-        log.info(f'The output limit would be below 100W ({limit}W). Need to limit the inverter to match it precisely!')
+        log.info(f'The output limit would be below 100W ({limit}W). Would need to limit the inverter to match it precisely')
         m = divmod(limit,30)[0]
         r = divmod(limit,30)[1]
         limit = 30 * m + 30 * (r // 15)
+        log.info(f'Setting solarflow output limit to {limit}')
     else:
         limitInverter(client,MAX_INVERTER_LIMIT)
 
