@@ -339,7 +339,7 @@ def limitHomeInput(client: mqtt_client):
         path = "3."
         if solarinput > MIN_CHARGE_LEVEL:
             path += "1." 
-            if solarinput - MIN_CHARGE_LEVEL < MAX_DISCHARGE_LEVEL:
+            if solarinput - MIN_CHARGE_LEVEL < MAX_DISCHARGE_LEVEL and min(batterySocs.values()) > DAY_DISCHARGE_SOC:
                 path += "1."
                 limit = min(demand,MAX_DISCHARGE_LEVEL)
             else:
