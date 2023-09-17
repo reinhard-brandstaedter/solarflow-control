@@ -337,9 +337,14 @@ def limitHomeInput(client: mqtt_client):
         limit = 0                                               # battery is at low stage, stop discharging
     else:
         path = "3."
-        if solarinput > 0 and solarinput > MIN_CHARGE_LEVEL:
+        if solarinput > MIN_CHARGE_LEVEL:
             path += "1." 
-            limit = min(demand,solarinput - MIN_CHARGE_LEVEL - 10)      # give charging precedence
+            if solarinput - MIN_CHARGE_LEVEL < MAX_DISCHARGE_LEVEL:
+                path += "1."
+                limit = min(demand,MAX_DISCHARGE_LEVEL)
+            else:
+                path += "2."
+                limit = min(demand,solarinput - MIN_CHARGE_LEVEL)      # give charging precedence
         if solarinput <= MIN_CHARGE_LEVEL:  
             path += "2."                                                # producing less than the minimum charge level 
             if (now < sunrise or now > sunset) or min(batterySocs.values()) > DAY_DISCHARGE_SOC: 
