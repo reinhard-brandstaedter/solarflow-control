@@ -43,6 +43,11 @@ topics_house = [ t.strip() for t in topic_house.split(',')]
 
 # topic for the microinverter input to home (e.g. from OpenDTU, AhouyDTU)
 topic_acinput = os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
+
+# topics for panels power which feed directly to inverter
+topic_direct_panel = os.environ.get('TOPIC_DIRECT_PANEL',"solar/116491132532/1/power")
+topics_direct_panel = [ t.strip() for t in topic_direct_panel.split(',')]
+
 # topics for telemetry read from Solarflow Hub                                                       
 topic_solarflow_solarinput = "solarflow-hub/telemetry/solarInputPower"
 topic_solarflow_electriclevel = "solarflow-hub/telemetry/electricLevel"
@@ -80,6 +85,8 @@ home = 0
 maxtemp = 1000
 batterySocs = {"dummy": -1}
 phase_values = {}
+direct_panel_values = {}
+direct_panel_power = 0
 last_solar_input_update = datetime.now()
 
 
@@ -145,6 +152,20 @@ def on_inverter_update(msg):
         inverter_values.pop(0)
     inverter_values.append(float(msg))
 
+def on_direct_panel(client,msg):
+    global direct_panel_values
+    global direct_panel_power
+    payload = json.loads(msg.payload.decode())
+    topic = msg.topic
+
+    if type(payload) is float or type(payload) is int:
+        value = payload
+        direct_panel_values.update({topic:value})
+        direct_panel_power = int(sum(direct_panel_values.values()))
+
+    
+
+
 # this needs to be configured for different smartmeter readers (Hichi, PowerOpti, Shelly)
 # Shelly 3EM reports one metric per phase and doesn't aggregate, so we need to do this by ourselves
 def on_smartmeter_update(client,msg):
@@ -161,7 +182,6 @@ def on_smartmeter_update(client,msg):
         value = payload
         phase_values.update({topic:value})
         value = int(sum(phase_values.values()))
-
     else:
         # special case if current power is json format  (Hichi reader) 
         value = int(payload["Power"]["Power_curr"])
@@ -199,6 +219,8 @@ def on_message(client, userdata, msg):
 
     if msg.topic == topic_acinput:
         on_inverter_update(msg.payload.decode())
+    if msg.topic in topics_direct_panel:
+        on_dircet_panel(msg.payload.decode())
     if msg.topic == topic_solarflow_solarinput:
         on_solarflow_solarinput(msg.payload.decode())  
     if msg.topic == topic_solarflow_electriclevel:
@@ -358,6 +380,9 @@ def limitHomeInput(client: mqtt_client):
         limit_values.pop(0)
     limit_values.append(0 if limit<0 else limit)                # to recover faster from negative demands
     limit = int(reduce(lambda a,b: a+b, limit_values)/len(limit_values))
+
+    if direct_panel_power > 0:
+        limit += direct_panel_power
 
     sm = ",".join([f'{v:>4}' for v in smartmeter_values])
     lm = ",".join([f'{v:>4}' for v in limit_values])
