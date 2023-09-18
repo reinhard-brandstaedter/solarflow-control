@@ -163,8 +163,6 @@ def on_direct_panel(client,msg):
         direct_panel_values.update({topic:value})
         direct_panel_power = int(sum(direct_panel_values.values()))
 
-    
-
 
 # this needs to be configured for different smartmeter readers (Hichi, PowerOpti, Shelly)
 # Shelly 3EM reports one metric per phase and doesn't aggregate, so we need to do this by ourselves
@@ -387,19 +385,31 @@ def limitHomeInput(client: mqtt_client):
     sm = ",".join([f'{v:>4}' for v in smartmeter_values])
     lm = ",".join([f'{v:>4}' for v in limit_values])
     batSoc = "|".join("{}%".format(v) for k, v in batterySocs.items())
+    i_dp = "|".join("{}W".format(v) for k, v in direct_panel_values.items())
 
     log.info(' '.join(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")}, \
-             Smartmeter: [{sm}], \
-             Demand: {demand}W, \
-             Solar: {solarinput}W, \
-             Inverter: {inverterinput}W, \
-             Home: {home}W, \
-             Battery: {packSoc}% ({batSoc}), \
+             H_SM: [{sm}], \
+             H_D: {demand}W, \
+             SF_S: {solarinput}W, \
+             I_DP: ({i_dp}), \
+             I_OP: {inverterinput}W, \
+             SF_H: {home}W, \
+             SF_B: {packSoc}% ({batSoc}), \
              {"dis" if charging<0 else ""}charging: {charging}W \
              => Limit: {limit}W - [{lm}] - decisionpath: {path}'.split()))
 
     if limit_inverter:
-        limitInverter(client,limit)
+        # if we get more from the direct connected panels than what we need, we limit the SF hub
+        if limit <= direct_panel_power:
+            limitSolarflow(client,0)
+            limitInverter(client,direct_panel_power+10)
+        # get the difference from SF if we need more than what the direct connected panels can deliver
+        else:
+            if direct_panel_power > 10:
+                limitSolarflow(client,limit-direct_panel_power)
+            else:
+                limitSolarflow(client, MAX_INVERTER_INPUT)
+            limitInverter(client,limit)
     else:
         limitSolarflow(client,limit)
 
