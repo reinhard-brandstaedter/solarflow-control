@@ -43,6 +43,11 @@ topics_house = [ t.strip() for t in topic_house.split(',')]
 
 # topic for the microinverter input to home (e.g. from OpenDTU, AhouyDTU)
 topic_acinput = os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
+
+# topics for panels power which feed directly to inverter
+topic_direct_panel = os.environ.get('TOPIC_DIRECT_PANEL',"solar/116491132532/1/power")
+topics_direct_panel = [ t.strip() for t in topic_direct_panel.split(',')]
+
 # topics for telemetry read from Solarflow Hub                                                       
 topic_solarflow_solarinput = "solarflow-hub/telemetry/solarInputPower"
 topic_solarflow_electriclevel = "solarflow-hub/telemetry/electricLevel"
@@ -80,6 +85,8 @@ home = 0
 maxtemp = 1000
 batterySocs = {"dummy": -1}
 phase_values = {}
+direct_panel_values = {}
+direct_panel_power = -1
 last_solar_input_update = datetime.now()
 
 
@@ -145,6 +152,18 @@ def on_inverter_update(msg):
         inverter_values.pop(0)
     inverter_values.append(float(msg))
 
+def on_direct_panel(client,msg):
+    global direct_panel_values
+    global direct_panel_power
+    payload = json.loads(msg.payload.decode())
+    topic = msg.topic
+
+    if type(payload) is float or type(payload) is int:
+        value = payload
+        direct_panel_values.update({topic:value})
+        direct_panel_power = int(sum(direct_panel_values.values()))
+
+
 # this needs to be configured for different smartmeter readers (Hichi, PowerOpti, Shelly)
 # Shelly 3EM reports one metric per phase and doesn't aggregate, so we need to do this by ourselves
 def on_smartmeter_update(client,msg):
@@ -161,7 +180,6 @@ def on_smartmeter_update(client,msg):
         value = payload
         phase_values.update({topic:value})
         value = int(sum(phase_values.values()))
-
     else:
         # special case if current power is json format  (Hichi reader) 
         value = int(payload["Power"]["Power_curr"])
@@ -199,6 +217,8 @@ def on_message(client, userdata, msg):
 
     if msg.topic == topic_acinput:
         on_inverter_update(msg.payload.decode())
+    if msg.topic in topics_direct_panel:
+        on_dircet_panel(msg.payload.decode())
     if msg.topic == topic_solarflow_solarinput:
         on_solarflow_solarinput(msg.payload.decode())  
     if msg.topic == topic_solarflow_electriclevel:
@@ -264,14 +284,15 @@ def limitSolarflow(client: mqtt_client, limit):
     # to get a fine granular steering at this level we need to fall back to the inverter limit
     # if controlling the inverter is not possible we should stick to either 0 or 100W
     if limit <= 100:
-        limitInverter(client,limit)
-        log.info(f'The output limit would be below 100W ({limit}W). Would need to limit the inverter to match it precisely')
+        #limitInverter(client,limit)
+        #log.info(f'The output limit would be below 100W ({limit}W). Would need to limit the inverter to match it precisely')
         m = divmod(limit,30)[0]
         r = divmod(limit,30)[1]
         limit = 30 * m + 30 * (r // 15)
         log.info(f'Setting solarflow output limit to {limit}')
     else:
-        limitInverter(client,MAX_INVERTER_LIMIT)
+        pass
+        #limitInverter(client,MAX_INVERTER_LIMIT)
 
     outputlimit = {"properties": { "outputLimit": limit }}
     client.publish(topic_limit_solarflow,json.dumps(outputlimit))
@@ -287,7 +308,7 @@ def limitInverter(client: mqtt_client, limit):
 
 def limitHomeInput(client: mqtt_client):
     global home
-    global packSoc, batterySocs
+    global packSoc, batterySocs, direct_panel_power
     global smartmeter_values, solarflow_values, inverter_values
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
@@ -359,22 +380,37 @@ def limitHomeInput(client: mqtt_client):
     limit_values.append(0 if limit<0 else limit)                # to recover faster from negative demands
     limit = int(reduce(lambda a,b: a+b, limit_values)/len(limit_values))
 
+    if direct_panel_power > 0:
+        limit += direct_panel_power
+
     sm = ",".join([f'{v:>4}' for v in smartmeter_values])
     lm = ",".join([f'{v:>4}' for v in limit_values])
     batSoc = "|".join("{}%".format(v) for k, v in batterySocs.items())
+    i_dp = "|".join("{}W".format(v) for k, v in direct_panel_values.items())
 
     log.info(' '.join(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")}, \
-             Smartmeter: [{sm}], \
-             Demand: {demand}W, \
-             Solar: {solarinput}W, \
-             Inverter: {inverterinput}W, \
-             Home: {home}W, \
-             Battery: {packSoc}% ({batSoc}), \
+             H_SM: [{sm}], \
+             H_D: {demand}W, \
+             SF_S: {solarinput}W, \
+             I_DP: {direct_panel_power} ({i_dp}), \
+             I_OP: {inverterinput}W, \
+             SF_H: {home}W, \
+             SF_B: {packSoc}% ({batSoc}), \
              {"dis" if charging<0 else ""}charging: {charging}W \
              => Limit: {limit}W - [{lm}] - decisionpath: {path}'.split()))
 
     if limit_inverter:
-        limitInverter(client,limit)
+        # if we get more from the direct connected panels than what we need, we limit the SF hub
+        if limit <= direct_panel_power:
+            limitSolarflow(client,0)
+            limitInverter(client,direct_panel_power+10)
+        # get the difference from SF if we need more than what the direct connected panels can deliver
+        else:
+            if direct_panel_power > 10:
+                limitSolarflow(client,limit-direct_panel_power)
+            else:
+                limitSolarflow(client, MAX_INVERTER_INPUT)
+            limitInverter(client,limit)
     else:
         limitSolarflow(client,limit)
 
