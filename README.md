@@ -63,6 +63,7 @@ Currently most of the parameters for the controlling must be provided via enviro
 | LONGITUDE           | Your geolocation longitude. If not set geolocation is determined via geo-lookup by IP |   |   |
 
 *Telemetry Input Sources - Mandatory*
+
 All these telemetry data is needed for proper function. Those are specified as MQTT topics and must be available in your local MQTT broker.
 
 | Variable            | Description         | Example             | Default             |
@@ -73,6 +74,7 @@ All these telemetry data is needed for proper function. Those are specified as M
 | TOPIC_LIMIT_OPENDTU | The command topic for limiting an inverter via OpenDTU. Limits are published in absolut (W) | ```solar/116491132532/cmd/limit_nonpersistent_absolute``` |   |
 
 *Solarflow Hub Telemetry Topics - Mandatory*
+
 These telemetry data from the Solarflow Hub must be present in your MQTT. You can get them either by running the (Solarflow Statuspage), the (Solarflow BT Manager) or if your hub already reports to your local MQTT directly by running the (solarflow topic mapper script).
 
 | Topic               | Description         |
