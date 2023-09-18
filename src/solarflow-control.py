@@ -86,7 +86,7 @@ maxtemp = 1000
 batterySocs = {"dummy": -1}
 phase_values = {}
 direct_panel_values = {}
-direct_panel_power = 0
+direct_panel_power = -1
 last_solar_input_update = datetime.now()
 
 
@@ -284,14 +284,15 @@ def limitSolarflow(client: mqtt_client, limit):
     # to get a fine granular steering at this level we need to fall back to the inverter limit
     # if controlling the inverter is not possible we should stick to either 0 or 100W
     if limit <= 100:
-        limitInverter(client,limit)
-        log.info(f'The output limit would be below 100W ({limit}W). Would need to limit the inverter to match it precisely')
+        #limitInverter(client,limit)
+        #log.info(f'The output limit would be below 100W ({limit}W). Would need to limit the inverter to match it precisely')
         m = divmod(limit,30)[0]
         r = divmod(limit,30)[1]
         limit = 30 * m + 30 * (r // 15)
         log.info(f'Setting solarflow output limit to {limit}')
     else:
-        limitInverter(client,MAX_INVERTER_LIMIT)
+        pass
+        #limitInverter(client,MAX_INVERTER_LIMIT)
 
     outputlimit = {"properties": { "outputLimit": limit }}
     client.publish(topic_limit_solarflow,json.dumps(outputlimit))
@@ -307,7 +308,7 @@ def limitInverter(client: mqtt_client, limit):
 
 def limitHomeInput(client: mqtt_client):
     global home
-    global packSoc, batterySocs
+    global packSoc, batterySocs, direct_panel_power
     global smartmeter_values, solarflow_values, inverter_values
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
@@ -391,7 +392,7 @@ def limitHomeInput(client: mqtt_client):
              H_SM: [{sm}], \
              H_D: {demand}W, \
              SF_S: {solarinput}W, \
-             I_DP: ({i_dp}), \
+             I_DP: {direct_panel_power} ({i_dp}), \
              I_OP: {inverterinput}W, \
              SF_H: {home}W, \
              SF_B: {packSoc}% ({batSoc}), \
