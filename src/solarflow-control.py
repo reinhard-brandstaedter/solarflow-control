@@ -284,14 +284,15 @@ def limitSolarflow(client: mqtt_client, limit):
     # to get a fine granular steering at this level we need to fall back to the inverter limit
     # if controlling the inverter is not possible we should stick to either 0 or 100W
     if limit <= 100:
-        limitInverter(client,limit)
-        log.info(f'The output limit would be below 100W ({limit}W). Would need to limit the inverter to match it precisely')
+        #limitInverter(client,limit)
+        #log.info(f'The output limit would be below 100W ({limit}W). Would need to limit the inverter to match it precisely')
         m = divmod(limit,30)[0]
         r = divmod(limit,30)[1]
         limit = 30 * m + 30 * (r // 15)
         log.info(f'Setting solarflow output limit to {limit}')
     else:
-        limitInverter(client,MAX_INVERTER_LIMIT)
+        pass
+        #limitInverter(client,MAX_INVERTER_LIMIT)
 
     outputlimit = {"properties": { "outputLimit": limit }}
     client.publish(topic_limit_solarflow,json.dumps(outputlimit))
@@ -401,7 +402,7 @@ def limitHomeInput(client: mqtt_client):
     if limit_inverter:
         # if we get more from the direct connected panels than what we need, we limit the SF hub
         if limit <= direct_panel_power:
-            limitSolarflow(client,30)
+            limitSolarflow(client,0)
             limitInverter(client,direct_panel_power+10)
         # get the difference from SF if we need more than what the direct connected panels can deliver
         else:
