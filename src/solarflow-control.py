@@ -86,7 +86,7 @@ maxtemp = 1000
 batterySocs = {"dummy": -1}
 phase_values = {}
 direct_panel_values = {}
-direct_panel_power = 0
+direct_panel_power = -1
 last_solar_input_update = datetime.now()
 
 
@@ -307,7 +307,7 @@ def limitInverter(client: mqtt_client, limit):
 
 def limitHomeInput(client: mqtt_client):
     global home
-    global packSoc, batterySocs
+    global packSoc, batterySocs, direct_panel_power
     global smartmeter_values, solarflow_values, inverter_values
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
@@ -391,7 +391,7 @@ def limitHomeInput(client: mqtt_client):
              H_SM: [{sm}], \
              H_D: {demand}W, \
              SF_S: {solarinput}W, \
-             I_DP: ({i_dp}), \
+             I_DP: {direct_panel_power} ({i_dp}), \
              I_OP: {inverterinput}W, \
              SF_H: {home}W, \
              SF_B: {packSoc}% ({batSoc}), \
@@ -401,7 +401,7 @@ def limitHomeInput(client: mqtt_client):
     if limit_inverter:
         # if we get more from the direct connected panels than what we need, we limit the SF hub
         if limit <= direct_panel_power:
-            limitSolarflow(client,0)
+            limitSolarflow(client,30)
             limitInverter(client,direct_panel_power+10)
         # get the difference from SF if we need more than what the direct connected panels can deliver
         else:
