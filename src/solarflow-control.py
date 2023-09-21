@@ -258,6 +258,9 @@ def connect_mqtt() -> mqtt_client:
 def subscribe(client: mqtt_client):
     for th in topics_house:
         client.subscribe(th)
+    
+    for dp in topics_direct_panel:
+        client.subscribe(dp)
 
     client.subscribe(topic_acinput)
     client.subscribe(topic_solarflow_solarinput)
