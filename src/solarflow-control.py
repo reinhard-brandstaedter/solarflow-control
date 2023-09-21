@@ -379,7 +379,7 @@ def limitHomeInput(client: mqtt_client):
                 limit = min(demand,MAX_DISCHARGE_LEVEL)                 # in the morning keep using battery, in the evening start using battery
             else:
                 path += "2"                                     
-                limit = 0                                               # throughout the day use everything to charge
+                limit = 15                                               # throughout the day use everything to charge
 
     if len(limit_values) >= limit_window:
         limit_values.pop(0)
