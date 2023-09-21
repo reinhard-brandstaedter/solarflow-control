@@ -45,8 +45,8 @@ topics_house = [ t.strip() for t in topic_house.split(',')]
 topic_acinput = os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
 
 # topics for panels power which feed directly to inverter
-topic_direct_panel = os.environ.get('TOPIC_DIRECT_PANEL',"")
-topics_direct_panel = [ t.strip() for t in topic_direct_panel.split(',')]
+topic_direct_panel = os.environ.get('TOPIC_DIRECT_PANEL',None)
+topics_direct_panel = [ t.strip() for t in topic_direct_panel.split(',')] if topic_direct_panel else []
 
 # topics for telemetry read from Solarflow Hub                                                       
 topic_solarflow_solarinput = "solarflow-hub/telemetry/solarInputPower"
