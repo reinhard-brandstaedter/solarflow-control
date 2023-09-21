@@ -152,7 +152,7 @@ def on_inverter_update(msg):
         inverter_values.pop(0)
     inverter_values.append(float(msg))
 
-def on_direct_panel(client,msg):
+def on_direct_panel(msg):
     global direct_panel_values
     global direct_panel_power
     payload = json.loads(msg.payload.decode())
