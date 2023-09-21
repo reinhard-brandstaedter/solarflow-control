@@ -219,7 +219,7 @@ def on_message(client, userdata, msg):
         if msg.topic == topic_acinput:
             on_inverter_update(msg.payload.decode())
         if msg.topic in topics_direct_panel:
-            on_direct_panel(msg.payload.decode())
+            on_direct_panel(msg)
         if msg.topic == topic_solarflow_solarinput:
             on_solarflow_solarinput(msg.payload.decode())  
         if msg.topic == topic_solarflow_electriclevel:
