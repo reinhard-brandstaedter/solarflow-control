@@ -214,28 +214,31 @@ def on_message(client, userdata, msg):
             #log.info(f'No solarInputPower measurement received for {seconds}s')
             solarflow_values.pop(0)
             solarflow_values.append(0)
-
-    if msg.topic == topic_acinput:
-        on_inverter_update(msg.payload.decode())
-    if msg.topic in topics_direct_panel:
-        on_direct_panel(msg.payload.decode())
-    if msg.topic == topic_solarflow_solarinput:
-        on_solarflow_solarinput(msg.payload.decode())  
-    if msg.topic == topic_solarflow_electriclevel:
-        on_solarflow_electriclevel(msg.payload.decode()) 
-    if msg.topic == topic_solarflow_outputpack:
-        on_solarflow_outputpack(msg.payload.decode()) 
-    if msg.topic == topic_solarflow_packinput:
-        on_solarflow_packinput(msg.payload.decode()) 
-    if msg.topic == topic_solarflow_outputhome:
-        on_solarflow_outputhome(msg.payload.decode()) 
-    if "maxTemp" in msg.topic and "batteries" in msg.topic:
-        on_solarflow_maxtemp(msg.payload.decode()) 
-    if "socLevel" in msg.topic and "batteries" in msg.topic:
-        sn = msg.topic.split('/')[-2]
-        on_solarflow_battery_soclevel(sn, msg.payload.decode())
-    if msg.topic in topics_house:
-        on_smartmeter_update(client,msg)
+    
+    if msg.payload:
+        if msg.topic == topic_acinput:
+            on_inverter_update(msg.payload.decode())
+        if msg.topic in topics_direct_panel:
+            on_direct_panel(msg.payload.decode())
+        if msg.topic == topic_solarflow_solarinput:
+            on_solarflow_solarinput(msg.payload.decode())  
+        if msg.topic == topic_solarflow_electriclevel:
+            on_solarflow_electriclevel(msg.payload.decode()) 
+        if msg.topic == topic_solarflow_outputpack:
+            on_solarflow_outputpack(msg.payload.decode()) 
+        if msg.topic == topic_solarflow_packinput:
+            on_solarflow_packinput(msg.payload.decode()) 
+        if msg.topic == topic_solarflow_outputhome:
+            on_solarflow_outputhome(msg.payload.decode()) 
+        if "maxTemp" in msg.topic and "batteries" in msg.topic:
+            on_solarflow_maxtemp(msg.payload.decode()) 
+        if "socLevel" in msg.topic and "batteries" in msg.topic:
+            sn = msg.topic.split('/')[-2]
+            on_solarflow_battery_soclevel(sn, msg.payload.decode())
+        if msg.topic in topics_house:
+            on_smartmeter_update(client,msg)
+    else:
+        log.warning(f'Received a MQTT message without payload on topic {msg.topic}')
  
 
 def on_connect(client, userdata, flags, rc):
