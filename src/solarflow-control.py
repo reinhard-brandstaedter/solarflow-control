@@ -152,7 +152,7 @@ def on_inverter_update(msg):
         inverter_values.pop(0)
     inverter_values.append(float(msg))
 
-def on_direct_panel(client,msg):
+def on_direct_panel(msg):
     global direct_panel_values
     global direct_panel_power
     payload = json.loads(msg.payload.decode())
@@ -219,7 +219,7 @@ def on_message(client, userdata, msg):
         if msg.topic == topic_acinput:
             on_inverter_update(msg.payload.decode())
         if msg.topic in topics_direct_panel:
-            on_direct_panel(msg.payload.decode())
+            on_direct_panel(msg)
         if msg.topic == topic_solarflow_solarinput:
             on_solarflow_solarinput(msg.payload.decode())  
         if msg.topic == topic_solarflow_electriclevel:
@@ -258,6 +258,9 @@ def connect_mqtt() -> mqtt_client:
 def subscribe(client: mqtt_client):
     for th in topics_house:
         client.subscribe(th)
+    
+    for dp in topics_direct_panel:
+        client.subscribe(dp)
 
     client.subscribe(topic_acinput)
     client.subscribe(topic_solarflow_solarinput)
