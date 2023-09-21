@@ -45,7 +45,7 @@ topics_house = [ t.strip() for t in topic_house.split(',')]
 topic_acinput = os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
 
 # topics for panels power which feed directly to inverter
-topic_direct_panel = os.environ.get('TOPIC_DIRECT_PANEL',"solar/116491132532/1/power")
+topic_direct_panel = os.environ.get('TOPIC_DIRECT_PANEL',"")
 topics_direct_panel = [ t.strip() for t in topic_direct_panel.split(',')]
 
 # topics for telemetry read from Solarflow Hub                                                       
@@ -379,7 +379,7 @@ def limitHomeInput(client: mqtt_client):
                 limit = min(demand,MAX_DISCHARGE_LEVEL)                 # in the morning keep using battery, in the evening start using battery
             else:
                 path += "2"                                     
-                limit = 0                                               # throughout the day use everything to charge
+                limit = 0                                             # throughout the day use everything to charge
 
     if len(limit_values) >= limit_window:
         limit_values.pop(0)
@@ -407,7 +407,7 @@ def limitHomeInput(client: mqtt_client):
 
     if limit_inverter:
         # if we get more from the direct connected panels than what we need, we limit the SF hub
-        if limit <= direct_panel_power:
+        if limit < direct_panel_power:
             limitSolarflow(client,0)
             limitInverter(client,direct_panel_power+10)
         # get the difference from SF if we need more than what the direct connected panels can deliver
