@@ -1,5 +1,5 @@
 import random, json, time, logging, sys, getopt, os
-from datetime import datetime, date
+from datetime import datetime, timedelta
 from functools import reduce
 from paho.mqtt import client as mqtt_client
 from astral import LocationInfo
@@ -136,6 +136,7 @@ phase_values = {}
 direct_panel_values = {}
 direct_panel_power = -1
 last_solar_input_update = datetime.now()
+charge_through = False
 
 
 class MyLocation:
@@ -423,11 +424,16 @@ def limitHomeInput(client: mqtt_client):
         if solarinput <= MIN_CHARGE_LEVEL:  
             path += "2."                                                # producing less than the minimum charge level 
             if (now < sunrise or now > sunset) or min(batterySocs.values()) > DAY_DISCHARGE_SOC: 
-                path += "1"                        
+                path += "1"                
                 limit = min(demand,MAX_DISCHARGE_LEVEL)                 # in the morning keep using battery, in the evening start using battery
+                td = timedelta(minutes = 5)
+                if charge_through or (now > sunset and now < sunset + td and packSoc < DAY_DISCHARGE_SOC):      # charge through mode, do not discharge when battery is low at sunset
+                    charge_through = True
+                    limit = 0 
             else:
                 path += "2"                                     
                 limit = 0                                             # throughout the day use everything to charge
+                charge_through = False
 
     if len(limit_values) >= limit_window:
         limit_values.pop(0)
