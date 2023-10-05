@@ -1,0 +1,68 @@
+version: "3.5"
+
+networks:
+   solarflow-net:
+     name: sf_network
+     driver: bridge
+
+services:
+  statuspage:
+    image: rbrandstaedter/solarflow-statuspage:master
+    container_name: "sf-statuspage"
+    command: "--offline"
+    ports:
+      - 5000:5000
+    environment:
+      - MQTT_HOST=sf-mqtt
+    networks: 
+      - solarflow-net
+    restart: "no"
+    logging:
+      options:
+        max-size: 50m
+  
+  control:
+    image: rbrandstaedter/solarflow-control:master
+    container_name: "sf-control"
+    environment:
+      - SF_DEVICE_ID=5ak8yGU7
+      - MQTT_HOST=192.168.1.245
+      - MIN_CHARGE_LEVEL=200
+      - MAX_DISCHARGE_LEVEL=160
+      - DAY_DISCHARGE_SOC=50
+      - BATTERY_LOW=2
+      - BATTERY_HIGH=98
+      - LIMIT_INVERTER=True
+      - INVERTER_SF_INPUTS_USED=1
+      - INVERTER_MPPTS=4
+      - LATITUDE=48.147381
+      - LONGITUDE=11.730140
+      - SF_WINDOW=5
+      - SM_WINDOW=5
+      - INV_WINDOW=5
+      - TZ=Europe/Berlin
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - $PWD/licensemanager/tenantquota:/tenantquota
+    networks: 
+      - solarflow-net
+    restart: "no"
+    logging:
+      options:
+        max-size: 50m
+
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: "sf-mqtt"
+    ports:
+      - 1883:1883
+    environment:
+      - "PYTHONUNBUFFERED=1"
+    networks: 
+      - solarflow-net
+    volumes:
+      - ${PWD}/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: "no"
+    logging:
+      options:
+        max-size: 50m
