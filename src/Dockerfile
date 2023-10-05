@@ -8,7 +8,7 @@ COPY solarflow-control.py /
 RUN pip install --upgrade pip
 RUN pip install paho-mqtt
 RUN pip install astral
-RUN apk add libxml2-dev libxslt-dev
+RUN apk add libxml2-dev libxslt-dev libffi libffi-dev
 RUN pip install ip2geotools
 
 ENTRYPOINT ["python","solarflow-control.py"]
