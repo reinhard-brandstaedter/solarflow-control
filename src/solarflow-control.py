@@ -1,68 +1,115 @@
 import random, json, time, logging, sys, getopt, os
-from datetime import datetime, date
+from datetime import datetime, timedelta
 from functools import reduce
 from paho.mqtt import client as mqtt_client
 from astral import LocationInfo
 from astral.sun import sun
 import requests
 from ip2geotools.databases.noncommercial import DbIpCity
+import configparser
 import click
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
-sf_device_id = os.environ.get('SF_DEVICE_ID',None)
-sf_product_id = os.environ.get('SF_PRODUCT_ID',"73bkTV")
-mqtt_user = os.environ.get('MQTT_USER',None)
-mqtt_pwd = os.environ.get('MQTT_PWD',None)
-mqtt_host = os.environ.get('MQTT_HOST',None)
-mqtt_port = os.environ.get('MQTT_PORT',1883)
-MIN_CHARGE_LEVEL = int(os.environ.get('MIN_CHARGE_LEVEL',125))          # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
-MAX_DISCHARGE_LEVEL = int(os.environ.get('MAX_DISCHARGE_LEVEL',145))    # The maximum discharge level of the packSoc. Even if there is more demand it will not go beyond that
-DAY_DISCHARGE_SOC = int(os.environ.get('DAY_DISCHARGE_SOC',50))         # The minimum state of charge of the battery to start discharging also throughout the day
-OVERAGE_LIMIT = 15                                                      # if we produce more than what we need we can feed that much to the grid
-BATTERY_LOW = int(os.environ.get('BATTERY_LOW',10)) 
-BATTERY_HIGH = int(os.environ.get('BATTERY_HIGH',98))
-MAX_INVERTER_LIMIT = 800                                                 # the maximum allowed inverter output
+config: configparser.ConfigParser
+def load_config():
+    config = configparser.ConfigParser()
+    try:
+        with open("config.ini","r") as cf:
+            config.read_file(cf)
+    except:
+        log.error("No configuration file (config.ini) found in execution directory! Using environment variables.")
+    return config
+
+config = load_config()
+
+sf_device_id = config.get('solarflow', 'sf_device_id', fallback=None) or os.environ.get('SF_DEVICE_ID',None)
+sf_product_id = config.get('solarflow', 'sf_product_id', fallback="73bkTV") or os.environ.get('SF_PRODUCT_ID',"73bkTV")
+mqtt_user = config.get('local', 'mqtt_user', fallback=None) or os.environ.get('MQTT_USER',None)
+mqtt_pwd = config.get('local', 'mqtt_pwd', fallback=None) or os.environ.get('MQTT_PWD',None)
+mqtt_host = config.get('local', 'mqtt_host', fallback=None) or os.environ.get('MQTT_HOST',None)
+mqtt_port = config.getint('local', 'mqtt_port', fallback=None) or os.environ.get('MQTT_PORT',1883)
+
+# The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
+MIN_CHARGE_LEVEL =      config.getint('control', 'min_charge_level', fallback=125) \
+                        or int(os.environ.get('MIN_CHARGE_LEVEL',125))          
+
+# The maximum discharge level of the packSoc. Even if there is more demand it will not go beyond that
+MAX_DISCHARGE_LEVEL =   config.getint('control', 'max_discharge_level', fallback=150) \
+                        or int(os.environ.get('MAX_DISCHARGE_LEVEL',145))   
+
+# The minimum state of charge of the battery to start discharging also throughout the day
+DAY_DISCHARGE_SOC =     config.getint('control', 'day_discharge_soc', fallback=50) \
+                        or int(os.environ.get('DAY_DISCHARGE_SOC',50))         
+
+# if we produce more than what we need we can feed that much to the grid
+OVERAGE_LIMIT =         config.getint('control', 'overage_limit', fallback=15) \
+                        or int(os.environ.get('OVERAGE_LIMIT',15))  
+
+# battery SoC levels to consider the battry full or empty                                            
+BATTERY_LOW =           config.getint('control', 'battery_low', fallback=2) \
+                        or int(os.environ.get('BATTERY_LOW',10)) 
+BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=98) \
+                        or int(os.environ.get('BATTERY_HIGH',98))
+
+# the maximum allowed inverter output
+MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=98) \
+                        or int(os.environ.get('MAX_INVERTER_LIMIT',800))                                               
 MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
-INVERTER_MPPTS = int(os.environ.get('INVERTER_MPPTS',4))                 # the number of inverter inputs or mppts. SF only uses 2 so when limiting we need to adjust for that
-INVERTER_SF_INPUTS_USED = int(os.environ.get('INVERTER_SF_INPUTS_USED',2))   # how many Inverter input channels are used by Solarflow   
-FAST_CHANGE_OFFSET = 200
-limit_inverter = bool(os.environ.get('LIMIT_INVERTER',False))
+
+ # the number of inverter inputs or mppts. SF only uses 1 or 2 so when limiting we need to adjust for that
+INVERTER_MPPTS =        config.getint('control', 'inverter_mppts', fallback=4) \
+                        or int(os.environ.get('INVERTER_MPPTS',4))
+
+# how many Inverter input channels are used by Solarflow              
+INVERTER_INPUTS_USED =  config.getint('control', 'inverter_sf_inputs_used', fallback=2) \
+                        or int(os.environ.get('INVERTER_SF_INPUTS_USED',2))
+
+# the delta between two consecutive measurements on houshold usage to consider it a fast rise or drop   
+FAST_CHANGE_OFFSET =    config.getint('control', 'fast_change_offset', fallback=200) \
+                        or int(os.environ.get('FAST_CHANGE_OFFSET',200))
+
+# wether to limit the inverter or the solarflow hub
+limit_inverter =        config.getboolean('control', 'limit_inverter', fallback=False) \
+                        or bool(os.environ.get('LIMIT_INVERTER',False))
 
 # Location Info
-LAT=float(os.environ.get('LATITUDE',48.147381))
-LNG=float(os.environ.get('LONGITUDE',11.730140))
+LAT = config.getfloat('local', 'latitude', fallback=48.147381) or float(os.environ.get('LATITUDE',48.147381))
+LNG = config.getfloat('local', 'latitude', fallback=11.730140) or float(os.environ.get('LONGITUDE',11.730140))
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 # if there is no single topic wich aggregates multiple phases (e.g. shelly 3EM) you can specify the topic in an array like this
-# topic_house = [shellies/shellyem3/emeter/1/power, shellies/shellyem3/emeter/2/power, shellies/shellyem3/emeter/3/power]
-topic_house = os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")
-topics_house = [ t.strip() for t in topic_house.split(',')]
+# topic_house = shellies/shellyem3/emeter/1/power, shellies/shellyem3/emeter/2/power, shellies/shellyem3/emeter/3/power
+topic_house =       config.get('mqtt_telemetry_topics', 'topic_house', fallback="tele/E220/SENSOR") \
+                    or os.environ.get('TOPIC_HOUSE',"tele/E220/SENSOR")
+topics_house =      [ t.strip() for t in topic_house.split(',')]
 
 # topic for the microinverter input to home (e.g. from OpenDTU, AhouyDTU)
-topic_acinput = os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
+topic_acinput =     config.get('mqtt_telemetry_topics', 'topic_acinput', fallback="solar/ac/power") \
+                    or os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
 
 # topics for panels power which feed directly to inverter
-topic_direct_panel = os.environ.get('TOPIC_DIRECT_PANEL',None)
-topics_direct_panel = [ t.strip() for t in topic_direct_panel.split(',')] if topic_direct_panel else []
+topic_direct_panel =    config.get('mqtt_telemetry_topics', 'topic_direct_panel', fallback="solar/116491132532/1/power") \
+                        or os.environ.get('TOPIC_DIRECT_PANEL',"solar/116491132532/1/power")
+topics_direct_panel =   [ t.strip() for t in topic_direct_panel.split(',')]
 
 # topics for telemetry read from Solarflow Hub                                                       
-topic_solarflow_solarinput = "solarflow-hub/telemetry/solarInputPower"
-topic_solarflow_electriclevel = "solarflow-hub/telemetry/electricLevel"
-topic_solarflow_outputpack = "solarflow-hub/telemetry/outputPackPower"
-topic_solarflow_packinput = "solarflow-hub/telemetry/packInputPower"
-topic_solarflow_outputhome = "solarflow-hub/telemetry/outputHomePower"
-topic_solarflow_maxtemp = "solarflow-hub/telemetry/batteries/+/maxTemp"
-topic_solarflow_battery_soclevel = "solarflow-hub/telemetry/batteries/+/socLevel"
+topic_solarflow_solarinput = config.get('mqtt_telemetry_topics', 'topic_solarflow_solarinput', fallback="solarflow-hub/telemetry/solarInputPower")
+topic_solarflow_electriclevel = config.get('mqtt_telemetry_topics', 'topic_solarflow_electriclevel', fallback="solarflow-hub/telemetry/electricLevel")
+topic_solarflow_outputpack = config.get('mqtt_telemetry_topics', 'topic_solarflow_outputpack', fallback="solarflow-hub/telemetry/outputPackPower")
+topic_solarflow_packinput = config.get('mqtt_telemetry_topics', 'topic_solarflow_packinput', fallback="solarflow-hub/telemetry/packInputPower")
+topic_solarflow_outputhome = config.get('mqtt_telemetry_topics', 'topic_solarflow_outputhome', fallback="solarflow-hub/telemetry/outputHomePower")
+topic_solarflow_maxtemp = config.get('mqtt_telemetry_topics', 'topic_solarflow_maxtemp', fallback="solarflow-hub/telemetry/batteries/+/maxTemp")
+topic_solarflow_battery_soclevel = config.get('mqtt_telemetry_topics', 'topic_solarflow_battery_soclevel', fallback="solarflow-hub/telemetry/batteries/+/socLevel")
 
 # topic to control the Solarflow Hub (used to set output limit)
 topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
 
-# optional topic for controlling the inverter limit
-#topic_ahoylimit = "inverter/ctrl/limit/0"                                              #AhoyDTU
-topic_limit_non_persistent = os.environ.get('TOPIC_LIMIT_OPENDTU',"solar/116491132532/cmd/limit_nonpersistent_absolute")      #OpenDTU
+# topic for controlling the inverter limit
+topic_limit_non_persistent =    config.get('mqtt_telemetry_topics', 'topic_limit_non_persistent', fallback="solar/116491132532/cmd/limit_nonpersistent_absolute") \
+                                or os.environ.get('TOPIC_LIMIT_OPENDTU',"solar/116491132532/cmd/limit_nonpersistent_absolute")
 
 # location info for determining sunrise/sunset
 loc = LocationInfo(timezone='Europe/Berlin',latitude=LAT, longitude=LNG)
@@ -88,6 +135,7 @@ phase_values = {}
 direct_panel_values = {}
 direct_panel_power = -1
 last_solar_input_update = datetime.now()
+charge_through = False
 
 
 class MyLocation:
@@ -281,7 +329,7 @@ def checkCharging(client: mqtt_client):
     global maxtemp
     socset = {"properties": { "socSet": 0 }}
     if maxtemp < 1000:
-        log.warning(f'The maximum measured battery temperature is {maxtemp/100}. Disabling charging to avoid damage! Please reset manually one temperature is high enough!')
+        log.warning(f'The maximum measured battery temperature is {maxtemp/100}. Disabling charging to avoid damage! Please reset manually once temperature is high enough!')
         client.publish(topic_limit_solarflow,json.dumps(socset))
 
 # limit the output to home setting on the Solarflow hub
@@ -307,7 +355,7 @@ def limitSolarflow(client: mqtt_client, limit):
 # set the limit on the inverter (when using inverter only mode)
 def limitInverter(client: mqtt_client, limit):
     # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
-    inv_limit = limit*(1/(INVERTER_SF_INPUTS_USED/INVERTER_MPPTS))
+    inv_limit = limit*(1/(INVERTER_INPUTS_USED/INVERTER_MPPTS))
     client.publish(topic_limit_non_persistent,f'{inv_limit}')
     return inv_limit
 
@@ -316,6 +364,8 @@ def limitHomeInput(client: mqtt_client):
     global home
     global packSoc, batterySocs, direct_panel_power
     global smartmeter_values, solarflow_values, inverter_values
+    global charge_through
+    
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
         log.info(f'Waiting for smartmeter data to make decisions...')
@@ -375,11 +425,16 @@ def limitHomeInput(client: mqtt_client):
         if solarinput <= MIN_CHARGE_LEVEL:  
             path += "2."                                                # producing less than the minimum charge level 
             if (now < sunrise or now > sunset) or min(batterySocs.values()) > DAY_DISCHARGE_SOC: 
-                path += "1"                        
+                path += "1"                
                 limit = min(demand,MAX_DISCHARGE_LEVEL)                 # in the morning keep using battery, in the evening start using battery
+                td = timedelta(minutes = 5)
+                if charge_through or (now > sunset and now < sunset + td and packSoc < DAY_DISCHARGE_SOC):      # charge through mode, do not discharge when battery is low at sunset
+                    charge_through = True
+                    limit = 0 
             else:
                 path += "2"                                     
                 limit = 0                                             # throughout the day use everything to charge
+                charge_through = False
 
     if len(limit_values) >= limit_window:
         limit_values.pop(0)
@@ -431,16 +486,8 @@ def run():
         checkCharging(client)
         limitHomeInput(client)
         
-
     client.loop_stop()
 
-#@click.command
-#@click.option("--limit-via", type=click.Choice(['inverter','hub'], case_sensitive=False))
-#@click.option("--broker","-b",help="IP/Hostname of the local MQTT broker to use")
-#@click.option("--port","-p",help="Port of the local MQTT broker, if different from default (1883)")
-#@click.option("--user","-u", help="Login name for local MQTT broker")
-#@click.option("--secret","-s", help="Password for the local MQTT broker user")
-#@click.option("--offline/--online", default=True, help="Offline/Online mode: either connect to the Zendure API/MQTT or not (requires local MQTT with hub data present)")
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
     global sf_device_id
