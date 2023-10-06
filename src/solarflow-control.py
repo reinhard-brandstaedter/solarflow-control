@@ -55,7 +55,7 @@ BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=98) \
                         or int(os.environ.get('BATTERY_HIGH',98))
 
 # the maximum allowed inverter output
-MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=98) \
+MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=800) \
                         or int(os.environ.get('MAX_INVERTER_LIMIT',800))                                               
 MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
 
@@ -365,7 +365,7 @@ def limitHomeInput(client: mqtt_client):
     global packSoc, batterySocs, direct_panel_power
     global smartmeter_values, solarflow_values, inverter_values
     global charge_through
-    
+
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
         log.info(f'Waiting for smartmeter data to make decisions...')
