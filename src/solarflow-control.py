@@ -91,9 +91,9 @@ topic_acinput =     config.get('mqtt_telemetry_topics', 'topic_acinput', fallbac
                     or os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
 
 # topics for panels power which feed directly to inverter
-topic_direct_panel =    config.get('mqtt_telemetry_topics', 'topic_direct_panel', fallback="solar/116491132532/1/power") \
-                        or os.environ.get('TOPIC_DIRECT_PANEL',"solar/116491132532/1/power")
-topics_direct_panel =   [ t.strip() for t in topic_direct_panel.split(',')]
+topic_direct_panel =    config.get('mqtt_telemetry_topics', 'topic_direct_panel', fallback=None) \
+                        or os.environ.get('TOPIC_DIRECT_PANEL',None)
+topics_direct_panel =   [ t.strip() for t in topic_direct_panel.split(',') ] if topic_direct_panel else []
 
 # topics for telemetry read from Solarflow Hub                                                       
 topic_solarflow_solarinput = config.get('mqtt_telemetry_topics', 'topic_solarflow_solarinput', fallback="solarflow-hub/telemetry/solarInputPower")
