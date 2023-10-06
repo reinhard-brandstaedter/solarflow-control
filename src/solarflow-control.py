@@ -95,7 +95,6 @@ topic_direct_panel =    config.get('mqtt_telemetry_topics', 'topic_direct_panel'
                         or os.environ.get('TOPIC_DIRECT_PANEL',"solar/116491132532/1/power")
 topics_direct_panel =   [ t.strip() for t in topic_direct_panel.split(',')]
 
-
 # topics for telemetry read from Solarflow Hub                                                       
 topic_solarflow_solarinput = config.get('mqtt_telemetry_topics', 'topic_solarflow_solarinput', fallback="solarflow-hub/telemetry/solarInputPower")
 topic_solarflow_electriclevel = config.get('mqtt_telemetry_topics', 'topic_solarflow_electriclevel', fallback="solarflow-hub/telemetry/electricLevel")
