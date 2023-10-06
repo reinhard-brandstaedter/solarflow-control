@@ -365,6 +365,8 @@ def limitHomeInput(client: mqtt_client):
     global home
     global packSoc, batterySocs, direct_panel_power
     global smartmeter_values, solarflow_values, inverter_values
+    global charge_through
+    
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
         log.info(f'Waiting for smartmeter data to make decisions...')
