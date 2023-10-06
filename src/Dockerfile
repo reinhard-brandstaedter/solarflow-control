@@ -5,6 +5,7 @@ WORKDIR /
 
 COPY solarflow-control.py /
 
+# dependencies needed for ARMv6/7 builds
 RUN pip install --upgrade pip && \
     apk add libxml2-dev libxslt-dev libffi libffi-dev gcc musl-dev rust cargo openssl-dev && \
     pip install --install-option="--jobs=4" paho-mqtt astral ip2geotools && \
