@@ -42,7 +42,10 @@ MAX_DISCHARGE_LEVEL =   config.getint('control', 'max_discharge_level', fallback
 
 # The minimum state of charge of the battery to start discharging also throughout the day
 DAY_DISCHARGE_SOC =     config.getint('control', 'day_discharge_soc', fallback=50) \
-                        or int(os.environ.get('DAY_DISCHARGE_SOC',50))         
+                        or int(os.environ.get('DAY_DISCHARGE_SOC',50))    
+
+CHARGE_THROUGH_THRESHOLD =  config.getint('control', 'charge_through_threshold', fallback=60) \
+                        or int(os.environ.get('CHARGE_THROUGH_THRESHOLD',60))      
 
 # if we produce more than what we need we can feed that much to the grid
 OVERAGE_LIMIT =         config.getint('control', 'overage_limit', fallback=15) \
@@ -429,7 +432,7 @@ def limitHomeInput(client: mqtt_client):
                 path += "1"                
                 limit = min(demand,MAX_DISCHARGE_LEVEL)                 # in the morning keep using battery, in the evening start using battery
                 td = timedelta(minutes = 5)
-                if charge_through or (now > sunset and now < sunset + td and packSoc < DAY_DISCHARGE_SOC):      # charge through mode, do not discharge when battery is low at sunset
+                if charge_through or (now > sunset and now < sunset + td and packSoc < CHARGE_THROUGH_THRESHOLD):      # charge through mode, do not discharge when battery is low at sunset
                     charge_through = True
                     limit = 0 
             else:
