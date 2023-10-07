@@ -56,6 +56,7 @@ Currently most of the parameters for the controlling must be provided via enviro
 | MIN_CHARGE_LEVEL    | This is the minimum power that is "reserved" for charging the battery. If solarproduction is less than this it will be used for charging only |   | 125 W |
 | MAX_DISCHARGE_LEVEL | The maximum discharging level that is used when running on battery power (e.g. during the night). The output will be between current demand (if lower than this) or the max discharge level. |   | 145 W |
 | DAY_DISCHARGE_SOC   | The minimum state of charge of individual batteries in the stack that is required to also discharge throughout the day. I.e. all batteries must be above it before discharging starts. |   | 50 % |
+| CHARGE_THROUGH_THRESHOLD | The minimum state of charge of the battery to allow discharging over night. If the battery has not reached this SoC the control will try to continue charging the next day without any discharging. This ensures that batteries get to 100% now and then |  | 60 % |
 | INVERTER_MPPS       | The number of your inverter's MPPTs. This is used to determine the "limit multiplier" as most inverters split the limit across MPPTs |   | 4 |
 | INVERTER_SF_INPUTS_USED | The number of inverter inputs used by Solarflow (1 or 2). This is needed to calculate the correct ratio of the applied limit  |   | 2 |
 | LIMIT_INVERTER      | If set to "True" the limiting will be done via the inverter, if "False" the SF Hub will be limited directly |   | False |
