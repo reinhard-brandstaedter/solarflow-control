@@ -30,6 +30,7 @@ services:
       - MIN_CHARGE_LEVEL=200
       - MAX_DISCHARGE_LEVEL=160
       - DAY_DISCHARGE_SOC=50
+      - CHARGE_THROUGH_THRESHOLD=40
       - BATTERY_LOW=2
       - BATTERY_HIGH=98
       - LIMIT_INVERTER=True
@@ -42,8 +43,6 @@ services:
       - INV_WINDOW=5
       - TZ=Europe/Berlin
       - PYTHONUNBUFFERED=1
-    volumes:
-      - $PWD/licensemanager/tenantquota:/tenantquota
     networks: 
       - solarflow-net
     restart: "no"
