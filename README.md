@@ -35,7 +35,7 @@ Solarflow control is best run as a Docker container, to make any dependency prob
 docker pull rbrandstaedter/solarflow-control:latest
 ```
 
-Currently most of the parameters for the controlling must be provided via environment variables passed to the container. Before we start running the control process let's take a look at the variables needed for steering:
+The parameters for the control script can bei either provided via environment variables or via config file ```config.ini``` located in the execution directory of the script, or the root directory of the container. Before we start running the control process let's take a look at the variables needed for steering:
 
 *General Configuration*
 
@@ -88,3 +88,138 @@ These telemetry data from the Solarflow Hub must be present in your MQTT. You ca
 | solarflow-hub/telemetry/batteries/+/maxTemp | maximum temperature reported by individual batteries in the stack |
 | solarflow-hub/telemetry/batteries/+/socLevel | SoC level of individual batteries in the stack |
 
+### Examples
+Below examples assume you have docker installed on your system (supported architectures are x86 and ARMv6 (Raspi)). You will also need a MQTT broker which has the above described topics/telemetry present. The examples are run on Linux/MacOS, if you are using Windows ther might be slight changes in the docker commands.
+
+#### Offline Solarflow Hub reporting to your MQTT broker directly
+This is the preferred an most efficient, reliable way as it doesn't depend on any cloud service. I'm using this 24/7.
+I'm assuming your SF hub is already reporting to your local MQTT already. If not please see (how to do so)[https://github.com/reinhard-brandstaedter/solarflow-bt-manager#disconnecting-the-hub-from-the-cloud]
+
+Launch the topic mapper, which is simply used to create beautified MQTT topic of the various state topics of the solarflow hub:
+
+```
+docker run -d -e  SF_DEVICE_ID=<your device id> \
+              -e MQTT_HOST=<your mqtt host> \
+              -e MQTT_USER=<your mqtt user> \
+              -e MQTT_PWD=<your mqtt password> \
+              --name solarflow-topicmapper rbrandstaedter/solarflow-topic-mapper:master
+```
+
+After the topic mapper is started you should see a ```solarflow-hub``` topic with various sub-topics and telemetry data from your hub. This data is needed to continue.
+
+Create a ```config.ini``` file with your parameters:
+
+```
+### your local MQTT broker, the hub and other required data is reporting to
+[local]
+mqtt_host = 192.168.1.245
+#mqtt_port = 
+#mqtt_user =
+#mqtt_pwd =
+
+### in offline mode none of the below Zendure is needed
+[zendure]
+#login = 
+#password = 
+# since Zendure introduces regional brokers please set the one where you have registered your device
+# Global: mq.zen-iot.com
+# EU: mqtteu.zen-iot.com
+#zen_mqtt = mq.zen-iot.com
+# likewise for the API endpoint please select the correct one
+# Global: https://app.zendure.tech
+# EU: https://app.zendure.tech/eu
+#zen_api = https://app.zendure.tech
+
+```
+
+Launch the statuspage in offline mode, providing the above config file:
+
+```docker run -d -v ${PWD}/config.ini:/config.ini -p 0.0.0.0:5000:5000 --name solarflow-statuspage rbrandstaedter/solarflow-statuspage:master --offline```
+
+Point your browser to http://<your docker host>:50000 and you should see the statuspage with updating telemetry data (some data might take a bit).
+
+You can now start the control script, but first you will need to create a configuration file with your parameters:
+
+Example ```config.ini```:
+```
+[solarflow]
+sf_device_id = <your Device ID - you should see it in MQTT>
+#sf_product_id =
+
+[local]
+mqtt_host = < IP of your MQTT>
+#mqtt_port = 
+#mqtt_user =
+#mqtt_pwd =
+#latitude =
+#longitude =
+
+[control]
+battery_low = 2
+battery_high = 98
+min_charge_level = 125
+max_discharge_level = 150
+day_discharge_soc = 50
+charge_through_threshold = 60
+overage_limit = 15                                                      
+max_inverter_limit = 800                                                
+inverter_mppts = 4
+inverter_sf_inputs_used = 1 
+fast_change_offset = 200
+limit_inverter = true
+
+# window sizes to calculate moving averages of values to avoid overreacting to short spikes/drops
+# use average of last X measurements of Solarflow solarinput 
+sf_window = 5
+# use average of last X measurements of house smartmeter/consumption
+sm_window = 5
+# use average of last X measurements of inverter output
+inv_window = 5
+# use average of last X measurements of inverter limit
+limit_window = 5
+
+# MQTT telemetry topics specify where solarflow control can read data for it's operation
+# all topics must provide integer or float values (no json message format)
+[mqtt_telemetry_topics]
+# the topic that provides the current household power consumption, read from a smartmeter or equivalent
+# you can also provide multiple topics (which will be added up), e.g for Shelly 3-Phase measurement devices
+# by separating them with ","
+# topic_house = shellies/shellyem3/emeter/1/power, shellies/shellyem3/emeter/2/power, shellies/shellyem3/emeter/3/power
+topic_house = 
+
+# topic for the microinverter input to home (e.g. from OpenDTU, AhouyDTU)
+topic_acinput = 
+
+# topics for panels power which are directly connected to the microinverter (optional)
+# typically you would also get this from OpenDTU, AhouDTU or your inverter
+# you can provide multiple topics by separating them with ","
+# topic_direct_panel = solar/116491132532/1/power, solar/116491132532/2/power
+#topic_direct_panel = 
+
+# topics for telemetry read from Solarflow Hub
+# Note: Solarflow doesn't directly write to these topics when publishing to your local MQTT broker
+#       it rather writes to it's predefined topic.
+#       Therefor it's recommended to either run the solarflow statuspage or the little topic mapper script to
+#       "clean up" the topics and provide them at these locations
+# See: https://github.com/reinhard-brandstaedter/solarflow-bt-manager/blob/master/src/solarflow-topic-mapper.py                                        
+#topic_solarflow_solarinput = solarflow-hub/telemetry/solarInputPower
+#topic_solarflow_electriclevel = solarflow-hub/telemetry/electricLevel
+#topic_solarflow_outputpack = solarflow-hub/telemetry/outputPackPower
+#topic_solarflow_packinput = solarflow-hub/telemetry/packInputPower
+#topic_solarflow_outputhome = solarflow-hub/telemetry/outputHomePower
+#topic_solarflow_maxtemp = solarflow-hub/telemetry/batteries/+/maxTemp
+#topic_solarflow_battery_soclevel = solarflow-hub/telemetry/batteries/+/socLevel
+
+# topic to steer your microinverter
+# for OpenDTU and AhoyDTU please use the command topic that sets the ABSOLUTE limit (in watts) not the RELATIVE limit in percent
+topic_limit_non_persistent = solar/116491132532/cmd/limit_nonpersistent_absolute
+```
+
+Launch the control script, providing the above config file:
+
+```docker run -d -v ${PWD}/config.ini:/config.ini --name solarflow-control rbrandstaedter/solarflow-control:master```
+
+#### Online Solarflow Hub using the statuspage as a Telemetry relay
+In this setup you use the statuspage as a relay between Zendure's cloud MQTT and you own local MQTT. Your hub is still connected and reports data to the cloud (with all drawbacks). The statuspage logs in with your Zendure credentials and subscribes to their MQTT and pushes data to your local MQTT. The control script works with that data.
+
+t.b.c

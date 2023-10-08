@@ -9,11 +9,11 @@ services:
   statuspage:
     image: rbrandstaedter/solarflow-statuspage:master
     container_name: "sf-statuspage"
-    command: "--offline"
+    command: "--online"
     ports:
       - 5000:5000
-    environment:
-      - MQTT_HOST=sf-mqtt
+    volumes:
+      - ${PWD}/statuspage-config.ini:/config.ini
     networks: 
       - solarflow-net
     restart: "no"
@@ -24,25 +24,8 @@ services:
   control:
     image: rbrandstaedter/solarflow-control:master
     container_name: "sf-control"
-    environment:
-      - SF_DEVICE_ID=5ak8yGU7
-      - MQTT_HOST=192.168.1.245
-      - MIN_CHARGE_LEVEL=200
-      - MAX_DISCHARGE_LEVEL=160
-      - DAY_DISCHARGE_SOC=50
-      - CHARGE_THROUGH_THRESHOLD=40
-      - BATTERY_LOW=2
-      - BATTERY_HIGH=98
-      - LIMIT_INVERTER=True
-      - INVERTER_SF_INPUTS_USED=1
-      - INVERTER_MPPTS=4
-      - LATITUDE=48.147381
-      - LONGITUDE=11.730140
-      - SF_WINDOW=5
-      - SM_WINDOW=5
-      - INV_WINDOW=5
-      - TZ=Europe/Berlin
-      - PYTHONUNBUFFERED=1
+    volumes:
+      - ${PWD}/control-config.ini:/config.ini
     networks: 
       - solarflow-net
     restart: "no"
