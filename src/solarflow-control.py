@@ -546,19 +546,19 @@ def main(argv):
     log.info(f'Topic to limit Inverter Output: {topic_limit_non_persistent}')
     log.info(f'Limit via inverter: {limit_inverter}')
 
-    log.info(f'Control Parameters: \
-        MIN_CHARGE_LEVEL =         {MIN_CHARGE_LEVEL}\
-        MAX_DISCHARGE_LEVEL =      {MAX_DISCHARGE_LEVEL}\
-        BATTERY_LOW =              {BATTERY_LOW}\
-        BATTERY_HIGH =             {BATTERY_HIGH}\
-        DAY_DISCHARGE_SOC =        {DAY_DISCHARGE_SOC}\
-        CHARGE_THROUGH_THRESHOLD = {CHARGE_THROUGH_THRESHOLD}\
-        OVERAGE_LIMIT =            {OVERAGE_LIMIT}\
-        MAX_INVERTER_LIMIT =       {MAX_INVERTER_LIMIT}\
-        MAX_INVERTER_INPUT =       {MAX_INVERTER_INPUT}\
-        INVERTER_MPPTS =           {INVERTER_MPPTS}\
-        INVERTER_INPUTS_USED =     {INVERTER_INPUTS_USED}\
-        FAST_CHANGE_OFFSET =       {FAST_CHANGE_OFFSET}')
+    log.info("Control Parameters:")
+    log.info(f'  MIN_CHARGE_LEVEL = {MIN_CHARGE_LEVEL}')
+    log.info(f'  MAX_DISCHARGE_LEVEL = {MAX_DISCHARGE_LEVEL}')
+    log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
+    log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
+    log.info(f'  DAY_DISCHARGE_SOC = {DAY_DISCHARGE_SOC}')
+    log.info(f'  CHARGE_THROUGH_THRESHOLD = {CHARGE_THROUGH_THRESHOLD}')
+    log.info(f'  OVERAGE_LIMIT = {OVERAGE_LIMIT}')
+    log.info(f'  MAX_INVERTER_LIMIT = {MAX_INVERTER_LIMIT}')
+    log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
+    log.info(f'  INVERTER_MPPTS = {INVERTER_MPPTS}')
+    log.info(f'  INVERTER_INPUTS_USED = {INVERTER_INPUTS_USED}')
+    log.info(f'  FAST_CHANGE_OFFSET = {FAST_CHANGE_OFFSET}')
     
 
     loc = MyLocation()
