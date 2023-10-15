@@ -432,7 +432,8 @@ def limitHomeInput(client: mqtt_client):
                 limit = min(demand,solarinput - MIN_CHARGE_LEVEL)      # give charging precedence
         if solarinput <= MIN_CHARGE_LEVEL:  
             path += "2."                                                # producing less than the minimum charge level 
-            if (now < sunrise or now > sunset) or packSoc > DAY_DISCHARGE_SOC: 
+            sun_offset = timedelta(minutes = 60)
+            if (now < (sunrise + sun_offset) or now > sunset - sun_offset) or packSoc > DAY_DISCHARGE_SOC: 
                 path += "1"                
                 limit = min(demand,MAX_DISCHARGE_LEVEL)                 # in the morning keep using battery, in the evening start using battery
                 td = timedelta(minutes = 5)
