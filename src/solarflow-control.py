@@ -356,13 +356,13 @@ def limitSolarflow(client: mqtt_client, limit):
         m = divmod(limit,30)[0]
         r = divmod(limit,30)[1]
         limit = 30 * m + 30 * (r // 15)
-        log.info(f'Setting solarflow output limit to {limit}')
     else:
         pass
         #limitInverter(client,MAX_INVERTER_LIMIT)
 
     outputlimit = {"properties": { "outputLimit": limit }}
     client.publish(topic_limit_solarflow,json.dumps(outputlimit))
+    log.info(f'Setting solarflow output limit to {limit} W')
     return limit
 
 # set the limit on the inverter (when using inverter only mode)
@@ -371,6 +371,7 @@ def limitInverter(client: mqtt_client, limit):
     inv_limit = limit*(1/(INVERTER_INPUTS_USED/INVERTER_MPPTS))
     unit = "" if isOpenDTU(topic_limit_non_persistent) else "W"
     client.publish(topic_limit_non_persistent,f'{inv_limit}{unit}')
+    log.info(f'Setting inverter output limit to {inv_limit} W')
     return inv_limit
 
 
