@@ -14,7 +14,7 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 def isOpenDTU(ctrl_topic) -> bool:
-    return "ctrl/limit" in ctrl_topic
+    return "ctrl/limit" not in ctrl_topic
 
 config: configparser.ConfigParser
 def load_config():
