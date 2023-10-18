@@ -374,6 +374,14 @@ def limitInverter(client: mqtt_client, limit):
     log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({INVERTER_INPUTS_USED}/{INVERTER_MPPTS})')
     return inv_limit
 
+# calculate the safe inverter limit for direct panels, to avoid output over legal limits
+def getDirectPanelLimit() -> int:
+    global direct_panel_values
+    panel_power = int(sum(direct_panel_values.values()))
+    if  panel_power < MAX_INVERTER_LIMIT:
+        return int(max(direct_panel_values.values()))
+    else:
+        return int(MAX_INVERTER_LIMIT*(INVERTER_INPUTS_USED/INVERTER_MPPTS))
 
 def limitHomeInput(client: mqtt_client):
     global home
@@ -480,7 +488,7 @@ def limitHomeInput(client: mqtt_client):
         # if we get more from the direct connected panels than what we need, we limit the SF hub
         if limit <= direct_panel_power:
             limitSolarflow(client,0)
-            limitInverter(client,MAX_INVERTER_INPUT)
+            limitInverter(client,getDirectPanelLimit())
         # get the difference from SF if we need more than what the direct connected panels can deliver
         else:
             if direct_panel_power > 10:
