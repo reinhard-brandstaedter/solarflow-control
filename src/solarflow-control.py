@@ -480,7 +480,7 @@ def limitHomeInput(client: mqtt_client):
         # if we get more from the direct connected panels than what we need, we limit the SF hub
         if limit <= direct_panel_power:
             limitSolarflow(client,0)
-            limitInverter(client,direct_panel_power+10)
+            limitInverter(client,MAX_INVERTER_INPUT)
         # get the difference from SF if we need more than what the direct connected panels can deliver
         else:
             if direct_panel_power > 10:
