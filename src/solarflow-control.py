@@ -454,11 +454,13 @@ def limitHomeInput(client: mqtt_client):
                 td = timedelta(minutes = 5)
                 if charge_through or (now > sunset and now < sunset + td and packSoc < CHARGE_THROUGH_THRESHOLD):      # charge through mode, do not discharge when battery is low at sunset
                     charge_through = True
+                    log.info(f'Entering charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {packSoc}): no discharging')
                     limit = 0 
             else:
                 path += "2"                                     
                 limit = 0                                             # throughout the day use everything to charge
                 charge_through = False
+                log.info(f'Leaving charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {packSoc})')
 
     if len(limit_values) >= limit_window:
         limit_values.pop(0)
