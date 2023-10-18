@@ -371,7 +371,7 @@ def limitInverter(client: mqtt_client, limit):
     inv_limit = limit*(1/(INVERTER_INPUTS_USED/INVERTER_MPPTS))
     unit = "" if isOpenDTU(topic_limit_non_persistent) else "W"
     client.publish(topic_limit_non_persistent,f'{inv_limit}{unit}')
-    log.info(f'Setting inverter output limit to {inv_limit} W')
+    log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({INVERTER_INPUTS_USED}/{INVERTER_MPPTS})')
     return inv_limit
 
 
