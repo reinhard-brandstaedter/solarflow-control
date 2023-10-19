@@ -8,6 +8,7 @@ import requests
 from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import click
+import math
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -375,11 +376,11 @@ def limitInverter(client: mqtt_client, limit):
     return inv_limit
 
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
-def getDirectPanelLimit() -> int:
+def getDirectPanelLimit(sf_solarinput) -> int:
     global direct_panel_values
     panel_power = int(sum(direct_panel_values.values()))
     if  panel_power < MAX_INVERTER_LIMIT:
-        return int(max(direct_panel_values.values()))
+        return max(sf_solarinput,math.ceil(max(direct_panel_values.values())))
     else:
         return int(MAX_INVERTER_LIMIT*(INVERTER_INPUTS_USED/INVERTER_MPPTS))
 
@@ -490,7 +491,7 @@ def limitHomeInput(client: mqtt_client):
         # if we get more from the direct connected panels than what we need, we limit the SF hub
         if direct_panel_power*0.9 <= limit <= direct_panel_power*1.1:
             limitSolarflow(client,0)
-            limitInverter(client,getDirectPanelLimit())
+            limitInverter(client,getDirectPanelLimit(solarinput))
         # get the difference from SF if we need more than what the direct connected panels can deliver
         else:
             if direct_panel_power > 10:
