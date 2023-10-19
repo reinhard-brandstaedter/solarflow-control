@@ -84,7 +84,7 @@ limit_inverter =        config.getboolean('control', 'limit_inverter', fallback=
 
 # Location Info
 LAT = config.getfloat('local', 'latitude', fallback=None) or float(os.environ.get('LATITUDE',48.147381))
-LNG = config.getfloat('local', 'latitude', fallback=None) or float(os.environ.get('LONGITUDE',11.730140))
+LNG = config.getfloat('local', 'logitude', fallback=None) or float(os.environ.get('LONGITUDE',11.730140))
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 # if there is no single topic wich aggregates multiple phases (e.g. shelly 3EM) you can specify the topic in an array like this
