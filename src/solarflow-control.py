@@ -468,8 +468,8 @@ def limitHomeInput(client: mqtt_client):
     limit_values.append(0 if limit<0 else limit)                # to recover faster from negative demands
     limit = int(reduce(lambda a,b: a+b, limit_values)/len(limit_values))
 
-    if direct_panel_power > 0:
-        limit += direct_panel_power
+    #if direct_panel_power > 0:
+    #    limit += direct_panel_power
 
     sm = ",".join([f'{v:>4}' for v in smartmeter_values])
     lm = ",".join([f'{v:>4}' for v in limit_values])
