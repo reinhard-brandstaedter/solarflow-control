@@ -8,6 +8,7 @@ import requests
 from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import click
+import math
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -82,8 +83,8 @@ limit_inverter =        config.getboolean('control', 'limit_inverter', fallback=
                         or bool(os.environ.get('LIMIT_INVERTER',False))
 
 # Location Info
-LAT = config.getfloat('local', 'latitude', fallback=None) or float(os.environ.get('LATITUDE',48.147381))
-LNG = config.getfloat('local', 'latitude', fallback=None) or float(os.environ.get('LONGITUDE',11.730140))
+LAT = config.getfloat('local', 'latitude', fallback=None) or float(os.environ.get('LATITUDE',None))
+LNG = config.getfloat('local', 'longitude', fallback=None) or float(os.environ.get('LONGITUDE',None))
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 # if there is no single topic wich aggregates multiple phases (e.g. shelly 3EM) you can specify the topic in an array like this
@@ -375,11 +376,11 @@ def limitInverter(client: mqtt_client, limit):
     return inv_limit
 
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
-def getDirectPanelLimit() -> int:
+def getDirectPanelLimit(sf_solarinput) -> int:
     global direct_panel_values
     panel_power = int(sum(direct_panel_values.values()))
     if  panel_power < MAX_INVERTER_LIMIT:
-        return int(max(direct_panel_values.values()))
+        return max(sf_solarinput,math.ceil(max(direct_panel_values.values())))
     else:
         return int(MAX_INVERTER_LIMIT*(INVERTER_INPUTS_USED/INVERTER_MPPTS))
 
@@ -467,8 +468,8 @@ def limitHomeInput(client: mqtt_client):
     limit_values.append(0 if limit<0 else limit)                # to recover faster from negative demands
     limit = int(reduce(lambda a,b: a+b, limit_values)/len(limit_values))
 
-    if direct_panel_power > 0:
-        limit += direct_panel_power
+    #if direct_panel_power > 0:
+    #    limit += direct_panel_power
 
     sm = ",".join([f'{v:>4}' for v in smartmeter_values])
     lm = ",".join([f'{v:>4}' for v in limit_values])
@@ -490,7 +491,7 @@ def limitHomeInput(client: mqtt_client):
         # if we get more from the direct connected panels than what we need, we limit the SF hub
         if direct_panel_power*0.9 <= limit <= direct_panel_power*1.1:
             limitSolarflow(client,0)
-            limitInverter(client,getDirectPanelLimit())
+            limitInverter(client,getDirectPanelLimit(solarinput))
         # get the difference from SF if we need more than what the direct connected panels can deliver
         else:
             if direct_panel_power > 10:
