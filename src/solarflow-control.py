@@ -85,6 +85,7 @@ limit_inverter =        config.getboolean('control', 'limit_inverter', fallback=
 # Location Info
 LAT = config.getfloat('local', 'latitude', fallback=None) or float(os.environ.get('LATITUDE',0))
 LNG = config.getfloat('local', 'longitude', fallback=None) or float(os.environ.get('LONGITUDE',0))
+location: LocationInfo
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 # if there is no single topic wich aggregates multiple phases (e.g. shelly 3EM) you can specify the topic in an array like this
@@ -118,9 +119,6 @@ topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
 # topic for controlling the inverter limit
 topic_limit_non_persistent =    config.get('mqtt_telemetry_topics', 'topic_limit_non_persistent', fallback=None) \
                                 or os.environ.get('TOPIC_LIMIT_OPENDTU',"solar/116491132532/cmd/limit_nonpersistent_absolute")
-
-# location info for determining sunrise/sunset
-loc = LocationInfo(timezone='Europe/Berlin',latitude=LAT, longitude=LNG)
 
 client_id = f'solarflow-control-{random.randint(0, 100)}'
 
@@ -387,6 +385,7 @@ def limitHomeInput(client: mqtt_client):
     global packSoc, batterySocs, direct_panel_power
     global smartmeter_values, solarflow_values, inverter_values
     global charge_through
+    global location
 
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
@@ -408,8 +407,8 @@ def limitHomeInput(client: mqtt_client):
     demand = int(round((smartmeter + inverterinput)))
     limit = 0
 
-    now = datetime.now(tz=loc.tzinfo)   
-    s = sun(loc.observer, date=now, tzinfo=loc.timezone)
+    now = datetime.now(tz=location.tzinfo)   
+    s = sun(location.observer, date=now, tzinfo=location.timezone)
     sunrise = s['sunrise']
     sunset = s['sunset']
 
@@ -518,6 +517,7 @@ def main(argv):
     global sf_device_id
     global topic_limit_solarflow
     global limit_inverter
+    global location
     opts, args = getopt.getopt(argv,"hb:p:u:s:d:",["broker=","port=","user=","password="])
     for opt, arg in opts:
         if opt == '-h':
@@ -583,6 +583,10 @@ def main(argv):
     if loc is None:
         coordinates = (LAT,LNG)
         log.info(f'Geocoordinates: {coordinates}')
+
+
+    # location info for determining sunrise/sunset
+    location = LocationInfo(timezone='Europe/Berlin',latitude=coordinates[0], longitude=coordinates[1])
 
     run()
 
