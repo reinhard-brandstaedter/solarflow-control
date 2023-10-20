@@ -119,8 +119,6 @@ topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
 topic_limit_non_persistent =    config.get('mqtt_telemetry_topics', 'topic_limit_non_persistent', fallback=None) \
                                 or os.environ.get('TOPIC_LIMIT_OPENDTU',"solar/116491132532/cmd/limit_nonpersistent_absolute")
 
-isOpenDTU(topic_limit_non_persistent)
-
 # location info for determining sunrise/sunset
 loc = LocationInfo(timezone='Europe/Berlin',latitude=LAT, longitude=LNG)
 
@@ -223,7 +221,7 @@ def on_direct_panel(msg):
     if type(payload) is float or type(payload) is int:
         value = payload
         direct_panel_values.update({topic:value})
-        direct_panel_power = int(sum(direct_panel_values.values()))
+        direct_panel_power = sum(direct_panel_values.values())
 
 
 # this needs to be configured for different smartmeter readers (Hichi, PowerOpti, Shelly)
@@ -378,7 +376,7 @@ def limitInverter(client: mqtt_client, limit):
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
 def getDirectPanelLimit(sf_solarinput) -> int:
     global direct_panel_values
-    panel_power = int(sum(direct_panel_values.values()))
+    panel_power = sum(direct_panel_values.values())
     if  panel_power < MAX_INVERTER_LIMIT:
         return max(sf_solarinput,math.ceil(max(direct_panel_values.values())))
     else:
@@ -454,14 +452,14 @@ def limitHomeInput(client: mqtt_client):
                 limit = min(demand,MAX_DISCHARGE_LEVEL)                 # in the morning keep using battery, in the evening start using battery
                 td = timedelta(minutes = 5)
                 if charge_through or (now > sunset and now < sunset + td and packSoc < CHARGE_THROUGH_THRESHOLD):      # charge through mode, do not discharge when battery is low at sunset
+                    not charge_through and log.info(f'Entering charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {packSoc}): no discharging')
                     charge_through = True
-                    log.info(f'Entering charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {packSoc}): no discharging')
-                    limit = 0 
             else:
                 path += "2"                                     
-                limit = 0                                             # throughout the day use everything to charge
+                limit = 0
+                charge_through and log.info(f'Leaving charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {packSoc})')
                 charge_through = False
-                log.info(f'Leaving charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {packSoc})')
+                    
 
     if len(limit_values) >= limit_window:
         limit_values.pop(0)
