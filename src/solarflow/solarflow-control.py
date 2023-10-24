@@ -265,8 +265,6 @@ def on_smartmeter_update(client,msg):
             limit_values = []
 
 def on_message(client, userdata, msg):
-    global last_solar_input_update
-
     smartmeter = userdata["smartmeter"]
     smartmeter.handleMsg(msg)
     hub = userdata["hub"]
@@ -274,44 +272,6 @@ def on_message(client, userdata, msg):
     dtu = userdata["dtu"]
     dtu.handleMsg(msg)
 
-    if msg.topic.startswith("solarflow-hub"):
-        now = datetime.now()
-        diff = now - last_solar_input_update
-        seconds = diff.total_seconds()
-        if seconds > 120:
-            #if we haven't received any update on solarInputPower we assume it's not producing
-            #log.info(f'No solarInputPower measurement received for {seconds}s')
-            solarflow_values.pop(0)
-            solarflow_values.append(0)
-    
-    
-    if msg.payload:
-        if msg.topic == topic_acinput:
-            on_inverter_update(msg.payload.decode())
-        if msg.topic in topics_direct_panel:
-            on_direct_panel(msg)
-        '''
-        if msg.topic == topic_solarflow_solarinput:
-            on_solarflow_solarinput(msg.payload.decode())  
-        if msg.topic == topic_solarflow_electriclevel:
-            on_solarflow_electriclevel(msg.payload.decode()) 
-        if msg.topic == topic_solarflow_outputpack:
-            on_solarflow_outputpack(msg.payload.decode()) 
-        if msg.topic == topic_solarflow_packinput:
-            on_solarflow_packinput(msg.payload.decode()) 
-        if msg.topic == topic_solarflow_outputhome:
-            on_solarflow_outputhome(msg.payload.decode()) 
-        if "maxTemp" in msg.topic and "batteries" in msg.topic:
-            on_solarflow_maxtemp(msg.payload.decode()) 
-        if "socLevel" in msg.topic and "batteries" in msg.topic:
-            sn = msg.topic.split('/')[-2]
-            on_solarflow_battery_soclevel(sn, msg.payload.decode())
-        '''
-        if msg.topic in topics_house:
-            on_smartmeter_update(client,msg)
-    else:
-        log.warning(f'Received a MQTT message without payload on topic {msg.topic}')
- 
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -328,21 +288,6 @@ def connect_mqtt() -> mqtt_client:
     return client
 
 def subscribe(client: mqtt_client):
-    for th in topics_house:
-        client.subscribe(th)
-    
-    for dp in topics_direct_panel:
-        client.subscribe(dp)
-
-    client.subscribe(topic_acinput)
-    '''
-    client.subscribe(topic_solarflow_solarinput)
-    client.subscribe(topic_solarflow_electriclevel)
-    client.subscribe(topic_solarflow_outputpack)
-    client.subscribe(topic_solarflow_packinput)
-    client.subscribe(topic_solarflow_outputhome)
-    client.subscribe(topic_solarflow_battery_soclevel)
-    '''
     client.on_message = on_message
 
 # this ensures that the buzzerSwitch (audio confirmation upon commands) is off
@@ -388,11 +333,10 @@ def limitInverter(client: mqtt_client, limit):
     return inv_limit
 
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
-def getDirectPanelLimit(sf_solarinput) -> int:
-    global direct_panel_values
-    panel_power = sum(direct_panel_values.values())
-    if  panel_power < MAX_INVERTER_LIMIT:
-        return max(sf_solarinput,math.ceil(max(direct_panel_values.values())))
+def getDirectPanelLimit(inv, hub) -> int:
+    direct_panel_power = inv.getDirectDCPower()
+    if direct_panel_power < MAX_INVERTER_LIMIT:
+        return math.ceil(max(hub.getSolarInputPower()),max(inv.getDirectDCPowerValues()))
     else:
         return int(MAX_INVERTER_LIMIT*(INVERTER_INPUTS_USED/INVERTER_MPPTS))
 
@@ -403,32 +347,22 @@ def limitHomeInput(client: mqtt_client):
     global charge_through
     global location
 
-    sf_hub = client._userdata['hub']
-    log.info(f'{sf_hub}')
-    dtu = client._userdata['dtu']
-    log.info(f'{dtu}')
-    smartmeter = client._userdata['smartmeter']
-    log.info(f'{smartmeter}')
-
+    hub = client._userdata['hub']
+    log.info(f'{hub}')
+    inv = client._userdata['dtu']
+    log.info(f'{inv}')
+    smt = client._userdata['smartmeter']
+    log.info(f'{smt}')
 
     # ensure we have data to work on
-    if len(smartmeter_values) == 0:
-        log.info(f'Waiting for smartmeter data to make decisions...')
-        return
-    if len(solarflow_values) == 0:
-        log.info(f'Waiting for solarflow input data to make decisions...')
-        return
-    if len(inverter_values) == 0:
-        log.info(f'Waiting for inverter data to make decisions...')
-        return
-    if sf_hub.electricLevel < 0:
-        log.info(f'Waiting for state of charge to make decisions...')
+    if not(hub.ready() and inv.ready() and smt.ready()):
         return
         
-    smartmeter = reduce(lambda a,b: a+b, smartmeter_values)/len(smartmeter_values)
-    solarinput = int(round(reduce(lambda a,b: a+b, solarflow_values)/len(solarflow_values)))
-    inverterinput = round(reduce(lambda a,b: a+b, inverter_values)/len(inverter_values),1)
-    demand = int(round((smartmeter + inverterinput)))
+    grid_power = smt.getPower()
+    hub_solarpower = hub.getSolarInputPower()
+    hub_homepower = hub.getOutputHomePower()
+    inv_acpower = inv.getACPower()
+    demand = grid_power + inv_acpower
     limit = 0
 
     now = datetime.now(tz=location.tzinfo)   
@@ -440,18 +374,18 @@ def limitHomeInput(client: mqtt_client):
     path = ""
     if packSoc > BATTERY_HIGH:
         path = "1."
-        if solarinput > 0 and solarinput > MIN_CHARGE_LEVEL:    # producing more than what is needed => only take what is needed and charge, giving a bit extra to demand
+        if hub_solarpower > 0 and hub_solarpower > MIN_CHARGE_LEVEL:    # producing more than what is needed => only take what is needed and charge, giving a bit extra to demand
             path += "1."
-            limit = min(demand + OVERAGE_LIMIT,solarinput + OVERAGE_LIMIT)
-        if solarinput > 0 and solarinput <= MIN_CHARGE_LEVEL:   # producing less than the minimum charge level 
+            limit = min(demand + OVERAGE_LIMIT,hub_solarpower + OVERAGE_LIMIT)
+        if hub_solarpower > 0 and hub_solarpower <= MIN_CHARGE_LEVEL:   # producing less than the minimum charge level 
             path += "2."
             if now <= sunrise or now > sunset:
                 path += "1"                         # in the morning keep using packSoc
                 limit = MAX_DISCHARGE_LEVEL
             else:         
                 path += "2"                                      
-                limit = solarinput + OVERAGE_LIMIT              # everything goes to the house throughout the day, in case SF regulated solarinput down we need to demand a bit more stepwise
-        if solarinput <= 0:
+                limit = hub_solarpower + OVERAGE_LIMIT              # everything goes to the house throughout the day, in case SF regulated solarinput down we need to demand a bit more stepwise
+        if hub_solarpower <= 0:
             path += "3"                                     
             limit = min(demand,MAX_DISCHARGE_LEVEL)             # not producing and demand is less than discharge limit => discharge with what is needed but limit to MAX
     elif packSoc <= BATTERY_LOW:
@@ -459,15 +393,15 @@ def limitHomeInput(client: mqtt_client):
         limit = 0                                               # battery is at low stage, stop discharging
     else:
         path = "3."
-        if solarinput > MIN_CHARGE_LEVEL:
+        if hub_solarpower > MIN_CHARGE_LEVEL:
             path += "1." 
-            if solarinput - MIN_CHARGE_LEVEL < MAX_DISCHARGE_LEVEL and packSoc > DAY_DISCHARGE_SOC:
+            if hub_solarpower - MIN_CHARGE_LEVEL < MAX_DISCHARGE_LEVEL and packSoc > DAY_DISCHARGE_SOC:
                 path += "1."
                 limit = min(demand,MAX_DISCHARGE_LEVEL)
             else:
                 path += "2."
-                limit = min(demand,solarinput - MIN_CHARGE_LEVEL)      # give charging precedence
-        if solarinput <= MIN_CHARGE_LEVEL:  
+                limit = min(demand,hub_solarpower - MIN_CHARGE_LEVEL)      # give charging precedence
+        if hub_solarpower <= MIN_CHARGE_LEVEL:  
             path += "2."                                                # producing less than the minimum charge level 
             sun_offset = timedelta(minutes = 60)
             if (now < (sunrise + sun_offset) or now > sunset - sun_offset) or packSoc > DAY_DISCHARGE_SOC: 
@@ -490,57 +424,45 @@ def limitHomeInput(client: mqtt_client):
     limit_values.append(0 if limit<0 else limit)                # to recover faster from negative demands
     limit = int(reduce(lambda a,b: a+b, limit_values)/len(limit_values))
 
-    sm = ",".join([f'{v:>4}' for v in smartmeter_values])
     lm = ",".join([f'{v:>4}' for v in limit_values])
-    batSoc = "|".join("{}%".format(v) for k, v in batterySocs.items())
-    i_dp = "|".join("{}W".format(v) for k, v in direct_panel_values.items())
 
     log.info(' '.join(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")}, \
-             H_SM: [{sm}], \
-             H_D: {demand}W, \
-             SF_S: {solarinput}W, \
-             I_DP: {direct_panel_power} ({i_dp}), \
-             I_OP: {inverterinput}W, \
-             SF_H: {home}W, \
-             SF_B: {packSoc}% ({batSoc}), \
-             CH_T: {"on" if charge_through else "off"}, \
-             {"dis" if charging<0 else ""}charging: {charging}W \
+             Demand: {demand:4.1f}W, \
+             Panel DC: {inv.getDirectDCPowerValues()}, \
+             Hub DC: {inv.getHubDCPowerValues()}, \
              => Limit: {limit}W - [{lm}] - decisionpath: {path}'.split()))
 
-    '''
     if limit_inverter:
         # if we get more from the direct connected panels than what we need, we limit the SF hub
         if direct_panel_power*0.9 <= limit <= direct_panel_power*1.1 or (limit == 0 and direct_panel_power > 10):
-            limitSolarflow(client,0)
-            limitInverter(client,getDirectPanelLimit(solarinput))
+            hub.setOutputLimit(0)
+            inv.setLimit(getDirectPanelLimit(inv,hub))
         # get the difference from SF if we need more than what the direct connected panels can deliver
         else:
             if direct_panel_power > 10:
-                limitSolarflow(client,limit-direct_panel_power)
+                hub.setOutputLimit(limit-direct_panel_power)
             else:
-                limitSolarflow(client, MAX_INVERTER_INPUT)
-            limitInverter(client,limit)
+                hub.setOutputLimit(MAX_INVERTER_INPUT)
+            inv.setLimit(limit)
     else:
-        limitSolarflow(client,limit)
-    '''
+        hub.setOutputLimit(limit)
 
 def run():
     client = connect_mqtt()
     hub = SolarflowHub(device_id=sf_device_id,client=client)
     hub.subscribe()
-    dtu = Inverter(client=client,base_topic="solar/116491132532",sfinputs=1,mppts=4)
+    hub.setBuzzer(False)
+    dtu = Inverter(client=client,base_topic="solar/116491132532",sfinputs=1,mppts=4,sfchannels=[3])
     dtu.subscribe()
     smt = Smartmeter(client=client,base_topic="tele/E220/SENSOR")
     smt.subscribe()
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
+    client.on_message = on_message
 
-    subscribe(client)
-    turnOffBuzzer(client)
     client.loop_start()
 
     while True:
         time.sleep(15)
-        checkCharging(client)
         limitHomeInput(client)
         
     client.loop_stop()

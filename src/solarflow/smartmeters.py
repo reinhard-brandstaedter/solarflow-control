@@ -30,6 +30,9 @@ class Smartmeter:
         topics = [f'{self.base_topic}']
         for t in topics:
             self.client.subscribe(t)
+    
+    def ready(self):
+        return len(self.phase_values) > 0
 
     def updPower(self):
         phase_sum = sum(self.phase_values.values())
@@ -46,5 +49,8 @@ class Smartmeter:
                 self.phase_values.update({msg.topic:value})
 
             self.updPower()
+
+    def getPower(self):
+        return self.power.wavg()
 
             

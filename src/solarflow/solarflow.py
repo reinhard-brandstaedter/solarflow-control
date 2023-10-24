@@ -13,11 +13,12 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 class SolarflowHub:
+    FULL_CHARGE_AGE = 72
 
-    def __init__(self, device_id: str, client: mqtt_client, window:int = 5):
+    def __init__(self, device_id: str, client: mqtt_client):
         self.client = client
         self.device_id = device_id
-        self.solarInputValues = TimewindowBuffer()
+        self.solarInputValues = TimewindowBuffer(minutes=1)
         self.solarInputPower = -1       # solar input power of connected panels
         self.outputPackPower = 0        # charging power of battery pack 
         self.packInputPower = 0         # discharging power of battery pack
@@ -33,9 +34,7 @@ class SolarflowHub:
         self.property_topic = f'iot/73bkTV/{device_id}/properties/write'
 
     def __str__(self):
-        #solar = ",".join([f'{v:>4}' for v in self.solarInputValues])
-        #batteries = "|".join("{}%".format(v) for k, v in self.batteries.items())
-        batteries = "|".join([f'{v:>2}%' for v in self.batteries.values()])
+        batteries = "|".join([f'{v:>2}' for v in self.batteries.values()])
         return ' '.join(f'{red}HUB: \
                         S:{self.solarInputPower:>3.1f}W {self.solarInputValues}, \
                         B:{self.electricLevel:>3}% ({batteries}), \
@@ -58,6 +57,8 @@ class SolarflowHub:
         for t in topics:
             self.client.subscribe(t)
 
+    def ready(self):
+        return (self.electricLevel > -1 and self.solarInputPower > -1)
 
     def updSolarInput(self, value:int):
         self.solarInputValues.add(value)
@@ -134,14 +135,20 @@ class SolarflowHub:
             r = divmod(limit,30)[1]
             limit = 30 * m + 30 * (r // 15)
 
+        fullage = self.getLastFullBattery()
+        emptyage = self.getLastEmptyBattery()
+        if  limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  emptyage < 1):
+            log.info(f'Battery hasn\'t fully charged for {fullage} hours or is empty, not discharging')
+            limit = 0
+
         outputlimit = {"properties": { "outputLimit": limit }}
-        self.client.publish(topic_limit_solarflow,json.dumps(outputlimit))
+        #self.client.publish(self.property_topic,json.dumps(outputlimit))
         log.info(f'Setting solarflow output limit to {limit} W')
         return limit
 
     def setBuzzer(self, state: bool):
         buzzer = {"properties": { "buzzerSwitch": 0 if not state else 1 }}
-        self.client.publish(topic_limit_solarflow,json.dumps(buzzer))
+        self.client.publish(self.property_topic,json.dumps(buzzer))
 
     # return how much time has passed since last full charge (in hours)
     def getLastFullBattery(self) -> int:
@@ -158,4 +165,11 @@ class SolarflowHub:
             return diff.total_seconds()/3600
         else:
             return -1
+        
+    def getOutputHomePower(self):
+        return self.outputHomePower
+    
+    def getSolarInputPower(self):
+        return self.solarInputPower
+
 
