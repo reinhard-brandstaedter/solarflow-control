@@ -37,7 +37,7 @@ class SolarflowHub:
         #batteries = "|".join("{}%".format(v) for k, v in self.batteries.items())
         batteries = "|".join([f'{v:>2}%' for v in self.batteries.values()])
         return ' '.join(f'{red}HUB: \
-                        S:{self.solarInputPower:>3}W {self.solarInputValues}, \
+                        S:{self.solarInputPower:>3.1f}W {self.solarInputValues}, \
                         B:{self.electricLevel:>3}% ({batteries}), \
                         C:{self.outputPackPower-self.packInputPower:>4}W, \
                         F:{self.getLastFullBattery():3.1f}h, \
@@ -61,7 +61,7 @@ class SolarflowHub:
 
     def updSolarInput(self, value:int):
         self.solarInputValues.add(value)
-        self.solarInputPower = self.solarInputValues.avg()
+        self.solarInputPower = self.solarInputValues.wavg()
         self.lastSolarInputTS = datetime.now()
     
     def updElectricLevel(self, value:int):

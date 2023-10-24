@@ -18,17 +18,16 @@ class Inverter:
     def __init__(self, client: mqtt_client, base_topic:str, sfinputs:int, mppts:int, window:int = 5):
         self.client = client
         self.base_topic = base_topic
-        self.acPower = TimewindowBuffer()
+        self.acPower = TimewindowBuffer(minutes=1)
         self.dcPower = 0
         self.channelsDCPower = []
         self.limitAbsolute = 0
         self.producing = True
-        pass
     
     def __str__(self):
         chPower = "|".join([f'{v:>3.1f}' for v in self.channelsDCPower][1:])
         return ' '.join(f'{yellow}INV: \
-                        AC:{self.acPower.avg():>3.1f}W, \
+                        AC:{self.acPower.wavg():>3.1f}W, \
                         DC:{self.dcPower:>3.1f}W ({chPower}), \
                         L:{self.limitAbsolute:>3}W{reset}'.split())
 
@@ -43,7 +42,7 @@ class Inverter:
             self.client.subscribe(t)
     
     def updChannelPowerDC(self,channel:int, value:float):
-        log.info(f'Channel Power: {len(self.channelsDCPower)}/{channel} : {value}')
+        log.debug(f'Channel Power: {len(self.channelsDCPower)}/{channel} : {value}')
         if len(self.channelsDCPower) == channel:
             self.channelsDCPower.append(value)
         if len(self.channelsDCPower) > channel:

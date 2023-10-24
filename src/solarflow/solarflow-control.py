@@ -11,6 +11,7 @@ import click
 import math
 from solarflow import SolarflowHub
 from dtus import Inverter
+from smartmeters import Smartmeter
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -265,7 +266,14 @@ def on_smartmeter_update(client,msg):
 
 def on_message(client, userdata, msg):
     global last_solar_input_update
-    sf_hub = userdata["hub"]
+
+    smartmeter = userdata["smartmeter"]
+    smartmeter.handleMsg(msg)
+    hub = userdata["hub"]
+    hub.handleMsg(msg)
+    dtu = userdata["dtu"]
+    dtu.handleMsg(msg)
+
     if msg.topic.startswith("solarflow-hub"):
         now = datetime.now()
         diff = now - last_solar_input_update
@@ -275,12 +283,7 @@ def on_message(client, userdata, msg):
             #log.info(f'No solarInputPower measurement received for {seconds}s')
             solarflow_values.pop(0)
             solarflow_values.append(0)
-        
-        sf_hub.handleMsg(msg)
     
-    dtu = userdata["dtu"]
-    if msg.topic.startswith("solar"):
-        dtu.handleMsg(msg)
     
     if msg.payload:
         if msg.topic == topic_acinput:
@@ -404,6 +407,9 @@ def limitHomeInput(client: mqtt_client):
     log.info(f'{sf_hub}')
     dtu = client._userdata['dtu']
     log.info(f'{dtu}')
+    smartmeter = client._userdata['smartmeter']
+    log.info(f'{smartmeter}')
+
 
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
@@ -520,11 +526,14 @@ def limitHomeInput(client: mqtt_client):
 
 def run():
     client = connect_mqtt()
-    SFHub = SolarflowHub(device_id=sf_device_id,client=client)
-    SFHub.subscribe()
-    DTU = Inverter(client=client,base_topic="solar/116491132532",sfinputs=2,mppts=4)
-    DTU.subscribe()
-    client.user_data_set({"hub":SFHub,"dtu":DTU})
+    hub = SolarflowHub(device_id=sf_device_id,client=client)
+    hub.subscribe()
+    dtu = Inverter(client=client,base_topic="solar/116491132532",sfinputs=1,mppts=4)
+    dtu.subscribe()
+    smt = Smartmeter(client=client,base_topic="tele/E220/SENSOR")
+    smt.subscribe()
+    client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
+
     subscribe(client)
     turnOffBuzzer(client)
     client.loop_start()
