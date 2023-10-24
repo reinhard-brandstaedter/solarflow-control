@@ -99,7 +99,7 @@ class SolarflowHub:
                 diff = now - self.lastSolarInputTS
                 seconds = diff.total_seconds()
                 if seconds > 120:
-                    self.updSolarInputPower(0)
+                    self.updSolarInput(0)
 
             metric = msg.topic.split('/')[-1]
             value = int(msg.payload.decode())
@@ -135,6 +135,7 @@ class SolarflowHub:
             r = divmod(limit,30)[1]
             limit = 30 * m + 30 * (r // 15)
 
+        log.info(f'Trying to set solarflow limit to {limit}')
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
         if  limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  emptyage < 1):

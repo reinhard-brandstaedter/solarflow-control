@@ -336,13 +336,13 @@ def limitInverter(client: mqtt_client, limit):
 def getDirectPanelLimit(inv, hub) -> int:
     direct_panel_power = inv.getDirectDCPower()
     if direct_panel_power < MAX_INVERTER_LIMIT:
-        return math.ceil(max(hub.getSolarInputPower()),max(inv.getDirectDCPowerValues()))
+        return math.ceil(max(hub.getSolarInputPower(),max(inv.getDirectDCPowerValues())))
     else:
         return int(MAX_INVERTER_LIMIT*(INVERTER_INPUTS_USED/INVERTER_MPPTS))
 
 def limitHomeInput(client: mqtt_client):
     global home
-    global packSoc, batterySocs, direct_panel_power
+    global packSoc, batterySocs
     global smartmeter_values, solarflow_values, inverter_values
     global charge_through
     global location
@@ -434,6 +434,7 @@ def limitHomeInput(client: mqtt_client):
 
     if limit_inverter:
         # if we get more from the direct connected panels than what we need, we limit the SF hub
+        direct_panel_power = inv.getDirectDCPower()
         if direct_panel_power*0.9 <= limit <= direct_panel_power*1.1 or (limit == 0 and direct_panel_power > 10):
             hub.setOutputLimit(0)
             inv.setLimit(getDirectPanelLimit(inv,hub))
@@ -462,7 +463,7 @@ def run():
     client.loop_start()
 
     while True:
-        time.sleep(15)
+        time.sleep(5)
         limitHomeInput(client)
         
     client.loop_stop()

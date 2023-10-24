@@ -17,10 +17,13 @@ class TimewindowBuffer:
     def add(self,value):
         now = datetime.now()
         self.values.append((now,value))
-        first_ts = self.values[0][0]
-        diff = now - first_ts
-        if diff.total_seconds()/60 > self.minutes:
-            self.values.pop(0)
+        while True:
+            first_ts = self.values[0][0]
+            diff = now - first_ts
+            if diff.total_seconds()/60 > self.minutes:
+                self.values.pop(0)
+            else:
+                break
 
     # standard moving average
     def avg(self) -> float:
