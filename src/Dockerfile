@@ -1,8 +1,8 @@
 FROM rbrandstaedter/solarflow-control-baseimage:latest
 
 # Create stdconfig directory
-WORKDIR /
+WORKDIR /solarflow
 
-COPY solarflow-control.py /
+COPY solarflow /solarflow
 
 ENTRYPOINT ["python","solarflow-control.py"]

@@ -9,6 +9,8 @@ from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import click
 import math
+from solarflow import SolarflowHub
+from dtus import Inverter
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -120,7 +122,7 @@ topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
 topic_limit_non_persistent =    config.get('mqtt_telemetry_topics', 'topic_limit_non_persistent', fallback=None) \
                                 or os.environ.get('TOPIC_LIMIT_OPENDTU',"solar/116491132532/cmd/limit_nonpersistent_absolute")
 
-client_id = f'solarflow-control-{random.randint(0, 100)}'
+client_id = f'solarflow-ctrl-{random.randint(0, 100)}'
 
 # sliding average windows for telemetry data, to remove spikes and drops
 sf_window =     config.getint('control', 'sf_window', fallback=None) \
@@ -166,8 +168,7 @@ class MyLocation:
         log.info(f"Location: {res.city}, {res.region}, {res.country}")
         log.info(f"Coordinates: (Lat: {res.latitude}, Lng: {res.longitude})")
         return (res.latitude,res.longitude)
-
-
+'''
 def on_solarflow_solarinput(msg):
     #log.info(f'Received solarInput: {msg}')
     global last_solar_input_update    
@@ -203,6 +204,7 @@ def on_solarflow_battery_soclevel(sn, msg):
     global batterySocs
     batterySocs.pop("dummy",None)
     batterySocs.update({sn:int(msg)})
+'''
 
 def on_inverter_update(msg):
     global inverter_values
@@ -263,6 +265,7 @@ def on_smartmeter_update(client,msg):
 
 def on_message(client, userdata, msg):
     global last_solar_input_update
+    sf_hub = userdata["hub"]
     if msg.topic.startswith("solarflow-hub"):
         now = datetime.now()
         diff = now - last_solar_input_update
@@ -272,12 +275,19 @@ def on_message(client, userdata, msg):
             #log.info(f'No solarInputPower measurement received for {seconds}s')
             solarflow_values.pop(0)
             solarflow_values.append(0)
+        
+        sf_hub.handleMsg(msg)
+    
+    dtu = userdata["dtu"]
+    if msg.topic.startswith("solar"):
+        dtu.handleMsg(msg)
     
     if msg.payload:
         if msg.topic == topic_acinput:
             on_inverter_update(msg.payload.decode())
         if msg.topic in topics_direct_panel:
             on_direct_panel(msg)
+        '''
         if msg.topic == topic_solarflow_solarinput:
             on_solarflow_solarinput(msg.payload.decode())  
         if msg.topic == topic_solarflow_electriclevel:
@@ -293,6 +303,7 @@ def on_message(client, userdata, msg):
         if "socLevel" in msg.topic and "batteries" in msg.topic:
             sn = msg.topic.split('/')[-2]
             on_solarflow_battery_soclevel(sn, msg.payload.decode())
+        '''
         if msg.topic in topics_house:
             on_smartmeter_update(client,msg)
     else:
@@ -321,12 +332,14 @@ def subscribe(client: mqtt_client):
         client.subscribe(dp)
 
     client.subscribe(topic_acinput)
+    '''
     client.subscribe(topic_solarflow_solarinput)
     client.subscribe(topic_solarflow_electriclevel)
     client.subscribe(topic_solarflow_outputpack)
     client.subscribe(topic_solarflow_packinput)
     client.subscribe(topic_solarflow_outputhome)
     client.subscribe(topic_solarflow_battery_soclevel)
+    '''
     client.on_message = on_message
 
 # this ensures that the buzzerSwitch (audio confirmation upon commands) is off
@@ -387,6 +400,11 @@ def limitHomeInput(client: mqtt_client):
     global charge_through
     global location
 
+    sf_hub = client._userdata['hub']
+    log.info(f'{sf_hub}')
+    dtu = client._userdata['dtu']
+    log.info(f'{dtu}')
+
     # ensure we have data to work on
     if len(smartmeter_values) == 0:
         log.info(f'Waiting for smartmeter data to make decisions...')
@@ -397,7 +415,7 @@ def limitHomeInput(client: mqtt_client):
     if len(inverter_values) == 0:
         log.info(f'Waiting for inverter data to make decisions...')
         return
-    if packSoc < 0:
+    if sf_hub.electricLevel < 0:
         log.info(f'Waiting for state of charge to make decisions...')
         return
         
@@ -483,6 +501,7 @@ def limitHomeInput(client: mqtt_client):
              {"dis" if charging<0 else ""}charging: {charging}W \
              => Limit: {limit}W - [{lm}] - decisionpath: {path}'.split()))
 
+    '''
     if limit_inverter:
         # if we get more from the direct connected panels than what we need, we limit the SF hub
         if direct_panel_power*0.9 <= limit <= direct_panel_power*1.1 or (limit == 0 and direct_panel_power > 10):
@@ -497,9 +516,15 @@ def limitHomeInput(client: mqtt_client):
             limitInverter(client,limit)
     else:
         limitSolarflow(client,limit)
+    '''
 
 def run():
     client = connect_mqtt()
+    SFHub = SolarflowHub(device_id=sf_device_id,client=client)
+    SFHub.subscribe()
+    DTU = Inverter(client=client,base_topic="solar/116491132532",sfinputs=2,mppts=4)
+    DTU.subscribe()
+    client.user_data_set({"hub":SFHub,"dtu":DTU})
     subscribe(client)
     turnOffBuzzer(client)
     client.loop_start()
