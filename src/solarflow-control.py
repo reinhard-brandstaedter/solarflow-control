@@ -344,6 +344,9 @@ def checkCharging(client: mqtt_client):
 
 # limit the output to home setting on the Solarflow hub
 def limitSolarflow(client: mqtt_client, limit):
+    if limit < 0:
+        limit = 0
+        
     # currently the hub doesn't support single steps for limits below 100
     # to get a fine granular steering at this level we need to fall back to the inverter limit
     # if controlling the inverter is not possible we should stick to either 0 or 100W
