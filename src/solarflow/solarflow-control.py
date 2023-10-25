@@ -10,7 +10,7 @@ import configparser
 import click
 import math
 from solarflow import SolarflowHub
-from dtus import Inverter
+import dtus
 from smartmeters import Smartmeter
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
@@ -38,6 +38,10 @@ mqtt_user = config.get('local', 'mqtt_user', fallback=None) or os.environ.get('M
 mqtt_pwd = config.get('local', 'mqtt_pwd', fallback=None) or os.environ.get('MQTT_PWD',None)
 mqtt_host = config.get('local', 'mqtt_host', fallback=None) or os.environ.get('MQTT_HOST',None)
 mqtt_port = config.getint('local', 'mqtt_port', fallback=None) or os.environ.get('MQTT_PORT',1883)
+
+
+DTU_TYPE =              config.get('control', 'dtu_type', fallback=None) \
+                        or os.environ.get('DTU_TYPE',"OpenDTU")   
 
 # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
 MIN_CHARGE_LEVEL =      config.getint('control', 'min_charge_level', fallback=None) \
@@ -169,43 +173,6 @@ class MyLocation:
         log.info(f"Location: {res.city}, {res.region}, {res.country}")
         log.info(f"Coordinates: (Lat: {res.latitude}, Lng: {res.longitude})")
         return (res.latitude,res.longitude)
-'''
-def on_solarflow_solarinput(msg):
-    #log.info(f'Received solarInput: {msg}')
-    global last_solar_input_update    
-    if len(solarflow_values) >= sf_window:
-        solarflow_values.pop(0)
-        solarflow_values.append(int(msg))
-        last_solar_input_update = datetime.now()
-
-def on_solarflow_electriclevel(msg):
-    #log.info(f'Received electricLevel: {msg}')
-    global packSoc
-    packSoc = int(msg)
-
-def on_solarflow_outputpack(msg):
-    #log.info(f'Received outputPack: {msg}')
-    global charging
-    charging = int(msg)
-
-def on_solarflow_packinput(msg):
-    #log.info(f'Received packInput: {msg}')
-    global charging
-    charging = -int(msg)
-
-def on_solarflow_outputhome(msg):
-    global home
-    home = int(msg)
-
-def on_solarflow_maxtemp(msg):
-    global maxtemp
-    maxtemp = int(msg)
-
-def on_solarflow_battery_soclevel(sn, msg):
-    global batterySocs
-    batterySocs.pop("dummy",None)
-    batterySocs.update({sn:int(msg)})
-'''
 
 def on_inverter_update(msg):
     global inverter_values
@@ -472,7 +439,8 @@ def run():
     hub = SolarflowHub(device_id=sf_device_id,client=client)
     #hub.subscribe()
     #hub.setBuzzer(False)
-    dtu = Inverter(client=client,base_topic="solar/116491132532",sfinputs=1,mppts=4,sfchannels=[3])
+    dtuType = getattr(dtus, DTU_TYPE)
+    dtu = dtuType(client=client,base_topic="solar", inverter_no=116491132532,sfchannels=[3])
     #dtu.subscribe()
     smt = Smartmeter(client=client,base_topic="tele/E220/SENSOR")
     #smt.subscribe()

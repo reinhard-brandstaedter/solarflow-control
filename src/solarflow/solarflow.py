@@ -137,7 +137,7 @@ class SolarflowHub:
 
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
-        if  limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  emptyage < 1):
+        if  limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  0 < emptyage < 1):
             log.info(f'Battery hasn\'t fully charged for {fullage} hours or is empty, not discharging')
             limit = 0
 

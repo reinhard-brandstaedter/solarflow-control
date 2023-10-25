@@ -13,9 +13,11 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 
-class Inverter:
+class DTU:
+    limit_topic = ""
+    limit_unit = ""
 
-    def __init__(self, client: mqtt_client, base_topic:str, sfinputs:int, mppts:int, sfchannels:[]=[]):
+    def __init__(self, client: mqtt_client, base_topic:str, sfchannels:[]=[]):
         self.client = client
         self.base_topic = base_topic
         self.acPower = TimewindowBuffer(minutes=1)
@@ -24,7 +26,7 @@ class Inverter:
         self.sfchannels = sfchannels
         self.limitAbsolute = 0
         self.producing = True
-        self.limit_nonpersistent_absolute = f'{base_topic}/cmd/limit_nonpersistent_absolute'
+        self.limit_nonpersistent_absolute = f'{base_topic}/{self.limit_topic}'
     
     def __str__(self):
         chPower = "|".join([f'{v:>3.1f}' for v in self.channelsDCPower][1:])
@@ -34,14 +36,7 @@ class Inverter:
                         L:{self.limitAbsolute:>3}W{reset}'.split())
 
     def subscribe(self):
-        topics = [
-            f'{self.base_topic}/0/powerdc',
-            f'{self.base_topic}/+/power',
-            f'{self.base_topic}/status/producing',
-            f'{self.base_topic}/status/limit_absolute'
-        ]
-        for t in topics:
-            self.client.subscribe(t)
+        pass
     
     def ready(self):
         return len(self.channelsDCPower) > 0
@@ -108,8 +103,89 @@ class Inverter:
         #unit = "" if isOpenDTU(topic_limit_non_persistent) else "W"
         
         if self.limitAbsolute != inv_limit:
-            self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}')
+            self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
             log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sfchannels)}/{len(self.channelsDCPower)-1})')
         else:
             log.info(f'Not setting inverter output limit as it is identical to current limit!')
         return inv_limit
+    
+
+class OpenDTU(DTU):
+    limit_topic = "cmd/limit_nonpersistent_absolute"
+    limit_unit = ""
+
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_no:int, sfchannels:[]=[]):
+        super().__init__(client=client,base_topic=base_topic, sfchannels=sfchannels)
+        self.base_topic = f'{base_topic}/{inverter_no}'
+        self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}'
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sfchannels}')
+
+    def subscribe(self):
+        topics = [
+            f'{self.base_topic}/0/powerdc',
+            f'{self.base_topic}/+/power',
+            f'{self.base_topic}/status/producing',
+            f'{self.base_topic}/status/limit_absolute'
+        ]
+        for t in topics:
+            self.client.subscribe(t)
+
+    def handleMsg(self, msg):
+        if msg.topic.startswith(self.base_topic) and msg.payload:
+            metric = msg.topic.split('/')[-1]
+            value = float(msg.payload.decode())
+            log.debug(f'DTU received {metric}:{value}')
+            match metric:
+                case "powerdc":
+                    self.updTotalPowerDC(value)
+                case "limit_absolute":
+                    self.updLimitAbsolute(value)
+                case "producing":
+                    self.updProducing(value)
+                case "power":
+                    channel = int(msg.topic.split('/')[-2])
+                    self.updChannelPowerDC(channel, value)
+                case _:
+                    log.warning(f'Ignoring inverter metric: {metric}')
+
+class AhoyDTU(DTU):
+    limit_topic = "ctrl/limit"
+    limit_unit = "W"
+
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_name:str, inverter_id:int, sfchannels:[]=[]):
+        super().__init__(client=client,base_topic=base_topic, sfchannels=sfchannels)
+        self.base_topic = f'{base_topic}'
+        self.inverter_name = inverter_name
+        self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}/{inverter_id}'
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sfchannels}')
+
+    def subscribe(self):
+        topics = [
+            f'{self.base_topic}/{self.inverter_name}/+/P_DC',
+            f'{self.base_topic}/{self.inverter_name}/ch0/P_AC',
+            f'{self.base_topic}/{self.inverter_name}/ch0/active_PowerLimit',
+            f'{self.base_topic}/status'
+        ]
+        for t in topics:
+            self.client.subscribe(t)
+    
+    def handleMsg(self, msg):
+        if msg.topic.startswith(self.base_topic) and msg.payload:
+            metric = msg.topic.split('/')[-1]
+            value = float(msg.payload.decode())
+            log.debug(f'DTU received {metric}:{value}')
+            match metric:
+                case "P_AC":
+                    self.updChannelPowerDC(0, value)
+                case "status":
+                    self.updProducing(value)
+                case "active_PowerLimit":
+                    self.updLimitAbsolute(value)
+                case "P_DC":
+                    channel = int(msg.topic.split('/')[-2][-1])
+                    if channel == 0:
+                        self.updTotalPowerDC(value)
+                    else:
+                        self.updChannelPowerDC(channel, value)
+                case _:
+                    log.warning(f'Ignoring inverter metric: {metric}')
