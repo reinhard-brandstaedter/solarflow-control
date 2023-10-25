@@ -32,6 +32,7 @@ class SolarflowHub:
         self.lastSolarInputTS = None    # time of the last received solar input value
 
         self.property_topic = f'iot/73bkTV/{device_id}/properties/write'
+        self.chargeThrough = True
 
     def __str__(self):
         batteries = "|".join([f'{v:>2}' for v in self.batteries.values()])
@@ -52,7 +53,8 @@ class SolarflowHub:
             "solarflow-hub/telemetry/packInputPower",
             "solarflow-hub/telemetry/outputHomePower",
             "solarflow-hub/telemetry/outputLimit",
-            "solarflow-hub/telemetry/batteries/+/socLevel"
+            "solarflow-hub/telemetry/batteries/+/socLevel",
+            "solarflow-hub/control/chargeThrough"
         ]
         for t in topics:
             self.client.subscribe(t)
@@ -88,6 +90,13 @@ class SolarflowHub:
         self.batteries.pop("none",None)
         self.batteries.update({sn:value})
 
+    def setChargeThrough(self, value):
+        if type(value) == str:
+            self.chargeThrough = value.upper() == 'ON'
+        if type(value) == int:
+            self.chargeThrough = bool(value)
+        log.info(f'Set ChargeThrough: {self.chargeThrough}')
+
     # handle content of mqtt message and update properties accordingly
     def handleMsg(self, msg):
         if msg.topic.startswith('solarflow-hub') and msg.payload:
@@ -102,23 +111,25 @@ class SolarflowHub:
                     self.updSolarInput(0)
 
             metric = msg.topic.split('/')[-1]
-            value = int(msg.payload.decode())
+            value = msg.payload.decode()
             match metric:
                 case "electricLevel":
-                    self.updElectricLevel(value)
+                    self.updElectricLevel(int(value))
                 case "solarInputPower":
-                    self.updSolarInput(value)
+                    self.updSolarInput(int(value))
                 case "outputPackPower":
-                    self.updOutputPack(value)
+                    self.updOutputPack(int(value))
                 case "packInputPower":
-                    self.updPackInput(value)
+                    self.updPackInput(int(value))
                 case "outputHomePower":
-                    self.updOutputHome(value)
+                    self.updOutputHome(int(value))
                 case "outputLimit":
-                    self.updOutputLimit(value)
+                    self.updOutputLimit(int(value))
                 case "socLevel":
                     sn = msg.topic.split('/')[-2]
-                    self.updBatterySoC(sn=sn, value=value)
+                    self.updBatterySoC(sn=sn, value=int(value))
+                case "chargeThrough":
+                    self.setChargeThrough(value)
                 case _:
                     log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
@@ -137,7 +148,7 @@ class SolarflowHub:
 
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
-        if  limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  0 < emptyage < 1):
+        if  self.chargeThrough and (limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  0 < emptyage < 1)):
             log.info(f'Battery hasn\'t fully charged for {fullage} hours or is empty, not discharging')
             limit = 0
 
