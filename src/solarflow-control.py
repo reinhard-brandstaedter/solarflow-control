@@ -346,7 +346,7 @@ def checkCharging(client: mqtt_client):
 def limitSolarflow(client: mqtt_client, limit):
     if limit < 0:
         limit = 0
-        
+
     # currently the hub doesn't support single steps for limits below 100
     # to get a fine granular steering at this level we need to fall back to the inverter limit
     # if controlling the inverter is not possible we should stick to either 0 or 100W
@@ -497,7 +497,7 @@ def limitHomeInput(client: mqtt_client):
                 limitSolarflow(client,limit-direct_panel_power)
             else:
                 limitSolarflow(client, MAX_INVERTER_INPUT)
-            limitInverter(client,limit)
+            limitInverter(client,getDirectPanelLimit(solarinput))
     else:
         limitSolarflow(client,limit)
 
