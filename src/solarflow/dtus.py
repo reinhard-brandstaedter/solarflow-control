@@ -152,10 +152,11 @@ class AhoyDTU(DTU):
     limit_topic = "ctrl/limit"
     limit_unit = "W"
 
-    def __init__(self, client: mqtt_client, base_topic:str, inverter_name:str, inverter_id:int, sfchannels:[]=[]):
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_name:str, inverter_id:int, inverter_max_power:int, sfchannels:[]=[]):
         super().__init__(client=client,base_topic=base_topic, sfchannels=sfchannels)
         self.base_topic = f'{base_topic}'
         self.inverter_name = inverter_name
+        self.inverter_max_power = inverter_max_power
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}/{inverter_id}'
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sfchannels}')
 
@@ -180,7 +181,7 @@ class AhoyDTU(DTU):
                 case "status":
                     self.updProducing(value)
                 case "active_PowerLimit":
-                    self.updLimitAbsolute(value)
+                    self.updLimitAbsolute(self.inverter_max_power*value/100)
                 case "P_DC":
                     channel = int(msg.topic.split('/')[-2][-1])
                     if channel == 0:

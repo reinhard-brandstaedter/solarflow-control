@@ -317,7 +317,7 @@ def limitInverter(client: mqtt_client, limit):
 def getDirectPanelLimit(inv, hub) -> int:
     direct_panel_power = inv.getDirectDCPower()
     if direct_panel_power < MAX_INVERTER_LIMIT:
-        return math.ceil(max(hub.getSolarInputPower(),max(inv.getDirectDCPowerValues())))
+        return math.ceil(max( max(inv.getHubDCPowerValues()), max(inv.getDirectDCPowerValues()) ))
     else:
         return int(MAX_INVERTER_LIMIT*(INVERTER_INPUTS_USED/INVERTER_MPPTS))
 
@@ -430,7 +430,7 @@ def limitHomeInput(client: mqtt_client):
                 hub.setOutputLimit(limit-direct_panel_power)
             else:
                 hub.setOutputLimit(MAX_INVERTER_INPUT)
-            inv.setLimit(getDirectPanelLimit(inv,hub))
+            inv.setLimit(limit)
     else:
         hub.setOutputLimit(limit)
 
@@ -439,9 +439,21 @@ def run():
     hub = SolarflowHub(device_id=sf_device_id,client=client)
     #hub.subscribe()
     #hub.setBuzzer(False)
+    opendtu_opts = {
+        "base_topic":"solar",
+        "inverter_no":116491132532,
+        "sfchannels": [3]
+    }
+    ahoydtu_opts = {
+        "base_topic":"solar",
+        "inverter_id": 1,
+        "inverter_name": "HM-800",
+        "inverter_max_power": 800,
+        "sfchannels": [3]
+    }
     dtuType = getattr(dtus, DTU_TYPE)
-    dtu = dtuType(client=client,base_topic="solar", inverter_no=116491132532,sfchannels=[3])
-    #dtu.subscribe()
+    #dtu = dtuType(client=client,base_topic="solar", inverter_no=116491132532, sfchannels=[3])
+    dtu = dtuType(client=client,**opendtu_opts)
     smt = Smartmeter(client=client,base_topic="tele/E220/SENSOR")
     #smt.subscribe()
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
