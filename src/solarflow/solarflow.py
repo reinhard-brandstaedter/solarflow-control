@@ -135,7 +135,6 @@ class SolarflowHub:
             r = divmod(limit,30)[1]
             limit = 30 * m + 30 * (r // 15)
 
-        log.info(f'Trying to set solarflow limit to {limit}')
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
         if  limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  emptyage < 1):
@@ -143,8 +142,11 @@ class SolarflowHub:
             limit = 0
 
         outputlimit = {"properties": { "outputLimit": limit }}
-        #self.client.publish(self.property_topic,json.dumps(outputlimit))
-        log.info(f'Setting solarflow output limit to {limit} W')
+        if self.outputLimit != limit:
+            self.client.publish(self.property_topic,json.dumps(outputlimit))
+            log.info(f'Setting solarflow output limit to {limit} W')
+        else:
+            log.info(f'Not setting solarflow output limit as it is identical to current limit!')
         return limit
 
     def setBuzzer(self, state: bool):
@@ -172,5 +174,8 @@ class SolarflowHub:
     
     def getSolarInputPower(self):
         return self.solarInputPower
+    
+    def getElectricLevel(self):
+        return self.electricLevel
 
 

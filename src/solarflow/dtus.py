@@ -106,6 +106,10 @@ class Inverter:
         # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
         inv_limit = limit*(1/(len(self.sfchannels)/(len(self.channelsDCPower)-1)))
         #unit = "" if isOpenDTU(topic_limit_non_persistent) else "W"
-        #self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{unit}')
-        log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sfchannels)}/{len(self.channelsDCPower)-1})')
+        
+        if self.limitAbsolute != inv_limit:
+            self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}')
+            log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sfchannels)}/{len(self.channelsDCPower)-1})')
+        else:
+            log.info(f'Not setting inverter output limit as it is identical to current limit!')
         return inv_limit

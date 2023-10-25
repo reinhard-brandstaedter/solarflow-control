@@ -276,14 +276,28 @@ def on_message(client, userdata, msg):
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         log.info("Connected to MQTT Broker!")
+        hub = client._userdata['hub']
+        hub.subscribe()
+        hub.setBuzzer(False)
+        inv = client._userdata['dtu']
+        inv.subscribe()
+        smt = client._userdata['smartmeter']
+        smt.subscribe()
     else:
         log.error("Failed to connect, return code %d\n", rc)
+
+def on_disconnect(client, userdata, rc):
+    if rc == 0:
+        log.info("Disconnected from MQTT Broker on porpose!")
+    else:
+        log.error("Disconnected from MQTT broker!")
 
 def connect_mqtt() -> mqtt_client:
     client = mqtt_client.Client(client_id)
     if mqtt_user is not None and mqtt_pwd is not None:
         client.username_pw_set(mqtt_user, mqtt_pwd)
     client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
     client.connect(mqtt_host, mqtt_port)
     return client
 
@@ -370,9 +384,12 @@ def limitHomeInput(client: mqtt_client):
     sunrise = s['sunrise']
     sunset = s['sunset']
 
+    hub_electricLevel = hub.getElectricLevel()
+    hub_solarpower = hub.getSolarInputPower()
+
     # now all the logic when/how to set limit
     path = ""
-    if packSoc > BATTERY_HIGH:
+    if  hub_electricLevel > BATTERY_HIGH:
         path = "1."
         if hub_solarpower > 0 and hub_solarpower > MIN_CHARGE_LEVEL:    # producing more than what is needed => only take what is needed and charge, giving a bit extra to demand
             path += "1."
@@ -388,14 +405,14 @@ def limitHomeInput(client: mqtt_client):
         if hub_solarpower <= 0:
             path += "3"                                     
             limit = min(demand,MAX_DISCHARGE_LEVEL)             # not producing and demand is less than discharge limit => discharge with what is needed but limit to MAX
-    elif packSoc <= BATTERY_LOW:
+    elif hub_electricLevel <= BATTERY_LOW:
         path = "2."                                         
         limit = 0                                               # battery is at low stage, stop discharging
     else:
         path = "3."
         if hub_solarpower > MIN_CHARGE_LEVEL:
             path += "1." 
-            if hub_solarpower - MIN_CHARGE_LEVEL < MAX_DISCHARGE_LEVEL and packSoc > DAY_DISCHARGE_SOC:
+            if hub_solarpower - MIN_CHARGE_LEVEL < MAX_DISCHARGE_LEVEL and hub_electricLevel > DAY_DISCHARGE_SOC:
                 path += "1."
                 limit = min(demand,MAX_DISCHARGE_LEVEL)
             else:
@@ -404,18 +421,18 @@ def limitHomeInput(client: mqtt_client):
         if hub_solarpower <= MIN_CHARGE_LEVEL:  
             path += "2."                                                # producing less than the minimum charge level 
             sun_offset = timedelta(minutes = 60)
-            if (now < (sunrise + sun_offset) or now > sunset - sun_offset) or packSoc > DAY_DISCHARGE_SOC: 
+            if (now < (sunrise + sun_offset) or now > sunset - sun_offset) or hub_electricLevel > DAY_DISCHARGE_SOC: 
                 path += "1"                
                 limit = min(demand,MAX_DISCHARGE_LEVEL)                 # in the morning keep using battery, in the evening start using battery
                 td = timedelta(minutes = 5)
-                if charge_through or (now > sunset and now < sunset + td and packSoc < CHARGE_THROUGH_THRESHOLD):      # charge through mode, do not discharge when battery is low at sunset
-                    not charge_through and log.info(f'Entering charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {packSoc}): no discharging')
+                if charge_through or (now > sunset and now < sunset + td and hub_electricLevel < CHARGE_THROUGH_THRESHOLD):      # charge through mode, do not discharge when battery is low at sunset
+                    not charge_through and log.info(f'Entering charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {hub_electricLevel}): no discharging')
                     charge_through = True
                     limit = 0
             else:
                 path += "2"                                     
                 limit = 0
-                charge_through and log.info(f'Leaving charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {packSoc})')
+                charge_through and log.info(f'Leaving charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {hub_electricLevel})')
                 charge_through = False
                     
 
@@ -424,12 +441,14 @@ def limitHomeInput(client: mqtt_client):
     limit_values.append(0 if limit<0 else limit)                # to recover faster from negative demands
     limit = int(reduce(lambda a,b: a+b, limit_values)/len(limit_values))
 
-    lm = ",".join([f'{v:>4}' for v in limit_values])
+    lm = ",".join([f'{v:>4.1f}' for v in limit_values])
 
+    panels_dc = "|".join([f'{v:>2}' for v in inv.getDirectDCPowerValues()])
+    hub_dc = "|".join([f'{v:>2}' for v in inv.getHubDCPowerValues()])
     log.info(' '.join(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")}, \
              Demand: {demand:4.1f}W, \
-             Panel DC: {inv.getDirectDCPowerValues()}, \
-             Hub DC: {inv.getHubDCPowerValues()}, \
+             Panel DC: ({panels_dc}), \
+             Hub DC: ({hub_dc}), \
              => Limit: {limit}W - [{lm}] - decisionpath: {path}'.split()))
 
     if limit_inverter:
@@ -444,19 +463,19 @@ def limitHomeInput(client: mqtt_client):
                 hub.setOutputLimit(limit-direct_panel_power)
             else:
                 hub.setOutputLimit(MAX_INVERTER_INPUT)
-            inv.setLimit(limit)
+            inv.setLimit(getDirectPanelLimit(inv,hub))
     else:
         hub.setOutputLimit(limit)
 
 def run():
     client = connect_mqtt()
     hub = SolarflowHub(device_id=sf_device_id,client=client)
-    hub.subscribe()
-    hub.setBuzzer(False)
+    #hub.subscribe()
+    #hub.setBuzzer(False)
     dtu = Inverter(client=client,base_topic="solar/116491132532",sfinputs=1,mppts=4,sfchannels=[3])
-    dtu.subscribe()
+    #dtu.subscribe()
     smt = Smartmeter(client=client,base_topic="tele/E220/SENSOR")
-    smt.subscribe()
+    #smt.subscribe()
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
 
