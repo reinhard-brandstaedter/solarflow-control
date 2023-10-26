@@ -475,8 +475,10 @@ def run():
         "sfchannels": SF_INVERTER_CHANNELS
     }
     dtuType = getattr(dtus, DTU_TYPE)
-    #dtu = dtuType(client=client,base_topic="solar", inverter_no=116491132532, sfchannels=[3])
-    dtu = dtuType(client=client,**opendtu_opts)
+    dtu_opts = opendtu_opts
+    if dtuType == "AhoyDTU":
+        dtu_opts = ahoydtu_opts
+    dtu = dtuType(client=client,**dtu_opts)
     smt = Smartmeter(client=client,base_topic="tele/E220/SENSOR")
     #smt.subscribe()
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
