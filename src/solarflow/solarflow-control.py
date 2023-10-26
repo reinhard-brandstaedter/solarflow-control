@@ -486,8 +486,8 @@ def run():
     if dtuType == "AhoyDTU":
         dtu_opts = ahoydtu_opts
     dtu = dtuType(client=client,**dtu_opts)
-    #smt = Smartmeter(client=client,base_topic="tele/E220/SENSOR")
-    smt = Poweropti(client=client,user=POWEROPTI_USER,password=POWEROPTI_PASSWORD)
+    smt = Smartmeter(client=client,base_topic="tele/E220/SENSOR",cur_accessor = "Power.Power_curr", total_accessor = "Power.Total_in")
+    #smt = Poweropti(client=client,user=POWEROPTI_USER,password=POWEROPTI_PASSWORD)
     #smt.subscribe()
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
