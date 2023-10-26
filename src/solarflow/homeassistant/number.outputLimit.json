@@ -1,0 +1,20 @@
+{
+    "name": "Output Power Limit",
+    "cmd_t": "iot/73bkTV/{{ device_id }}/properties/write",
+    "cmd_tpl": "{\"properties\": {\"outputLimit\": {{ value }} }}",
+    "stat_t": "~outputLimit",
+    "uniq_id": "{{ device_id }}-outputLimit",
+    "dev_cla": "power",
+    "unit_of_meas": "W",
+    "max": 800,
+    "min": 0,
+    "step": 1,
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}

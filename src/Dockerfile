@@ -1,5 +1,6 @@
 FROM rbrandstaedter/solarflow-control-baseimage:latest
 
+RUN pip install Jinja2
 # Create stdconfig directory
 WORKDIR /solarflow
 

@@ -4,6 +4,8 @@ from functools import reduce
 import logging
 import json
 import sys
+import pathlib
+from jinja2 import Environment, FileSystemLoader, DebugUndefined
 from utils import TimewindowBuffer
 
 red = "\x1b[31;20m"
@@ -17,7 +19,8 @@ class SolarflowHub:
 
     def __init__(self, device_id: str, client: mqtt_client):
         self.client = client
-        self.device_id = device_id
+        self.deviceId = device_id
+        self.fwVersion = "unknown"
         self.solarInputValues = TimewindowBuffer(minutes=1)
         self.solarInputPower = -1       # solar input power of connected panels
         self.outputPackPower = 0        # charging power of battery pack 
@@ -31,7 +34,7 @@ class SolarflowHub:
         self.lastEmptyTS = None         # keep track of last time the battery pack was empty (0%)
         self.lastSolarInputTS = None    # time of the last received solar input value
 
-        self.property_topic = f'iot/73bkTV/{device_id}/properties/write'
+        self.property_topic = f'iot/73bkTV/{self.deviceId}/properties/write'
         self.chargeThrough = True
 
     def __str__(self):
@@ -47,13 +50,14 @@ class SolarflowHub:
 
     def subscribe(self):
         topics = [
-            "solarflow-hub/telemetry/solarInputPower",
-            "solarflow-hub/telemetry/electricLevel",
-            "solarflow-hub/telemetry/outputPackPower",
-            "solarflow-hub/telemetry/packInputPower",
-            "solarflow-hub/telemetry/outputHomePower",
-            "solarflow-hub/telemetry/outputLimit",
-            "solarflow-hub/telemetry/batteries/+/socLevel",
+            f'solarflow-hub/{self.deviceId}/telemetry/solarInputPower',
+            f'solarflow-hub/{self.deviceId}/telemetry/electricLevel',
+            f'solarflow-hub/{self.deviceId}/telemetry/outputPackPower',
+            f'solarflow-hub/{self.deviceId}/telemetry/packInputPower',
+            f'solarflow-hub/{self.deviceId}/telemetry/outputHomePower',
+            f'solarflow-hub/{self.deviceId}/telemetry/outputLimit',
+            f'solarflow-hub/{self.deviceId}/telemetry/masterSoftVersion',
+            f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/socLevel',
             "solarflow-hub/control/chargeThrough"
         ]
         for t in topics:
@@ -61,6 +65,18 @@ class SolarflowHub:
 
     def ready(self):
         return (self.electricLevel > -1 and self.solarInputPower > -1)
+
+    def pushHomeassistantConfig(self):
+        hatemplates = [f for f in pathlib.Path().glob("homeassistant/*.json")]
+        environment = Environment(loader=FileSystemLoader("homeassistant/"), undefined=DebugUndefined)
+
+        for hatemplate in hatemplates:
+            template = environment.get_template(hatemplate.name)
+            hacfg = template.render(device_id=self.deviceId, fw_version=self.fwVersion)
+            cfg_type = hatemplate.name.split(".")[0]
+            cfg_name = hatemplate.name.split(".")[1]
+            self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{cfg_name}/config',hacfg)
+            #log.info(hacfg)
 
     def updSolarInput(self, value:int):
         self.solarInputValues.add(value)
@@ -89,6 +105,14 @@ class SolarflowHub:
     def updBatterySoC(self, sn:str, value:int):
         self.batteries.pop("none",None)
         self.batteries.update({sn:value})
+    
+    def updMasterSoftVersion(self, value:int):
+        major = (value & 0xf000) >> 12
+        minor = (value & 0x0f00) >> 8
+        build = (value & 0x00ff)
+        self.fwVersion = f'{major}.{minor}.{build}'
+
+        self.pushHomeassistantConfig()
 
     def setChargeThrough(self, value):
         if type(value) == str:
@@ -128,6 +152,8 @@ class SolarflowHub:
                 case "socLevel":
                     sn = msg.topic.split('/')[-2]
                     self.updBatterySoC(sn=sn, value=int(value))
+                case "masterSoftVersion":
+                    self.updMasterSoftVersion(value=int(value))
                 case "chargeThrough":
                     self.setChargeThrough(value)
                 case _:
