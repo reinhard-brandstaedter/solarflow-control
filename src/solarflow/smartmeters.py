@@ -69,6 +69,7 @@ class Poweropti(Smartmeter):
 
     def __str__(self):
         return ' '.join(f'{green}SMT: \
+                        T:PowerOpti \
                         P:{self.power.wavg():>3.1f}W {self.power}{reset}'.split())
 
     async def pollPowerfoxAPI(self):
@@ -83,8 +84,8 @@ class Poweropti(Smartmeter):
                         watt = int(current['Watt'])
                         outdated = bool(current['Outdated'])
                         log.info(f'Usage: {current["Watt"]}, Outdated: {outdated}')
-                        #self.updPower(watt)
-                        self.client.publish(f'poweropti/power',watt)
+                        self.updPower(watt)
+                        #self.client.publish(f'poweropti/power',watt)
                     except:
                         log.error(resp)
 
