@@ -83,7 +83,7 @@ class Poweropti(Smartmeter):
                         watt = int(current['Watt'])
                         outdated = bool(current['Outdated'])
                         log.info(f'Usage: {current["Watt"]}, Outdated: {outdated}')
-                        self.updPower(watt)
+                        #self.updPower(watt)
                         self.client.publish(f'poweropti/power',watt)
                     except:
                         log.error(resp)
