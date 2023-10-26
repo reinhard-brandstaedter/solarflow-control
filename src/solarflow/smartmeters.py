@@ -87,7 +87,7 @@ class Poweropti(Smartmeter):
                         self.updPower(watt)
                         #self.client.publish(f'poweropti/power',watt)
                     except:
-                        log.error(resp)
+                        log.exception()
 
     def subscribe(self):
         asyncio.run(self.pollPowerfoxAPI())
