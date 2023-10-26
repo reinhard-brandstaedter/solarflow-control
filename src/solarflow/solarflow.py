@@ -47,13 +47,13 @@ class SolarflowHub:
 
     def subscribe(self):
         topics = [
-            "solarflow-hub/telemetry/solarInputPower",
-            "solarflow-hub/telemetry/electricLevel",
-            "solarflow-hub/telemetry/outputPackPower",
-            "solarflow-hub/telemetry/packInputPower",
-            "solarflow-hub/telemetry/outputHomePower",
-            "solarflow-hub/telemetry/outputLimit",
-            "solarflow-hub/telemetry/batteries/+/socLevel",
+            f'solarflow-hub/{self.device_id}/telemetry/solarInputPower',
+            f'solarflow-hub/{self.device_id}/telemetry/electricLevel',
+            f'solarflow-hub/{self.device_id}/telemetry/outputPackPower',
+            f'solarflow-hub/{self.device_id}/telemetry/packInputPower',
+            f'solarflow-hub/{self.device_id}/telemetry/outputHomePower',
+            f'solarflow-hub/{self.device_id}/telemetry/outputLimit',
+            f'solarflow-hub/{self.device_id}/telemetry/batteries/+/socLevel',
             "solarflow-hub/control/chargeThrough"
         ]
         for t in topics:
