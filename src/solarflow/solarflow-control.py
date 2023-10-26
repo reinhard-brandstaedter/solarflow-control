@@ -11,7 +11,7 @@ import click
 import math
 from solarflow import SolarflowHub
 import dtus
-from smartmeters import Smartmeter
+from smartmeters import Smartmeter, Poweropti
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -58,6 +58,13 @@ AHOYDTU_INVERTER_MAX =      config.getint('dtu', 'ahoydtu_inverter_max', fallbac
 sf_inverter_channels =  config.get('dtu', 'sf_inverter_channels', fallback=None) \
                         or os.environ.get('SF_INVERTER_CHANNELS', None)
 SF_INVERTER_CHANNELS =  [ int(ch.strip()) for ch in sf_inverter_channels.split(',')] if sf_inverter_channels else []
+
+POWEROPTI_USER =        config.get('smartmeter', 'poweropti_user', fallback=None) \
+                        or os.environ.get('POWEROPTI_USER', None)
+
+POWEROPTI_PASSWORD =    config.get('smartmeter', 'poweropti_password', fallback=None) \
+                        or os.environ.get('POWEROPTI_PASSWORD', None)
+
 
 
 
@@ -479,7 +486,8 @@ def run():
     if dtuType == "AhoyDTU":
         dtu_opts = ahoydtu_opts
     dtu = dtuType(client=client,**dtu_opts)
-    smt = Smartmeter(client=client,base_topic="tele/E220/SENSOR")
+    #smt = Smartmeter(client=client,base_topic="tele/E220/SENSOR")
+    smt = Poweropti(client=client,user=POWEROPTI_USER,password=POWEROPTI_PASSWORD)
     #smt.subscribe()
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
