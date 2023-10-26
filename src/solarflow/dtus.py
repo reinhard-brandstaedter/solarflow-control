@@ -36,8 +36,10 @@ class DTU:
                         DC:{self.dcPower:>3.1f}W ({chPower}), \
                         L:{self.limitAbsolute:>3}W{reset}'.split())
 
-    def subscribe(self):
-        pass
+    def subscribe(self, topics):
+        for t in topics:
+            self.client.subscribe(t)
+            log.info(f'DTU subscribing: {t}')
     
     def ready(self):
         return len(self.channelsDCPower) > 0
@@ -142,8 +144,7 @@ class OpenDTU(DTU):
             f'{self.base_topic}/status/reachable',
             f'{self.base_topic}/status/limit_absolute'
         ]
-        for t in topics:
-            self.client.subscribe(t)
+        super().subscribe(topics)
 
     def handleMsg(self, msg):
         if msg.topic.startswith(self.base_topic) and msg.payload:
@@ -184,8 +185,7 @@ class AhoyDTU(DTU):
             f'{self.base_topic}/{self.inverter_name}/ch0/active_PowerLimit',
             f'{self.base_topic}/status'
         ]
-        for t in topics:
-            self.client.subscribe(t)
+        super().subscribe(topics)
     
     def handleMsg(self, msg):
         if msg.topic.startswith(self.base_topic) and msg.payload:

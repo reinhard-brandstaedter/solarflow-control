@@ -64,7 +64,7 @@ class SolarflowHub:
         ]
         for t in topics:
             self.client.subscribe(t)
-            log.info(f'Subscribing: {t}')
+            log.info(f'Hub subscribing: {t}')
 
     def ready(self):
         return (self.electricLevel > -1 and self.solarInputPower > -1)
