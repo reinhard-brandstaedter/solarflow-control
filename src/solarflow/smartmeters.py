@@ -4,7 +4,10 @@ from functools import reduce
 import logging
 import json
 import sys
+import time
 from utils import TimewindowBuffer, deep_get
+import aiohttp
+import asyncio
 
 green = "\x1b[33;32m"
 reset = "\x1b[0m"
@@ -53,4 +56,41 @@ class Smartmeter:
     def getPower(self):
         return self.power.wavg()
 
+
+
+class Poweropti(Smartmeter):
+
+    def __init__(self, client: mqtt_client, user:str, password:str):
+        self.client = client
+        self.user = user
+        self.password = password
+        self.power = TimewindowBuffer(minutes=1)
+        self.phase_values = {}
+
+    def __str__(self):
+        return ' '.join(f'{green}SMT: \
+                        P:{self.power.wavg():>3.1f}W {self.power}{reset}'.split())
+
+    async def pollPowerfoxAPI(self):
+        auth = aiohttp.BasicAuth(login=self.user,password=self.password)
+        while True:
+            time.sleep(5)
+            async with aiohttp.ClientSession(auth=auth) as session:
+                poweropti_url = 'https://backend.powerfox.energy/api/2.0/my/main/current'
+                async with session.get(poweropti_url) as resp:
+                    try:
+                        current = await resp.json()
+                        watt = int(current['Watt'])
+                        outdated = bool(current['Outdated'])
+                        log.info(f'Usage: {current["Watt"]}, Outdated: {outdated}')
+                        self.updPower(watt)
+                        self.client.publish(f'poweropti/power',watt)
+                    except:
+                        log.error(resp)
+
+    def subscribe(self):
+        asyncio.run(self.pollPowerfoxAPI())
+
+    def handleMsg(self, msg):
+        pass
             
