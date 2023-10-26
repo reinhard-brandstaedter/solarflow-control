@@ -83,7 +83,6 @@ class Poweropti(Smartmeter):
                         current = await resp.json()
                         watt = int(current['Watt'])
                         outdated = bool(current['Outdated'])
-                        log.info(f'Usage: {current["Watt"]}, Outdated: {outdated}')
                         self.phase_values.update({"poweropti":watt})
                         self.updPower()
                         #self.client.publish(f'poweropti/power',watt)
