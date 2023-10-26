@@ -40,8 +40,26 @@ mqtt_host = config.get('local', 'mqtt_host', fallback=None) or os.environ.get('M
 mqtt_port = config.getint('local', 'mqtt_port', fallback=None) or os.environ.get('MQTT_PORT',1883)
 
 
-DTU_TYPE =              config.get('control', 'dtu_type', fallback=None) \
-                        or os.environ.get('DTU_TYPE',"OpenDTU")   
+DTU_TYPE =              config.get('dtu', 'dtu_type', fallback=None) \
+                        or os.environ.get('DTU_TYPE',"OpenDTU")
+
+OPENDTU_INVERTER_SERIAL = config.getint('dtu', 'opendtu_inverter_serial', fallback=None) \
+                        or os.environ.get('OPENDTU_INVERTER_SERIAL',0)
+
+AHOYDTU_INVERTER_ID =   config.getint('dtu', 'ahoydtu_inverter_id', fallback=None) \
+                        or os.environ.get('AHOYDTU_INVERTER_ID',1)
+
+AHOYDTU_INVERTER_NAME = config.get('dtu', 'ahoydtu_inverter_name', fallback=None) \
+                        or os.environ.get('AHOYDTU_INVERTER_NAME',"AhoyDTU")
+
+AHOYDTU_INVERTER_MAX =      config.getint('dtu', 'ahoydtu_inverter_max', fallback=None) \
+                        or os.environ.get('AHOYDTU_INVERTER_MAX',800)
+
+sf_inverter_channels =  config.get('dtu', 'sf_inverter_channels', fallback=None) \
+                        or os.environ.get('SF_INVERTER_CHANNELS', None)
+SF_INVERTER_CHANNELS =  [ int(ch.strip()) for ch in sf_inverter_channels.split(',')] if sf_inverter_channels else []
+
+
 
 # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
 MIN_CHARGE_LEVEL =      config.getint('control', 'min_charge_level', fallback=None) \
@@ -73,6 +91,7 @@ MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=
                         or int(os.environ.get('MAX_INVERTER_LIMIT',800))                                               
 MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
 
+'''
  # the number of inverter inputs or mppts. SF only uses 1 or 2 so when limiting we need to adjust for that
 INVERTER_MPPTS =        config.getint('control', 'inverter_mppts', fallback=None) \
                         or int(os.environ.get('INVERTER_MPPTS',4))
@@ -80,6 +99,7 @@ INVERTER_MPPTS =        config.getint('control', 'inverter_mppts', fallback=None
 # how many Inverter input channels are used by Solarflow              
 INVERTER_INPUTS_USED =  config.getint('control', 'inverter_sf_inputs_used', fallback=None) \
                         or int(os.environ.get('INVERTER_SF_INPUTS_USED',2))
+'''
 
 # the delta between two consecutive measurements on houshold usage to consider it a fast rise or drop   
 FAST_CHANGE_OFFSET =    config.getint('control', 'fast_change_offset', fallback=None) \
@@ -284,6 +304,7 @@ def checkCharging(client: mqtt_client):
         log.warning(f'The maximum measured battery temperature is {maxtemp/100}. Disabling charging to avoid damage! Please reset manually once temperature is high enough!')
         client.publish(topic_limit_solarflow,json.dumps(socset))
 
+'''
 # limit the output to home setting on the Solarflow hub
 def limitSolarflow(client: mqtt_client, limit):
     # currently the hub doesn't support single steps for limits below 100
@@ -313,13 +334,15 @@ def limitInverter(client: mqtt_client, limit):
     log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({INVERTER_INPUTS_USED}/{INVERTER_MPPTS})')
     return inv_limit
 
+'''
+
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
 def getDirectPanelLimit(inv, hub) -> int:
     direct_panel_power = inv.getDirectDCPower()
     if direct_panel_power < MAX_INVERTER_LIMIT:
         return math.ceil(max( max(inv.getHubDCPowerValues()), max(inv.getDirectDCPowerValues()) ))
     else:
-        return int(MAX_INVERTER_LIMIT*(INVERTER_INPUTS_USED/INVERTER_MPPTS))
+        return int(MAX_INVERTER_LIMIT*(inv.getNrHubChannels()/inv.getNrTotalChannels()))
 
 def limitHomeInput(client: mqtt_client):
     global home
@@ -441,15 +464,15 @@ def run():
     #hub.setBuzzer(False)
     opendtu_opts = {
         "base_topic":"solar",
-        "inverter_no":116491132532,
-        "sfchannels": [3]
+        "inverter_no": OPENDTU_INVERTER_SERIAL,
+        "sfchannels": SF_INVERTER_CHANNELS
     }
     ahoydtu_opts = {
         "base_topic":"solar",
-        "inverter_id": 1,
-        "inverter_name": "HM-800",
-        "inverter_max_power": 800,
-        "sfchannels": [3]
+        "inverter_id": AHOYDTU_INVERTER_ID,
+        "inverter_name": AHOYDTU_INVERTER_NAME,
+        "inverter_max_power": AHOYDTU_INVERTER_MAX,
+        "sfchannels": SF_INVERTER_CHANNELS
     }
     dtuType = getattr(dtus, DTU_TYPE)
     #dtu = dtuType(client=client,base_topic="solar", inverter_no=116491132532, sfchannels=[3])
@@ -462,7 +485,7 @@ def run():
     client.loop_start()
 
     while True:
-        time.sleep(5)
+        time.sleep(15)
         limitHomeInput(client)
         
     client.loop_stop()
@@ -528,8 +551,6 @@ def main(argv):
     log.info(f'  OVERAGE_LIMIT = {OVERAGE_LIMIT}')
     log.info(f'  MAX_INVERTER_LIMIT = {MAX_INVERTER_LIMIT}')
     log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
-    log.info(f'  INVERTER_MPPTS = {INVERTER_MPPTS}')
-    log.info(f'  INVERTER_INPUTS_USED = {INVERTER_INPUTS_USED}')
     log.info(f'  FAST_CHANGE_OFFSET = {FAST_CHANGE_OFFSET}')
     
 

@@ -86,9 +86,15 @@ class DTU:
             if idx not in self.sfchannels and idx > 0:
                 direct.append(v)
         return direct
+
+    def getNrDirectChannels() -> int:
+        return len(self.channelsDCPower)-1-len(self.sfchannels)
     
     def getDirectDCPower(self) -> float:
         return sum(self.getDirectDCPowerValues())
+
+    def getNrTotalChannels(self) -> int:
+        return len(self.channelsDCPower)-1
     
     def getHubDCPowerValues(self) -> []:
         hub = []
@@ -96,6 +102,9 @@ class DTU:
             if idx in self.sfchannels and idx > 0:
                 hub.append(v)
         return hub
+
+    def getNrHubChannels(self) -> int:
+        return len(self.sfchannels)
 
     def setLimit(self, limit:int):
         # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
