@@ -15,6 +15,7 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 class SolarflowHub:
+    SF_PRODUCT_ID = "73bkTV"
     FULL_CHARGE_AGE = 72
 
     def __init__(self, device_id: str, client: mqtt_client):
@@ -50,6 +51,7 @@ class SolarflowHub:
 
     def subscribe(self):
         topics = [
+            f'/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/report',
             f'solarflow-hub/{self.deviceId}/telemetry/solarInputPower',
             f'solarflow-hub/{self.deviceId}/telemetry/electricLevel',
             f'solarflow-hub/{self.deviceId}/telemetry/outputPackPower',
@@ -62,6 +64,7 @@ class SolarflowHub:
         ]
         for t in topics:
             self.client.subscribe(t)
+            log.info(f'Subscribing: {t}')
 
     def ready(self):
         return (self.electricLevel > -1 and self.solarInputPower > -1)
@@ -123,6 +126,23 @@ class SolarflowHub:
 
     # handle content of mqtt message and update properties accordingly
     def handleMsg(self, msg):
+        # transform the original messages sent by the SF hub into a better readable format
+        if self.SF_PRODUCT_ID in msg.topic:
+            device_id = msg.topic.split('/')[2]
+            payload = json.loads(msg.payload.decode())
+            if "properties" in payload:
+                props = payload["properties"]
+                for prop, val in props.items():
+                    self.client.publish(f'solarflow-hub/{device_id}/telemetry/{prop}',val)
+            
+            if "packData" in payload:
+                packdata = payload["packData"]
+                if len(packdata) > 0:
+                    for pack in packdata:
+                        sn = pack.pop('sn')
+                        for prop, val in pack.items():
+                            self.client.publish(f'solarflow-hub/{device_id}/telemetry/batteries/{sn}/{prop}',val)
+
         if msg.topic.startswith('solarflow-hub') and msg.payload:
             # check if we got regular updates on solarInputPower
             # if we haven't received any update on solarInputPower for 120s
