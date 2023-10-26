@@ -26,6 +26,7 @@ class DTU:
         self.sfchannels = sfchannels
         self.limitAbsolute = 0
         self.producing = True
+        self.reachable = True
         self.limit_nonpersistent_absolute = f'{base_topic}/{self.limit_topic}'
     
     def __str__(self):
@@ -58,6 +59,9 @@ class DTU:
     
     def updProducing(self, value):
         self.producing = bool(value)
+
+    def updReachable(self, value):
+        self.reachable = bool(value)
 
     def handleMsg(self, msg):
         if msg.topic.startswith(self.base_topic) and msg.payload:
@@ -111,11 +115,12 @@ class DTU:
         inv_limit = limit*(1/(len(self.sfchannels)/(len(self.channelsDCPower)-1)))
         #unit = "" if isOpenDTU(topic_limit_non_persistent) else "W"
         
-        if self.limitAbsolute != inv_limit:
+        if self.limitAbsolute != inv_limit and self.reachable:
             self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
             log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sfchannels)}/{len(self.channelsDCPower)-1})')
         else:
-            log.info(f'Not setting inverter output limit as it is identical to current limit!')
+            not self.reachable and log.info("Inverter is not reachable/down. Can't set limit")
+            self.reachable and log.info(f'Not setting inverter output limit as it is identical to current limit!')
         return inv_limit
     
 
@@ -134,6 +139,7 @@ class OpenDTU(DTU):
             f'{self.base_topic}/0/powerdc',
             f'{self.base_topic}/+/power',
             f'{self.base_topic}/status/producing',
+            f'{self.base_topic}/status/reachable',
             f'{self.base_topic}/status/limit_absolute'
         ]
         for t in topics:
@@ -151,6 +157,8 @@ class OpenDTU(DTU):
                     self.updLimitAbsolute(value)
                 case "producing":
                     self.updProducing(value)
+                case "reachable":
+                    self.updReachable(value)
                 case "power":
                     channel = int(msg.topic.split('/')[-2])
                     self.updChannelPowerDC(channel, value)
