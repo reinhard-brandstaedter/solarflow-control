@@ -13,6 +13,7 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 class Smartmeter:
+    opts = {"base_topic":str, "cur_accessor":str, "total_accessor":str}
 
     def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in"):
         self.client = client
@@ -24,6 +25,7 @@ class Smartmeter:
     
     def __str__(self):
         return ' '.join(f'{green}SMT: \
+                        T:{self.__class__.__name__} \
                         P:{self.power.wavg():>3.1f}W {self.power}{reset}'.split())
                         
     def subscribe(self):
@@ -57,19 +59,15 @@ class Smartmeter:
 
 class Poweropti(Smartmeter):
     POWEROPTI_API = "https://backend.powerfox.energy/api/2.0/my/main/current"
+    opts = {"poweropti_user":str, "poweropti_password":str}
 
-    def __init__(self, client: mqtt_client, user:str, password:str):
+    def __init__(self, client: mqtt_client, poweropti_user:str, poweropti_password:str):
         self.client = client
-        self.user = user
-        self.password = password
+        self.user = poweropti_user
+        self.password = poweropti_password
         self.power = TimewindowBuffer(minutes=1)
         self.phase_values = {}
         self.session = None
-
-    def __str__(self):
-        return ' '.join(f'{green}SMT: \
-                        T:PowerOpti \
-                        P:{self.power.wavg():>3.1f}W {self.power}{reset}'.split())
 
     def pollPowerfoxAPI(self):
         if self.session == None:

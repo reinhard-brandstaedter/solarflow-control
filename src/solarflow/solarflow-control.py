@@ -11,18 +11,25 @@ import click
 import math
 from solarflow import SolarflowHub
 import dtus
-from smartmeters import Smartmeter, Poweropti
+import smartmeters
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
-def isOpenDTU(ctrl_topic) -> bool:
-    return "ctrl/limit" not in ctrl_topic
 
+'''
+Customizing ConfigParser to allow dynamic conversion of array options
+'''
 config: configparser.ConfigParser
+def listoption(option):
+    return [int(x) for x in list(filter(lambda x: x.isdigit(), list(option)))]
+
+def stroption(option):
+    return option
+
 def load_config():
-    config = configparser.ConfigParser()
+    config = configparser.ConfigParser(converters={"str":stroption, "list":listoption})
     try:
         with open("config.ini","r") as cf:
             config.read_file(cf)
@@ -32,16 +39,25 @@ def load_config():
 
 config = load_config()
 
+
+
+'''
+Configuration Options
+'''
 sf_device_id = config.get('solarflow', 'sf_device_id', fallback=None) or os.environ.get('SF_DEVICE_ID',None)
 sf_product_id = config.get('solarflow', 'sf_product_id', fallback="73bkTV") or os.environ.get('SF_PRODUCT_ID',"73bkTV")
-mqtt_user = config.get('local', 'mqtt_user', fallback=None) or os.environ.get('MQTT_USER',None)
-mqtt_pwd = config.get('local', 'mqtt_pwd', fallback=None) or os.environ.get('MQTT_PWD',None)
-mqtt_host = config.get('local', 'mqtt_host', fallback=None) or os.environ.get('MQTT_HOST',None)
-mqtt_port = config.getint('local', 'mqtt_port', fallback=None) or os.environ.get('MQTT_PORT',1883)
+mqtt_user = config.get('mqtt', 'mqtt_user', fallback=None) or os.environ.get('MQTT_USER',None)
+mqtt_pwd = config.get('mqtt', 'mqtt_pwd', fallback=None) or os.environ.get('MQTT_PWD',None)
+mqtt_host = config.get('mqtt', 'mqtt_host', fallback=None) or os.environ.get('MQTT_HOST',None)
+mqtt_port = config.getint('mqtt', 'mqtt_port', fallback=None) or os.environ.get('MQTT_PORT',1883)
 
 
-DTU_TYPE =              config.get('dtu', 'dtu_type', fallback=None) \
+DTU_TYPE =              config.get('global', 'dtu_type', fallback=None) \
                         or os.environ.get('DTU_TYPE',"OpenDTU")
+
+SMT_TYPE =              config.get('global', 'smartmeter_type', fallback=None) \
+                        or os.environ.get('SMARTMETER_TYPE',"Smartmeter")
+
 
 OPENDTU_INVERTER_SERIAL = config.getint('dtu', 'opendtu_inverter_serial', fallback=None) \
                         or os.environ.get('OPENDTU_INVERTER_SERIAL',0)
@@ -97,16 +113,6 @@ BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) 
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
                         or int(os.environ.get('MAX_INVERTER_LIMIT',800))                                               
 MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
-
-'''
- # the number of inverter inputs or mppts. SF only uses 1 or 2 so when limiting we need to adjust for that
-INVERTER_MPPTS =        config.getint('control', 'inverter_mppts', fallback=None) \
-                        or int(os.environ.get('INVERTER_MPPTS',4))
-
-# how many Inverter input channels are used by Solarflow              
-INVERTER_INPUTS_USED =  config.getint('control', 'inverter_sf_inputs_used', fallback=None) \
-                        or int(os.environ.get('INVERTER_SF_INPUTS_USED',2))
-'''
 
 # the delta between two consecutive measurements on houshold usage to consider it a fast rise or drop   
 FAST_CHANGE_OFFSET =    config.getint('control', 'fast_change_offset', fallback=None) \
@@ -311,37 +317,6 @@ def checkCharging(client: mqtt_client):
         log.warning(f'The maximum measured battery temperature is {maxtemp/100}. Disabling charging to avoid damage! Please reset manually once temperature is high enough!')
         client.publish(topic_limit_solarflow,json.dumps(socset))
 
-'''
-# limit the output to home setting on the Solarflow hub
-def limitSolarflow(client: mqtt_client, limit):
-    # currently the hub doesn't support single steps for limits below 100
-    # to get a fine granular steering at this level we need to fall back to the inverter limit
-    # if controlling the inverter is not possible we should stick to either 0 or 100W
-    if limit <= 100:
-        #limitInverter(client,limit)
-        #log.info(f'The output limit would be below 100W ({limit}W). Would need to limit the inverter to match it precisely')
-        m = divmod(limit,30)[0]
-        r = divmod(limit,30)[1]
-        limit = 30 * m + 30 * (r // 15)
-    else:
-        pass
-        #limitInverter(client,MAX_INVERTER_LIMIT)
-
-    outputlimit = {"properties": { "outputLimit": limit }}
-    client.publish(topic_limit_solarflow,json.dumps(outputlimit))
-    log.info(f'Setting solarflow output limit to {limit} W')
-    return limit
-
-# set the limit on the inverter (when using inverter only mode)
-def limitInverter(client: mqtt_client, limit):
-    # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
-    inv_limit = limit*(1/(INVERTER_INPUTS_USED/INVERTER_MPPTS))
-    unit = "" if isOpenDTU(topic_limit_non_persistent) else "W"
-    client.publish(topic_limit_non_persistent,f'{inv_limit}{unit}')
-    log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({INVERTER_INPUTS_USED}/{INVERTER_MPPTS})')
-    return inv_limit
-
-'''
 
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
 def getDirectPanelLimit(inv, hub) -> int:
@@ -464,30 +439,30 @@ def limitHomeInput(client: mqtt_client):
     else:
         hub.setOutputLimit(limit)
 
+def getOpts(configtype) -> dict:
+    global config
+    opts = {}
+    for opt,opt_type in configtype.opts.items():
+        t = opt_type.__name__
+        converter = getattr(config,f'get{t}')
+        opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
+    return opts
+
+
 def run():
     client = connect_mqtt()
     hub = SolarflowHub(device_id=sf_device_id,client=client)
-    #hub.subscribe()
-    #hub.setBuzzer(False)
-    opendtu_opts = {
-        "base_topic":"solar",
-        "inverter_no": OPENDTU_INVERTER_SERIAL,
-        "sfchannels": SF_INVERTER_CHANNELS
-    }
-    ahoydtu_opts = {
-        "base_topic":"solar",
-        "inverter_id": AHOYDTU_INVERTER_ID,
-        "inverter_name": AHOYDTU_INVERTER_NAME,
-        "inverter_max_power": AHOYDTU_INVERTER_MAX,
-        "sfchannels": SF_INVERTER_CHANNELS
-    }
+
     dtuType = getattr(dtus, DTU_TYPE)
-    dtu_opts = opendtu_opts
-    if dtuType == "AhoyDTU":
-        dtu_opts = ahoydtu_opts
+    dtu_opts = getOpts(dtuType)
+    log.info(dtu_opts)
     dtu = dtuType(client=client,**dtu_opts)
-    smt = Smartmeter(client=client,base_topic="tele/E220/SENSOR",cur_accessor = "Power.Power_curr", total_accessor = "Power.Total_in")
-    #smt = Poweropti(client=client,user=POWEROPTI_USER,password=POWEROPTI_PASSWORD)
+
+    smtType = getattr(smartmeters, SMT_TYPE)
+    smt_opts = getOpts(smtType)
+    log.info(smt_opts)
+    smt = smtType(client=client,**smt_opts)
+
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
 

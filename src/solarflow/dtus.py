@@ -14,16 +14,17 @@ log = logging.getLogger("")
 
 
 class DTU:
+    opts = {"base_topic":str, "sf_inverter_channels":list}
     limit_topic = ""
     limit_unit = ""
 
-    def __init__(self, client: mqtt_client, base_topic:str, sfchannels:[]=[]):
+    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:[]=[]):
         self.client = client
         self.base_topic = base_topic
         self.acPower = TimewindowBuffer(minutes=1)
         self.dcPower = 0
         self.channelsDCPower = []
-        self.sfchannels = sfchannels
+        self.sf_inverter_channels = sf_inverter_channels
         self.limitAbsolute = 0
         self.producing = True
         self.reachable = True
@@ -89,12 +90,12 @@ class DTU:
     def getDirectDCPowerValues(self) -> []:
         direct = []
         for idx,v in enumerate(self.channelsDCPower):
-            if idx not in self.sfchannels and idx > 0:
+            if idx not in self.sf_inverter_channels and idx > 0:
                 direct.append(v)
         return direct
 
     def getNrDirectChannels() -> int:
-        return len(self.channelsDCPower)-1-len(self.sfchannels)
+        return len(self.channelsDCPower)-1-len(self.sf_inverter_channels)
     
     def getDirectDCPower(self) -> float:
         return sum(self.getDirectDCPowerValues())
@@ -105,21 +106,21 @@ class DTU:
     def getHubDCPowerValues(self) -> []:
         hub = []
         for idx,v in enumerate(self.channelsDCPower):
-            if idx in self.sfchannels and idx > 0:
+            if idx in self.sf_inverter_channels and idx > 0:
                 hub.append(v)
         return hub
 
     def getNrHubChannels(self) -> int:
-        return len(self.sfchannels)
+        return len(self.sf_inverter_channels)
 
     def setLimit(self, limit:int):
         # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
-        inv_limit = limit*(1/(len(self.sfchannels)/(len(self.channelsDCPower)-1)))
+        inv_limit = limit*(1/(len(self.sf_inverter_channels)/(len(self.channelsDCPower)-1)))
         #unit = "" if isOpenDTU(topic_limit_non_persistent) else "W"
         
         if self.limitAbsolute != inv_limit and self.reachable:
             self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
-            log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sfchannels)}/{len(self.channelsDCPower)-1})')
+            log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
         else:
             not self.reachable and log.info("Inverter is not reachable/down. Can't set limit")
             self.reachable and log.info(f'Not setting inverter output limit as it is identical to current limit!')
@@ -127,14 +128,15 @@ class DTU:
     
 
 class OpenDTU(DTU):
+    opts = {"base_topic":str ,"inverter_serial":int,"sf_inverter_channels":list}
     limit_topic = "cmd/limit_nonpersistent_absolute"
     limit_unit = ""
 
-    def __init__(self, client: mqtt_client, base_topic:str, inverter_no:int, sfchannels:[]=[]):
-        super().__init__(client=client,base_topic=base_topic, sfchannels=sfchannels)
-        self.base_topic = f'{base_topic}/{inverter_no}'
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_serial:int, sf_inverter_channels:[]=[]):
+        super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels)
+        self.base_topic = f'{base_topic}/{inverter_serial}'
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}'
-        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sfchannels}')
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}')
 
     def subscribe(self):
         topics = [
@@ -167,16 +169,17 @@ class OpenDTU(DTU):
                     log.warning(f'Ignoring inverter metric: {metric}')
 
 class AhoyDTU(DTU):
+    opts = {"base_topic":str, "inverter_id":int, "inverter_name":str, "inverter_max_power":int, "sf_inverter_channels":list}
     limit_topic = "ctrl/limit"
     limit_unit = "W"
 
-    def __init__(self, client: mqtt_client, base_topic:str, inverter_name:str, inverter_id:int, inverter_max_power:int, sfchannels:[]=[]):
-        super().__init__(client=client,base_topic=base_topic, sfchannels=sfchannels)
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_name:str, inverter_id:int, inverter_max_power:int, sf_inverter_channels:[]=[]):
+        super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels)
         self.base_topic = f'{base_topic}'
         self.inverter_name = inverter_name
         self.inverter_max_power = inverter_max_power
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}/{inverter_id}'
-        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sfchannels}')
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}')
 
     def subscribe(self):
         topics = [
