@@ -51,7 +51,11 @@ class Smartmeter:
                 self.phase_values.update({msg.topic:payload})
                 self.updPower()
             if type(payload) is dict:
-                value = deep_get(payload,self.cur_accessor)
+                try: 
+                    value = deep_get(payload,self.cur_accessor)
+                except:
+                    log.error(f'Could not get value from topic payload: {sys.exc_info()}')
+
                 if value:
                     log.info(f'SMT value: {value}')
                     self.phase_values.update({msg.topic:value})
