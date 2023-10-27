@@ -22,6 +22,8 @@ class Smartmeter:
         self.phase_values = {}
         self.cur_accessor = cur_accessor
         self.total_accessor = total_accessor
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Current power accessor: {self.cur_accessor}, Total power accessor: {self.total_accessor}')
+
     
     def __str__(self):
         return ' '.join(f'{green}SMT: \
