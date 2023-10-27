@@ -58,32 +58,6 @@ DTU_TYPE =              config.get('global', 'dtu_type', fallback=None) \
 SMT_TYPE =              config.get('global', 'smartmeter_type', fallback=None) \
                         or os.environ.get('SMARTMETER_TYPE',"Smartmeter")
 
-
-OPENDTU_INVERTER_SERIAL = config.getint('dtu', 'opendtu_inverter_serial', fallback=None) \
-                        or os.environ.get('OPENDTU_INVERTER_SERIAL',0)
-
-AHOYDTU_INVERTER_ID =   config.getint('dtu', 'ahoydtu_inverter_id', fallback=None) \
-                        or os.environ.get('AHOYDTU_INVERTER_ID',1)
-
-AHOYDTU_INVERTER_NAME = config.get('dtu', 'ahoydtu_inverter_name', fallback=None) \
-                        or os.environ.get('AHOYDTU_INVERTER_NAME',"AhoyDTU")
-
-AHOYDTU_INVERTER_MAX =      config.getint('dtu', 'ahoydtu_inverter_max', fallback=None) \
-                        or os.environ.get('AHOYDTU_INVERTER_MAX',800)
-
-sf_inverter_channels =  config.get('dtu', 'sf_inverter_channels', fallback=None) \
-                        or os.environ.get('SF_INVERTER_CHANNELS', None)
-SF_INVERTER_CHANNELS =  [ int(ch.strip()) for ch in sf_inverter_channels.split(',')] if sf_inverter_channels else []
-
-POWEROPTI_USER =        config.get('smartmeter', 'poweropti_user', fallback=None) \
-                        or os.environ.get('POWEROPTI_USER', None)
-
-POWEROPTI_PASSWORD =    config.get('smartmeter', 'poweropti_password', fallback=None) \
-                        or os.environ.get('POWEROPTI_PASSWORD', None)
-
-
-
-
 # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
 MIN_CHARGE_LEVEL =      config.getint('control', 'min_charge_level', fallback=None) \
                         or int(os.environ.get('MIN_CHARGE_LEVEL',125))          
@@ -138,55 +112,9 @@ topics_house =      [ t.strip() for t in topic_house.split(',')] if topic_house 
 topic_acinput =     config.get('mqtt_telemetry_topics', 'topic_acinput', fallback=None) \
                     or os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
 
-# topics for panels power which feed directly to inverter
-topic_direct_panel =    config.get('mqtt_telemetry_topics', 'topic_direct_panel', fallback=None) \
-                        or os.environ.get('TOPIC_DIRECT_PANEL',None)
-topics_direct_panel =   [ t.strip() for t in topic_direct_panel.split(',') ] if topic_direct_panel else []
-
-
-# topics for telemetry read from Solarflow Hub                                                       
-topic_solarflow_solarinput = config.get('mqtt_telemetry_topics', 'topic_solarflow_solarinput', fallback="solarflow-hub/telemetry/solarInputPower")
-topic_solarflow_electriclevel = config.get('mqtt_telemetry_topics', 'topic_solarflow_electriclevel', fallback="solarflow-hub/telemetry/electricLevel")
-topic_solarflow_outputpack = config.get('mqtt_telemetry_topics', 'topic_solarflow_outputpack', fallback="solarflow-hub/telemetry/outputPackPower")
-topic_solarflow_packinput = config.get('mqtt_telemetry_topics', 'topic_solarflow_packinput', fallback="solarflow-hub/telemetry/packInputPower")
-topic_solarflow_outputhome = config.get('mqtt_telemetry_topics', 'topic_solarflow_outputhome', fallback="solarflow-hub/telemetry/outputHomePower")
-topic_solarflow_maxtemp = config.get('mqtt_telemetry_topics', 'topic_solarflow_maxtemp', fallback="solarflow-hub/telemetry/batteries/+/maxTemp")
-topic_solarflow_battery_soclevel = config.get('mqtt_telemetry_topics', 'topic_solarflow_battery_soclevel', fallback="solarflow-hub/telemetry/batteries/+/socLevel")
-
-# topic to control the Solarflow Hub (used to set output limit)
-topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
-
-# topic for controlling the inverter limit
-topic_limit_non_persistent =    config.get('mqtt_telemetry_topics', 'topic_limit_non_persistent', fallback=None) \
-                                or os.environ.get('TOPIC_LIMIT_OPENDTU',"solar/116491132532/cmd/limit_nonpersistent_absolute")
-
 client_id = f'solarflow-ctrl-{random.randint(0, 100)}'
 
-# sliding average windows for telemetry data, to remove spikes and drops
-sf_window =     config.getint('control', 'sf_window', fallback=None) \
-                or int(os.environ.get('SF_WINDOW',5))
-solarflow_values = [0]*sf_window
-sm_window =     config.getint('control', 'sm_window', fallback=None) \
-                or int(os.environ.get('SM_WINDOW',5))
-smartmeter_values = [0]*sm_window
-inv_window =    config.getint('control', 'inv_window', fallback=None) \
-                or int(os.environ.get('INV_WINDOW',5))
-inverter_values = [0]*inv_window
-limit_window =  config.getint('control', 'limit_window', fallback=None) \
-                or int(os.environ.get('LIMIT_WINDOW',5))
-limit_values =  [0]*limit_window
-
-packSoc = -1
-charging = 0
-home = 0
-maxtemp = 1000
-batterySocs = {"dummy": -1}
-phase_values = {}
-direct_panel_values = {}
-direct_panel_power = -1
-last_solar_input_update = datetime.now()
 charge_through = False
-
 
 class MyLocation:
     ip = ""
@@ -304,20 +232,6 @@ def connect_mqtt() -> mqtt_client:
 def subscribe(client: mqtt_client):
     client.on_message = on_message
 
-# this ensures that the buzzerSwitch (audio confirmation upon commands) is off
-def turnOffBuzzer(client: mqtt_client):
-    buzzer = {"properties": { "buzzerSwitch": 0 }}
-    client.publish(topic_limit_solarflow,json.dumps(buzzer))
-
-# this can be used to completely disable charging (e.g. on low packSoc temperature)
-def checkCharging(client: mqtt_client):
-    global maxtemp
-    socset = {"properties": { "socSet": 0 }}
-    if maxtemp < 1000:
-        log.warning(f'The maximum measured battery temperature is {maxtemp/100}. Disabling charging to avoid damage! Please reset manually once temperature is high enough!')
-        client.publish(topic_limit_solarflow,json.dumps(socset))
-
-
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
 def getDirectPanelLimit(inv, hub) -> int:
     direct_panel_power = inv.getDirectDCPower()
@@ -329,7 +243,6 @@ def getDirectPanelLimit(inv, hub) -> int:
 def limitHomeInput(client: mqtt_client):
     global home
     global packSoc, batterySocs
-    global smartmeter_values, solarflow_values, inverter_values
     global charge_through
     global location
 
@@ -477,7 +390,6 @@ def run():
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
     global sf_device_id
-    global topic_limit_solarflow
     global limit_inverter
     global location
     opts, args = getopt.getopt(argv,"hb:p:u:s:d:",["broker=","port=","user=","password="])
@@ -512,17 +424,7 @@ def main(argv):
         sys.exit()
     else:
         log.info(f'Solarflow Hub: {sf_product_id}/{sf_device_id}')
-        topic_limit_solarflow = f'iot/{sf_product_id}/{sf_device_id}/properties/write'
 
-    log.info("MQTT telemetry topics used (make sure they are populated)!:")
-    log.info(f'  House Consumption: {topic_house}')
-    log.info(f'  Inverter AC input (TOPIC_HOUSE): {topic_acinput}')
-    log.info(f'  Solarflow Solar Input (TOPIC_ACINPUT): {topic_solarflow_solarinput}')
-    log.info(f'  Solarflow Output to home: {topic_solarflow_outputhome}')
-    log.info(f'  Solarflow Battery Level: {topic_solarflow_electriclevel}')
-    log.info(f'  Solarflow Battery Charging: {topic_solarflow_outputpack}')
-    log.info(f'Topic to limit Solarflow Output: {topic_limit_solarflow}')
-    log.info(f'Topic to limit Inverter Output: {topic_limit_non_persistent}')
     log.info(f'Limit via inverter: {limit_inverter}')
 
     log.info("Control Parameters:")
