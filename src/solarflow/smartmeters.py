@@ -53,8 +53,13 @@ class Smartmeter:
             if type(payload) is dict:
                 value = deep_get(payload,self.cur_accessor)
                 if value:
+                    log.info(f'SMT value: {value}')
                     self.phase_values.update({msg.topic:value})
+                    log.info(self.phase_values)
                     self.updPower()
+                    log.info(self.power)
+                else:
+                    log.info('SMT value is None')
 
     def getPower(self):
         return self.power.qwavg()

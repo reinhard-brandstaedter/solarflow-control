@@ -364,12 +364,10 @@ def run():
 
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
-    log.info(dtu_opts)
     dtu = dtuType(client=client,**dtu_opts)
 
     smtType = getattr(smartmeters, SMT_TYPE)
     smt_opts = getOpts(smtType)
-    log.info(smt_opts)
     smt = smtType(client=client,**smt_opts)
 
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
