@@ -1,13 +1,10 @@
 from paho.mqtt import client as mqtt_client
 from datetime import datetime, timedelta
-from functools import reduce
 import logging
 import json
 import sys
-import time
-from utils import TimewindowBuffer, deep_get
-import aiohttp
-import asyncio
+from utils import TimewindowBuffer, RepeatedTimer, deep_get
+import requests
 
 green = "\x1b[33;32m"
 reset = "\x1b[0m"
@@ -33,6 +30,7 @@ class Smartmeter:
         topics = [f'{self.base_topic}']
         for t in topics:
             self.client.subscribe(t)
+            log.info(f'Smartmeter subscribing: {t}')
     
     def ready(self):
         return len(self.phase_values) > 0
@@ -57,8 +55,8 @@ class Smartmeter:
         return self.power.wavg()
 
 
-
 class Poweropti(Smartmeter):
+    POWEROPTI_API = "https://backend.powerfox.energy/api/2.0/my/main/current"
 
     def __init__(self, client: mqtt_client, user:str, password:str):
         self.client = client
@@ -66,31 +64,32 @@ class Poweropti(Smartmeter):
         self.password = password
         self.power = TimewindowBuffer(minutes=1)
         self.phase_values = {}
+        self.session = None
 
     def __str__(self):
         return ' '.join(f'{green}SMT: \
                         T:PowerOpti \
                         P:{self.power.wavg():>3.1f}W {self.power}{reset}'.split())
 
-    async def pollPowerfoxAPI(self):
-        auth = aiohttp.BasicAuth(login=self.user,password=self.password)
-        while True:
-            time.sleep(5)
-            async with aiohttp.ClientSession(auth=auth) as session:
-                poweropti_url = 'https://backend.powerfox.energy/api/2.0/my/main/current'
-                async with session.get(poweropti_url) as resp:
-                    try:
-                        current = await resp.json()
-                        watt = int(current['Watt'])
-                        outdated = bool(current['Outdated'])
-                        self.phase_values.update({"poweropti":watt})
-                        self.updPower()
-                        #self.client.publish(f'poweropti/power',watt)
-                    except:
-                        log.exception()
+    def pollPowerfoxAPI(self):
+        if self.session == None:
+            self.session = requests.Session()
+            self.session.auth = (self.user, self.password)
+
+        with self.session as s:
+            resp = s.get(self.POWEROPTI_API)
+            try:
+                current = resp.json()
+                watt = int(current['Watt'])
+                outdated = bool(current['Outdated'])
+                self.phase_values.update({"poweropti":watt})
+                self.updPower()
+                #self.client.publish(f'poweropti/power',watt)
+            except:
+                log.exception()
 
     def subscribe(self):
-        asyncio.run(self.pollPowerfoxAPI())
+        updater = RepeatedTimer(5, self.pollPowerfoxAPI)
 
     def handleMsg(self, msg):
         pass

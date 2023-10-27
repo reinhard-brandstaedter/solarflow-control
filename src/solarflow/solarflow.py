@@ -6,7 +6,7 @@ import json
 import sys
 import pathlib
 from jinja2 import Environment, FileSystemLoader, DebugUndefined
-from utils import TimewindowBuffer
+from utils import TimewindowBuffer, RepeatedTimer
 
 red = "\x1b[31;20m"
 reset = "\x1b[0m"
@@ -35,7 +35,7 @@ class SolarflowHub:
         self.lastEmptyTS = None         # keep track of last time the battery pack was empty (0%)
         self.lastSolarInputTS = None    # time of the last received solar input value
 
-        self.property_topic = f'iot/73bkTV/{self.deviceId}/properties/write'
+        self.property_topic = f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/write'
         self.chargeThrough = True
 
     def __str__(self):
@@ -48,6 +48,10 @@ class SolarflowHub:
                         E:{self.getLastEmptyBattery():3.1f}h, \
                         H:{self.outputHomePower:>3}W, \
                         L:{self.outputLimit:>3}W{reset}'.split())
+
+    def update(self): 
+        log.info(f'Triggering telemetry update: iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/read')
+        self.client.publish(f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/read','{"properties": ["getAll"]}')
 
     def subscribe(self):
         topics = [
@@ -65,6 +69,9 @@ class SolarflowHub:
         for t in topics:
             self.client.subscribe(t)
             log.info(f'Hub subscribing: {t}')
+        
+        updater = RepeatedTimer(60, self.update)
+
 
     def ready(self):
         return (self.electricLevel > -1 and self.solarInputPower > -1)
