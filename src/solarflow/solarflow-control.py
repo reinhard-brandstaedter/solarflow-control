@@ -335,8 +335,8 @@ def limitHomeInput(client: mqtt_client):
             remainder = getSFPowerLimit(hub,remainder)
             log.info(f'Solarflow is willing to contribute {remainder}W!')
 
-            inv_limit = inv.setLimit(max(remainder+15,getDirectPanelLimit(inv,hub)))
-            hub_limit = hub.setOutputLimit(remainder)
+            inv_limit = inv.setLimit(max(remainder,getDirectPanelLimit(inv,hub)))
+            hub_limit = hub.setOutputLimit(remainder+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
     else:
         hub_limit = hub.setOutputLimit(limit)
 
