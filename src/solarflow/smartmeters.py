@@ -50,8 +50,9 @@ class Smartmeter:
             if type(payload) is float or type(payload) is int:
                 self.phase_values.update({msg.topic:payload})
             if type(payload) is dict:
-                value = float(deep_get(payload,self.cur_accessor))
-                self.phase_values.update({msg.topic:value})
+                value = deep_get(payload,self.cur_accessor)
+                if value:
+                    self.phase_values.update({msg.topic:value})
 
             self.updPower()
 
