@@ -94,7 +94,7 @@ class DTU:
                 direct.append(v)
         return direct
 
-    def getNrDirectChannels() -> int:
+    def getNrDirectChannels(self) -> int:
         return len(self.channelsDCPower)-1-len(self.sf_inverter_channels)
     
     def getDirectDCPower(self) -> float:

@@ -112,6 +112,10 @@ topics_house =      [ t.strip() for t in topic_house.split(',')] if topic_house 
 topic_acinput =     config.get('mqtt_telemetry_topics', 'topic_acinput', fallback=None) \
                     or os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
 
+limit_window =  config.getint('control', 'limit_window', fallback=None) \
+                or int(os.environ.get('LIMIT_WINDOW',5))
+limit_values =  [0]*limit_window
+
 client_id = f'solarflow-ctrl-{random.randint(0, 100)}'
 
 charge_through = False
@@ -134,63 +138,6 @@ class MyLocation:
         log.info(f"Location: {res.city}, {res.region}, {res.country}")
         log.info(f"Coordinates: (Lat: {res.latitude}, Lng: {res.longitude})")
         return (res.latitude,res.longitude)
-
-def on_inverter_update(msg):
-    global inverter_values
-    if len(inverter_values) >= inv_window:
-        inverter_values.pop(0)
-    inverter_values.append(float(msg))
-
-def on_direct_panel(msg):
-    global direct_panel_values
-    global direct_panel_power
-    payload = json.loads(msg.payload.decode())
-    topic = msg.topic
-
-    if type(payload) is float or type(payload) is int:
-        value = payload
-        direct_panel_values.update({topic:value})
-        direct_panel_power = sum(direct_panel_values.values())
-
-
-# this needs to be configured for different smartmeter readers (Hichi, PowerOpti, Shelly)
-# Shelly 3EM reports one metric per phase and doesn't aggregate, so we need to do this by ourselves
-def on_smartmeter_update(client,msg):
-    global smartmeter_values
-    global limit_values
-    global phase_values
-    payload = json.loads(msg.payload.decode())
-    topic = msg.topic
-
-    if len(smartmeter_values) >= sm_window:
-        smartmeter_values.pop(0)
-
-    if type(payload) is float or type(payload) is int:
-        value = payload
-        phase_values.update({topic:value})
-        value = int(sum(phase_values.values()))
-    else:
-        # special case if current power is json format  (Hichi reader) 
-        value = int(payload["Power"]["Power_curr"])
-        
-    smartmeter_values.append(value)
-    # also report value to MQTT (for statuspage)
-    client.publish("solarflow-hub/control/homeUsage",value)
-
-    if len(smartmeter_values) >= sm_window:    
-        tail = reduce(lambda a,b: a+b, smartmeter_values[:-2])/(len(smartmeter_values)-2)
-        head = reduce(lambda a,b: a+b, smartmeter_values[-2:])/(len(smartmeter_values)-2)
-        # detect fast drop in demand
-        if tail > head + FAST_CHANGE_OFFSET:
-            log.info(f'Detected a fast drop in demand, enabling accelerated adjustment!')
-            smartmeter_values = smartmeter_values[-2:]
-            limit_values = []
-
-        # detect fast rise in demand
-        if tail + FAST_CHANGE_OFFSET < head:
-            log.info(f'Detected a fast rise in demand, enabling accelerated adjustment!')
-            smartmeter_values = smartmeter_values[-2:]
-            limit_values = []
 
 def on_message(client, userdata, msg):
     smartmeter = userdata["smartmeter"]
@@ -236,7 +183,8 @@ def subscribe(client: mqtt_client):
 def getDirectPanelLimit(inv, hub) -> int:
     direct_panel_power = inv.getDirectDCPower()
     if direct_panel_power < MAX_INVERTER_LIMIT:
-        return math.ceil(max( max(inv.getHubDCPowerValues()), max(inv.getDirectDCPowerValues()) ))
+        return math.ceil(max(inv.getDirectDCPowerValues())*1.1)
+        #return math.ceil(max( max(inv.getHubDCPowerValues()), max(inv.getDirectDCPowerValues()) ))
     else:
         return int(MAX_INVERTER_LIMIT*(inv.getNrHubChannels()/inv.getNrTotalChannels()))
 
@@ -337,8 +285,16 @@ def limitHomeInput(client: mqtt_client):
              => Limit: {limit}W - [{lm}] - decisionpath: {path}'.split()))
 
     if limit_inverter:
-        # if we get more from the direct connected panels than what we need, we limit the SF hub
         direct_panel_power = inv.getDirectDCPower()
+        if demand <= direct_panel_power:
+            inv.setLimit(getDirectPanelLimit(inv,hub))
+            hub.setOutputLimit(0)
+        if demand > direct_panel_power:
+            inv.setLimit(getDirectPanelLimit(inv,hub))
+            hub.setOutputLimit(demand-direct_panel_power)
+
+        '''
+        # if we get more from the direct connected panels than what we need, we limit the SF hub
         if direct_panel_power*0.9 <= limit <= direct_panel_power*1.1 or (limit == 0 and direct_panel_power > 10):
             hub.setOutputLimit(0)
             inv.setLimit(getDirectPanelLimit(inv,hub))
@@ -349,6 +305,7 @@ def limitHomeInput(client: mqtt_client):
             else:
                 hub.setOutputLimit(MAX_INVERTER_INPUT)
             inv.setLimit(limit)
+        '''
     else:
         hub.setOutputLimit(limit)
 
