@@ -72,5 +72,4 @@ class TimewindowBuffer:
 
     
 def deep_get(dictionary, keys, default=None):
-    log.info(f'Getting {keys} from {dictionary}')
     return reduce(lambda d, key: d.get(key, default) if isinstance(d, dict) else default, keys.split("."), dictionary)

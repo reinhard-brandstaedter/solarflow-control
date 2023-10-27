@@ -57,13 +57,8 @@ class Smartmeter:
                     log.error(f'Could not get value from topic payload: {sys.exc_info()}')
 
                 if value:
-                    log.info(f'SMT value: {value}')
                     self.phase_values.update({msg.topic:value})
-                    log.info(self.phase_values)
                     self.updPower()
-                    log.info(self.power)
-                else:
-                    log.info('SMT value is None')
 
     def getPower(self):
         return self.power.qwavg()
