@@ -87,6 +87,8 @@ BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) 
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
                         or int(os.environ.get('MAX_INVERTER_LIMIT',800))                                               
 MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
+MIN_INVERTER_LIMIT =    config.getint('control', 'inverter_min_limit', fallback=None) \
+                        or int(os.environ.get('MAX_INVERTER_LIMIT',10))                                               
 
 # the delta between two consecutive measurements on houshold usage to consider it a fast rise or drop   
 FAST_CHANGE_OFFSET =    config.getint('control', 'fast_change_offset', fallback=None) \
@@ -97,8 +99,8 @@ limit_inverter =        config.getboolean('control', 'limit_inverter', fallback=
                         or bool(os.environ.get('LIMIT_INVERTER',False))
 
 # Location Info
-LAT = config.getfloat('local', 'latitude', fallback=None) or float(os.environ.get('LATITUDE',0))
-LNG = config.getfloat('local', 'longitude', fallback=None) or float(os.environ.get('LONGITUDE',0))
+LAT = config.getfloat('global', 'latitude', fallback=None) or float(os.environ.get('LATITUDE',0))
+LNG = config.getfloat('global', 'longitude', fallback=None) or float(os.environ.get('LONGITUDE',0))
 location: LocationInfo
 
 # topic for the current household consumption (e.g. from smartmeter): int Watts
@@ -435,11 +437,13 @@ def main(argv):
     
 
     loc = MyLocation()
-    coordinates = loc.getCoordinates()
-    if loc is None:
+    if not LNG and not LAT:
+        coordinates = loc.getCoordinates()
+        if loc is None:
+            coordinates = (LAT,LNG)
+            log.info(f'Geocoordinates: {coordinates}')
+    else:
         coordinates = (LAT,LNG)
-        log.info(f'Geocoordinates: {coordinates}')
-
 
     # location info for determining sunrise/sunset
     location = LocationInfo(timezone='Europe/Berlin',latitude=coordinates[0], longitude=coordinates[1])
