@@ -333,7 +333,7 @@ def limitHomeInput(client: mqtt_client):
             # remainder must be calculated according to preferences of charging power, battery state,
             # day/nighttime input limites etc.
             remainder = getSFPowerLimit(hub,remainder)
-            log.info(f'Solarflow is willing to contribute {remainder}W!')
+            log.info(f'Solarflow is willing to contribute {remainder:4.1f}W!')
 
             inv_limit = inv.setLimit(max(remainder,getDirectPanelLimit(inv,hub)))
             hub_limit = hub.setOutputLimit(remainder+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
@@ -345,8 +345,8 @@ def limitHomeInput(client: mqtt_client):
     log.info(' '.join(f'Demand: {demand:4.1f}W, \
              Panel DC: ({panels_dc}), \
              Hub DC: ({hub_dc}), \
-             Inverter Limit: {inv_limit}W, \
-             Hub Limit: {hub_limit}W'.split()))
+             Inverter Limit: {inv_limit:4.1f}W, \
+             Hub Limit: {hub_limit:4.1f}W'.split()))
 
 def getOpts(configtype) -> dict:
     global config

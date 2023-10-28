@@ -116,7 +116,10 @@ class DTU:
     def setLimit(self, limit:int):
         # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
         inv_limit = limit*(1/(len(self.sf_inverter_channels)/(len(self.channelsDCPower)-1)))
-        #unit = "" if isOpenDTU(topic_limit_non_persistent) else "W"
+        
+        # failsafe, never set the inverter limit to 0, keep a minimum
+        # see: https://github.com/lumapu/ahoy/issues/1079
+        inv_limit = 10 if inv_limit < 10 else inv_limit
         
         if self.limitAbsolute != inv_limit and self.reachable:
             self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
