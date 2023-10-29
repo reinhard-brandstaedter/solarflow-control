@@ -115,15 +115,17 @@ class DTU:
 
     def setLimit(self, limit:int):
         # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
-        inv_limit = limit*(1/(len(self.sf_inverter_channels)/(len(self.channelsDCPower)-1)))
-        
+        #inv_limit = limit*(1/(len(self.sf_inverter_channels)/(len(self.channelsDCPower)-1)))
+        inv_limit = limit*(len(self.channelsDCPower)-1)
+
         # failsafe, never set the inverter limit to 0, keep a minimum
         # see: https://github.com/lumapu/ahoy/issues/1079
         inv_limit = 10 if inv_limit < 10 else inv_limit
         
         if self.limitAbsolute != inv_limit and self.reachable:
             self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
-            log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
+            #log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
+            log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x ({len(self.channelsDCPower)-1})')
         else:
             not self.reachable and log.info("Inverter is not reachable/down. Can't set limit")
             self.reachable and log.info(f'Not setting inverter output limit as it is identical to current limit!')
