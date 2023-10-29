@@ -31,6 +31,7 @@ class SolarflowHub:
         self.electricLevel = -1         # state of charge of battery pack
         self.batteries = {"none":-1}    # state of charge for individual batteries
         self.outputLimit = -1           # power limit for home output
+        self.outputLimitBuffer = TimewindowBuffer(minutes=1)
         self.lastFullTS = None          # keep track of last time the battery pack was full (100%)
         self.lastEmptyTS = None         # keep track of last time the battery pack was empty (0%)
         self.lastSolarInputTS = None    # time of the last received solar input value
@@ -204,6 +205,10 @@ class SolarflowHub:
         if  self.chargeThrough and (limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  0 < emptyage < 1)):
             log.info(f'Battery hasn\'t fully charged for {fullage} hours or is empty, not discharging')
             limit = 0
+
+        # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
+        self.outputLimitBuffer.add(limit)
+        limit = self.outputLimitBuffer.avg() 
 
         outputlimit = {"properties": { "outputLimit": limit }}
         if self.outputLimit != limit:
