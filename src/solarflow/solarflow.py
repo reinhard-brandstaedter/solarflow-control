@@ -66,7 +66,7 @@ class SolarflowHub:
             f'solarflow-hub/{self.deviceId}/telemetry/outputLimit',
             f'solarflow-hub/{self.deviceId}/telemetry/masterSoftVersion',
             f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/socLevel',
-            f'solarflow-hub/{self.deviceId}control/#'
+            f'solarflow-hub/{self.deviceId}/control/#'
         ]
         for t in topics:
             self.client.subscribe(t)
