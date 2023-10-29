@@ -195,9 +195,9 @@ class SolarflowHub:
                 case "chargeThrough":
                     self.setChargeThrough(value)
                 case "lastFullTimestamp":
-                    self.setLastFullTimestamp(int(value))
+                    self.setLastFullTimestamp(float(value))
                 case "lastEmptyTimestamp":
-                    self.setLastEmptyTimestamp(int(value))
+                    self.setLastEmptyTimestamp(float(value))
                 case _:
                     log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
