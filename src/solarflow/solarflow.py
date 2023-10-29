@@ -16,7 +16,8 @@ log = logging.getLogger("")
 
 class SolarflowHub:
     SF_PRODUCT_ID = "73bkTV"
-    FULL_CHARGE_AGE = 72
+    FULL_CHARGE_AGE = 72            # do not discharge if battery hasn't been fully charged within this time (hours)
+    EMPTY_RECHARGE_DURATION = 2     # do not discharge if battery hasn't at least charged for this time (hours)
 
     def __init__(self, device_id: str, client: mqtt_client):
         self.client = client
@@ -65,7 +66,7 @@ class SolarflowHub:
             f'solarflow-hub/{self.deviceId}/telemetry/outputLimit',
             f'solarflow-hub/{self.deviceId}/telemetry/masterSoftVersion',
             f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/socLevel',
-            "solarflow-hub/control/chargeThrough"
+            f'solarflow-hub/{self.deviceId}control/#'
         ]
         for t in topics:
             self.client.subscribe(t)
@@ -97,8 +98,10 @@ class SolarflowHub:
     def updElectricLevel(self, value:int):
         if value == 100:
             self.lastFullTS = datetime.now()
+            self.client.publish(f'solarflow-hub/{self.deviceId}control/lastFullTimestamp',datetime.timestamp(self.lastFullTS),retain=True)
         if value == 0:
             self.lastEmptyTS = datetime.now()
+            self.client.publish(f'solarflow-hub/{self.deviceId}control/lastEmptyTimestamp',datetime.timestamp(self.lastEmptyTS),retain=True)
         self.electricLevel = value
     
     def updOutputPack(self, value:int):
@@ -131,6 +134,13 @@ class SolarflowHub:
         if type(value) == int:
             self.chargeThrough = bool(value)
         log.info(f'Set ChargeThrough: {self.chargeThrough}')
+
+    def setLastFullTimestamp(self, value):
+        self.lastFullTS = datetime.fromtimestamp(value)
+
+    def setLastEmptyTimestamp(self, value):
+        self.lastEmptyTS = datetime.fromtimestamp(value)
+
 
     # handle content of mqtt message and update properties accordingly
     def handleMsg(self, msg):
@@ -184,6 +194,10 @@ class SolarflowHub:
                     self.updMasterSoftVersion(value=int(value))
                 case "chargeThrough":
                     self.setChargeThrough(value)
+                case "lastFullTimestamp":
+                    self.setLastFullTimestamp(int(value))
+                case "lastEmptyTimestamp":
+                    self.setLastEmptyTimestamp(int(value))
                 case _:
                     log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
@@ -202,7 +216,7 @@ class SolarflowHub:
 
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
-        if  self.chargeThrough and (limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  0 < emptyage < 1)):
+        if  self.chargeThrough and (limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  0 < emptyage < self.EMPTY_RECHARGE_DURATION)):
             log.info(f'Battery hasn\'t fully charged for {fullage} hours or is empty, not discharging')
             limit = 0
 
