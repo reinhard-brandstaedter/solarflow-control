@@ -102,7 +102,7 @@ class SolarflowHub:
             self.lastFullTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
         if value == 0:
-            log.info(f'Battery is empty')
+            log.info(f'Battery is empty: {self.electricLevel}')
             self.lastEmptyTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastEmptyTimestamp',int(datetime.timestamp(self.lastEmptyTS)),retain=True)
         self.electricLevel = value
@@ -181,7 +181,6 @@ class SolarflowHub:
             value = msg.payload.decode()
             match metric:
                 case "electricLevel":
-                    log.info(f'Received: {msg.topic}: {msg.payload}')
                     self.updElectricLevel(int(value))
                 case "solarInputPower":
                     self.updSolarInput(int(value))
