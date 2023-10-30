@@ -98,7 +98,7 @@ class SolarflowHub:
     
     def updElectricLevel(self, value:int):
         if value == 100:
-            log.info(f'Battery is full')
+            log.info(f'Battery is full: {self.electricLevel}')
             self.lastFullTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
         if value == 0:
