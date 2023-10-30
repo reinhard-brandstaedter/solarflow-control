@@ -87,8 +87,6 @@ BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) 
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
                         or int(os.environ.get('MAX_INVERTER_LIMIT',800))                                               
 MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
-MIN_INVERTER_LIMIT =    config.getint('control', 'inverter_min_limit', fallback=None) \
-                        or int(os.environ.get('MAX_INVERTER_LIMIT',10))                                               
 
 # the delta between two consecutive measurements on houshold usage to consider it a fast rise or drop   
 FAST_CHANGE_OFFSET =    config.getint('control', 'fast_change_offset', fallback=None) \
