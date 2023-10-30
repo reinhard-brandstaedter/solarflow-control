@@ -26,6 +26,7 @@ class DTU:
         self.channelsDCPower = []
         self.sf_inverter_channels = sf_inverter_channels
         self.limitAbsolute = 0
+        self.limitAbsoluteBuffer = TimewindowBuffer(minutes=1)
         self.producing = True
         self.reachable = True
         self.limit_nonpersistent_absolute = f'{base_topic}/{self.limit_topic}'
@@ -121,11 +122,14 @@ class DTU:
         # failsafe, never set the inverter limit to 0, keep a minimum
         # see: https://github.com/lumapu/ahoy/issues/1079
         inv_limit = 10 if inv_limit < 10 else inv_limit
+
+        self.limitAbsoluteBuffer.add(inv_limit)
+        inv_limit = self.limitAbsoluteBuffer.wavg() 
         
         if self.limitAbsolute != inv_limit and self.reachable:
             self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
             #log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
-            log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x ({len(self.channelsDCPower)-1})')
+            log.info(f'Setting inverter output limit to {inv_limit} W ({limit}W x {len(self.channelsDCPower)-1})')
         else:
             not self.reachable and log.info("Inverter is not reachable/down. Can't set limit")
             self.reachable and log.info(f'Not setting inverter output limit as it is identical to current limit!')
