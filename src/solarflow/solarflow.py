@@ -217,7 +217,7 @@ class SolarflowHub:
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
         if  self.chargeThrough and (limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  0 < emptyage < self.EMPTY_RECHARGE_DURATION)):
-            log.info(f'Battery hasn\'t fully charged for {fullage} hours or is empty, not discharging')
+            log.info(f'Battery hasn\'t fully charged for {fullage:2.1f} hours or is empty, not discharging')
             limit = 0
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
