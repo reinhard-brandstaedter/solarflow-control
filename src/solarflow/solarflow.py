@@ -98,9 +98,11 @@ class SolarflowHub:
     
     def updElectricLevel(self, value:int):
         if value == 100:
+            log.info(f'Battery is full')
             self.lastFullTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
         if value == 0:
+            log.info(f'Battery is empty')
             self.lastEmptyTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastEmptyTimestamp',int(datetime.timestamp(self.lastEmptyTS)),retain=True)
         self.electricLevel = value
@@ -138,9 +140,11 @@ class SolarflowHub:
 
     def setLastFullTimestamp(self, value):
         self.lastFullTS = datetime.fromtimestamp(value)
+        log.info(f'Reading last full time: {datetime.fromtimestamp(value)}')
 
     def setLastEmptyTimestamp(self, value):
         self.lastEmptyTS = datetime.fromtimestamp(value)
+        log.info(f'Reading last empty time: {datetime.fromtimestamp(value)}')
 
 
     # handle content of mqtt message and update properties accordingly
