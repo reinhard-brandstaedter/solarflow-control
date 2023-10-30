@@ -181,6 +181,7 @@ class SolarflowHub:
             value = msg.payload.decode()
             match metric:
                 case "electricLevel":
+                    log.info(f'Received: {msg.topic}: {msg.payload}')
                     self.updElectricLevel(int(value))
                 case "solarInputPower":
                     self.updSolarInput(int(value))
