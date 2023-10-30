@@ -18,6 +18,7 @@ class SolarflowHub:
     SF_PRODUCT_ID = "73bkTV"
     FULL_CHARGE_AGE = 72            # do not discharge if battery hasn't been fully charged within this time (hours)
     EMPTY_RECHARGE_DURATION = 2     # do not discharge if battery hasn't at least charged for this time (hours)
+    DISCHARGE_MIN_LEVEL = 75        # minimum SoC 
 
     def __init__(self, device_id: str, client: mqtt_client):
         self.client = client
@@ -216,7 +217,7 @@ class SolarflowHub:
 
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
-        if  self.chargeThrough and (limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  0 < emptyage < self.EMPTY_RECHARGE_DURATION)):
+        if  self.chargeThrough and (limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  self.electricLevel < self.DISCHARGE_MIN_LEVEL)):
             log.info(f'Battery hasn\'t fully charged for {fullage:2.1f} hours or is empty, not discharging')
             limit = 0
 

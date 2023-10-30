@@ -208,7 +208,7 @@ def getSFPowerLimit(hub, demand) -> int:
     if hub_solarpower <= MIN_CHARGE_LEVEL:  
         path += "2."
         sun_offset = timedelta(minutes = 60)
-        if (now < (sunrise + sun_offset) or now > sunset - sun_offset) or hub_electricLevel > DAY_DISCHARGE_SOC: 
+        if (now < (sunrise + sun_offset) or now > sunset - sun_offset) and hub_electricLevel > DAY_DISCHARGE_SOC: 
             path += "1."                
             limit = min(demand,MAX_DISCHARGE_LEVEL)
         else:
