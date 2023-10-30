@@ -98,10 +98,10 @@ class SolarflowHub:
     def updElectricLevel(self, value:int):
         if value == 100:
             self.lastFullTS = datetime.now()
-            self.client.publish(f'solarflow-hub/{self.deviceId}control/lastFullTimestamp',datetime.timestamp(self.lastFullTS),retain=True)
+            self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',datetime.timestamp(self.lastFullTS),retain=True)
         if value == 0:
             self.lastEmptyTS = datetime.now()
-            self.client.publish(f'solarflow-hub/{self.deviceId}control/lastEmptyTimestamp',datetime.timestamp(self.lastEmptyTS),retain=True)
+            self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastEmptyTimestamp',datetime.timestamp(self.lastEmptyTS),retain=True)
         self.electricLevel = value
     
     def updOutputPack(self, value:int):
