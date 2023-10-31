@@ -16,7 +16,7 @@ log = logging.getLogger("")
 
 class SolarflowHub:
     SF_PRODUCT_ID = "73bkTV"
-    FULL_CHARGE_AGE = 72            # do not discharge if battery hasn't been fully charged within this time (hours)
+    FULL_CHARGE_AGE = 24            # do not discharge if battery hasn't been fully charged within this time (hours)
     EMPTY_RECHARGE_DURATION = 2     # do not discharge if battery hasn't at least charged for this time (hours)
     DISCHARGE_MIN_LEVEL = 75        # minimum SoC 
 
@@ -221,7 +221,7 @@ class SolarflowHub:
 
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
-        if  self.chargeThrough and (limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0 or  self.electricLevel < self.DISCHARGE_MIN_LEVEL)):
+        if  self.chargeThrough and (limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0)):
             log.info(f'Battery hasn\'t fully charged for {fullage:2.1f} hours or is empty, not discharging')
             limit = 0
 
