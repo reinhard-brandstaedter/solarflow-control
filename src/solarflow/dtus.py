@@ -70,24 +70,7 @@ class DTU:
         self.reachable = bool(value)
 
     def handleMsg(self, msg):
-        if msg.topic.startswith(self.base_topic) and msg.payload:
-            metric = msg.topic.split('/')[-1]
-            value = float(msg.payload.decode())
-            log.debug(f'DTU received {metric}:{value}')
-            match metric:
-                case "powerdc":
-                    self.updTotalPowerDC(value)
-                case "limit_absolute":
-                    self.updLimitAbsolute(value)
-                case "producing":
-                    self.updProducing(value)
-                case "power":
-                    channel = int(msg.topic.split('/')[-2])
-                    self.updChannelPowerDC(channel, value)
-                case _:
-                    log.warning(f'Ignoring inverter metric: {metric}')
-        
-        if msg.topic.startswith(f'solarflow-hub') and "control" in msg.topic and msg.payload:
+        if msg.topic.startswith(f'solarflow-hub') and msg.topic and msg.payload:
             metric = msg.topic.split('/')[-1]
             value = msg.payload.decode()
             match metric:
@@ -192,6 +175,8 @@ class OpenDTU(DTU):
                     self.updChannelPowerDC(channel, value)
                 case _:
                     log.warning(f'Ignoring inverter metric: {metric}')
+        
+        super().handleMsg(msg)
 
 class AhoyDTU(DTU):
     opts = {"base_topic":str, "inverter_id":int, "inverter_name":str, "inverter_max_power":int, "sf_inverter_channels":list}
@@ -235,3 +220,5 @@ class AhoyDTU(DTU):
                         self.updChannelPowerDC(channel, value)
                 case _:
                     log.warning(f'Ignoring inverter metric: {metric}')
+
+        super().handleMsg(msg)

@@ -242,9 +242,9 @@ class SolarflowHub:
         outputlimit = {"properties": { "outputLimit": limit }}
         if self.outputLimit != limit:
             (not self.dryrun) and self.client.publish(self.property_topic,json.dumps(outputlimit))
-            log.info(f'{"[DRYRUN]" if self.dryrun else ""}Setting solarflow output limit to {limit} W')
+            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting solarflow output limit to {limit} W')
         else:
-            log.info(f'{"[DRYRUN]" if self.dryrun else ""}Not setting solarflow output limit as it is identical to current limit!')
+            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Not setting solarflow output limit as it is identical to current limit!')
         return limit
 
     def setBuzzer(self, state: bool):
