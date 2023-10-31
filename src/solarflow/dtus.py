@@ -29,6 +29,7 @@ class DTU:
         self.limitAbsoluteBuffer = TimewindowBuffer(minutes=1)
         self.producing = True
         self.reachable = True
+        self.dryrun = False
         self.limit_nonpersistent_absolute = f'{base_topic}/{self.limit_topic}'
     
     def __str__(self):
@@ -113,6 +114,13 @@ class DTU:
 
     def getNrHubChannels(self) -> int:
         return len(self.sf_inverter_channels)
+    
+    def setDryRun(self,value):
+        if type(value) == str:
+            self.dryrun = value.upper() == 'ON'
+        if type(value) == int:
+            self.dryrun = bool(value)
+        log.info(f'Set DryRun: {self.chargeThrough}')
 
     def setLimit(self, limit:int):
         # failsafe, never set the inverter limit to 0, keep a minimum
@@ -127,7 +135,7 @@ class DTU:
         inv_limit = int(self.limitAbsoluteBuffer.wavg())
         
         if self.limitAbsolute != inv_limit and self.reachable:
-            self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
+            (not self.dryrun) and self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
             #log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
             log.info(f'Setting inverter output limit to {inv_limit} W (1 min moving average of {limit}W x {len(self.channelsDCPower)-1})')
         else:
