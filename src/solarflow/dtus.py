@@ -40,6 +40,7 @@ class DTU:
                         L:{self.limitAbsolute:>3}W{reset}'.split())
 
     def subscribe(self, topics):
+        topics.append(f'solarflow-hub/+/control/dryRun')
         for t in topics:
             self.client.subscribe(t)
             log.info(f'DTU subscribing: {t}')
@@ -85,6 +86,13 @@ class DTU:
                     self.updChannelPowerDC(channel, value)
                 case _:
                     log.warning(f'Ignoring inverter metric: {metric}')
+        
+        if msg.topic.startswith(f'solarflow-hub') and "control" in msg.topic and msg.payload:
+            metric = msg.topic.split('/')[-1]
+            value = msg.payload.decode()
+            match metric:
+                case "dryRun":
+                    self.setDryRun(value)
 
     def getACPower(self):
         return self.acPower.qwavg()
@@ -120,7 +128,7 @@ class DTU:
             self.dryrun = value.upper() == 'ON'
         if type(value) == int:
             self.dryrun = bool(value)
-        log.info(f'Set DryRun: {self.dryrun}')
+        log.info(f'{self.__class__.__name__} set DryRun: {self.dryrun}')
 
     def setLimit(self, limit:int):
         # failsafe, never set the inverter limit to 0, keep a minimum
@@ -137,9 +145,9 @@ class DTU:
         if self.limitAbsolute != inv_limit and self.reachable:
             (not self.dryrun) and self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
             #log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
-            log.info(f'{"[DRYRUN]" if self.dryrun else ""}Setting inverter output limit to {inv_limit} W (1 min moving average of {limit}W x {len(self.channelsDCPower)-1})')
+            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting inverter output limit to {inv_limit} W (1 min moving average of {limit}W x {len(self.channelsDCPower)-1})')
         else:
-            not self.reachable and log.info(f'{"[DRYRUN]" if self.dryrun else ""}Inverter is not reachable/down. Can\'t set limit')
+            not self.reachable and log.info(f'{"[DRYRUN] " if self.dryrun else ""}Inverter is not reachable/down. Can\'t set limit')
             self.reachable and log.info(f'Not setting inverter output limit as it is identical to current limit!')
         return inv_limit
     
