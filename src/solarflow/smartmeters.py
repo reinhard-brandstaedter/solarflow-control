@@ -42,6 +42,7 @@ class Smartmeter:
     def updPower(self):
         phase_sum = sum(self.phase_values.values())
         self.power.add(phase_sum)
+        self.client.publish("solarflow-hub/smartmeter/power",phase_sum)
 
     def handleMsg(self, msg):
         if msg.topic.startswith(self.base_topic) and msg.payload:

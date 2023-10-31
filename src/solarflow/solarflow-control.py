@@ -140,12 +140,15 @@ class MyLocation:
         return (res.latitude,res.longitude)
 
 def on_message(client, userdata, msg):
+    #delegate message handling to hub,smartmeter, dtu
     smartmeter = userdata["smartmeter"]
     smartmeter.handleMsg(msg)
     hub = userdata["hub"]
     hub.handleMsg(msg)
     dtu = userdata["dtu"]
     dtu.handleMsg(msg)
+
+    # handle own messages
 
 
 def on_connect(client, userdata, flags, rc):
