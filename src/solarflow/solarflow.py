@@ -144,7 +144,7 @@ class SolarflowHub:
             self.dryrun = value.upper() == 'ON'
         if type(value) == int:
             self.dryrun = bool(value)
-        log.info(f'Set DryRun: {self.dryrun}')
+        log.info(f'{self.__class__.__name__} set DryRun: {self.dryrun}')
 
     def setLastFullTimestamp(self, value):
         self.lastFullTS = datetime.fromtimestamp(value)
