@@ -120,7 +120,7 @@ class DTU:
             self.dryrun = value.upper() == 'ON'
         if type(value) == int:
             self.dryrun = bool(value)
-        log.info(f'Set DryRun: {self.chargeThrough}')
+        log.info(f'Set DryRun: {self.dryrun}')
 
     def setLimit(self, limit:int):
         # failsafe, never set the inverter limit to 0, keep a minimum
