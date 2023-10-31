@@ -150,7 +150,6 @@ def on_message(client, userdata, msg):
 
     # handle own messages
 
-
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         log.info("Connected to MQTT Broker!")
@@ -181,6 +180,12 @@ def connect_mqtt() -> mqtt_client:
 
 def subscribe(client: mqtt_client):
     client.on_message = on_message
+    topics = [
+            f'solarflow-hub/+/control/#'
+    ]
+    for t in topics:
+        client.subscribe(t)
+        log.info(f'SFControl subscribing: {t}')
 
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
 def getDirectPanelLimit(inv, hub) -> int:

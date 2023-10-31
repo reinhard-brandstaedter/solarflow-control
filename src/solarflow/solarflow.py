@@ -40,6 +40,7 @@ class SolarflowHub:
 
         self.property_topic = f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/write'
         self.chargeThrough = True
+        self.dryrun = False
 
     def __str__(self):
         batteries = "|".join([f'{v:>2}' for v in self.batteries.values()])
@@ -138,6 +139,13 @@ class SolarflowHub:
             self.chargeThrough = bool(value)
         log.info(f'Set ChargeThrough: {self.chargeThrough}')
 
+    def setDryRun(self,value):
+        if type(value) == str:
+            self.dryrun = value.upper() == 'ON'
+        if type(value) == int:
+            self.dryrun = bool(value)
+        log.info(f'{self.__class__.__name__} set DryRun: {self.dryrun}')
+
     def setLastFullTimestamp(self, value):
         self.lastFullTS = datetime.fromtimestamp(value)
         log.info(f'Reading last full time: {datetime.fromtimestamp(value)}')
@@ -199,6 +207,8 @@ class SolarflowHub:
                     self.updMasterSoftVersion(value=int(value))
                 case "chargeThrough":
                     self.setChargeThrough(value)
+                case "dryRun":
+                    self.setDryRun(value)
                 case "lastFullTimestamp":
                     self.setLastFullTimestamp(float(value))
                 case "lastEmptyTimestamp":
@@ -231,10 +241,10 @@ class SolarflowHub:
 
         outputlimit = {"properties": { "outputLimit": limit }}
         if self.outputLimit != limit:
-            self.client.publish(self.property_topic,json.dumps(outputlimit))
-            log.info(f'Setting solarflow output limit to {limit} W')
+            (not self.dryrun) and self.client.publish(self.property_topic,json.dumps(outputlimit))
+            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting solarflow output limit to {limit} W')
         else:
-            log.info(f'Not setting solarflow output limit as it is identical to current limit!')
+            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Not setting solarflow output limit as it is identical to current limit!')
         return limit
 
     def setBuzzer(self, state: bool):

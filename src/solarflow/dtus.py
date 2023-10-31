@@ -29,6 +29,7 @@ class DTU:
         self.limitAbsoluteBuffer = TimewindowBuffer(minutes=1)
         self.producing = True
         self.reachable = True
+        self.dryrun = False
         self.limit_nonpersistent_absolute = f'{base_topic}/{self.limit_topic}'
     
     def __str__(self):
@@ -39,6 +40,7 @@ class DTU:
                         L:{self.limitAbsolute:>3}W{reset}'.split())
 
     def subscribe(self, topics):
+        topics.append(f'solarflow-hub/+/control/dryRun')
         for t in topics:
             self.client.subscribe(t)
             log.info(f'DTU subscribing: {t}')
@@ -68,22 +70,12 @@ class DTU:
         self.reachable = bool(value)
 
     def handleMsg(self, msg):
-        if msg.topic.startswith(self.base_topic) and msg.payload:
+        if msg.topic.startswith(f'solarflow-hub') and msg.topic and msg.payload:
             metric = msg.topic.split('/')[-1]
-            value = float(msg.payload.decode())
-            log.debug(f'DTU received {metric}:{value}')
+            value = msg.payload.decode()
             match metric:
-                case "powerdc":
-                    self.updTotalPowerDC(value)
-                case "limit_absolute":
-                    self.updLimitAbsolute(value)
-                case "producing":
-                    self.updProducing(value)
-                case "power":
-                    channel = int(msg.topic.split('/')[-2])
-                    self.updChannelPowerDC(channel, value)
-                case _:
-                    log.warning(f'Ignoring inverter metric: {metric}')
+                case "dryRun":
+                    self.setDryRun(value)
 
     def getACPower(self):
         return self.acPower.qwavg()
@@ -113,6 +105,13 @@ class DTU:
 
     def getNrHubChannels(self) -> int:
         return len(self.sf_inverter_channels)
+    
+    def setDryRun(self,value):
+        if type(value) == str:
+            self.dryrun = value.upper() == 'ON'
+        if type(value) == int:
+            self.dryrun = bool(value)
+        log.info(f'{self.__class__.__name__} set DryRun: {self.dryrun}')
 
     def setLimit(self, limit:int):
         # failsafe, never set the inverter limit to 0, keep a minimum
@@ -127,11 +126,11 @@ class DTU:
         inv_limit = int(self.limitAbsoluteBuffer.wavg())
         
         if self.limitAbsolute != inv_limit and self.reachable:
-            self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
+            (not self.dryrun) and self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
             #log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
-            log.info(f'Setting inverter output limit to {inv_limit} W (1 min moving average of {limit}W x {len(self.channelsDCPower)-1})')
+            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting inverter output limit to {inv_limit} W (1 min moving average of {limit}W x {len(self.channelsDCPower)-1})')
         else:
-            not self.reachable and log.info("Inverter is not reachable/down. Can't set limit")
+            not self.reachable and log.info(f'{"[DRYRUN] " if self.dryrun else ""}Inverter is not reachable/down. Can\'t set limit')
             self.reachable and log.info(f'Not setting inverter output limit as it is identical to current limit!')
         return inv_limit
     
@@ -176,6 +175,8 @@ class OpenDTU(DTU):
                     self.updChannelPowerDC(channel, value)
                 case _:
                     log.warning(f'Ignoring inverter metric: {metric}')
+        
+        super().handleMsg(msg)
 
 class AhoyDTU(DTU):
     opts = {"base_topic":str, "inverter_id":int, "inverter_name":str, "inverter_max_power":int, "sf_inverter_channels":list}
@@ -219,3 +220,5 @@ class AhoyDTU(DTU):
                         self.updChannelPowerDC(channel, value)
                 case _:
                     log.warning(f'Ignoring inverter metric: {metric}')
+
+        super().handleMsg(msg)
