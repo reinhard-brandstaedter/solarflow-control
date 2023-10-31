@@ -149,6 +149,12 @@ def on_message(client, userdata, msg):
     dtu.handleMsg(msg)
 
     # handle own messages
+    if msg.topic.startswith(f'solarflow-hub/{sf_device_id}') and msg.payload:
+        metric = msg.topic.split('/')[-1]
+        value = msg.payload.decode()
+        match metric:
+            case "dryRun":
+                dtu.setDryRun(value)
 
 
 def on_connect(client, userdata, flags, rc):
@@ -181,6 +187,12 @@ def connect_mqtt() -> mqtt_client:
 
 def subscribe(client: mqtt_client):
     client.on_message = on_message
+    topics = [
+            f'solarflow-hub/+/control/#'
+    ]
+    for t in topics:
+        client.subscribe(t)
+        log.info(f'SFControl subscribing: {t}')
 
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
 def getDirectPanelLimit(inv, hub) -> int:
