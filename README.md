@@ -62,8 +62,8 @@ The parameters for the control script can bei either provided via environment va
 | LIMIT_INVERTER      | If set to "True" the limiting will be done via the inverter, if "False" the SF Hub will be limited directly |   | False |
 | LATITUDE            | Your geolocation latitude. If not set geolocation is determined via geo-lookup by IP |   |   |
 | LONGITUDE           | Your geolocation longitude. If not set geolocation is determined via geo-lookup by IP |   |   |
-| SUNRISE_OFFSET           | Once the sunrises the idea is that energy goes to the battery first until day discharge is reached and more importantly the direct panels are used if available. However with sunrise, sun does not reach panels usualy, so an offset in minutes can be configured. This offset is by default 60 minutes; however this offset highly depends on your location, orientation and surroundings. |   |   |
-| SUNSET_OFFSET           | Once the sunsets the idea is that energy comes from the battery, however with actual sunset that might be too late, hence the time before the sunset can be set. This offset is by default 60 minutes (i.e. 60 minutes before sunset batteries are being used+direct panels if applicable); however this offset highly depends on your location, orientation and surroundings. |   |   |
+| SUNRISE_OFFSET           | Once the sunrises the idea is that energy goes to the battery first until day discharge is reached and more importantly the direct panels are used if available. However with sunrise, sun does not reach panels usualy, so an offset in minutes can be configured. This offset is by default 60 minutes; however this offset highly depends on your location, orientation and surroundings. |   | 60 |
+| SUNSET_OFFSET           | Once the sunsets the idea is that energy comes from the battery, however with actual sunset that might be too late, hence the time before the sunset can be set. This offset is by default 60 minutes (i.e. 60 minutes before sunset batteries are being used+direct panels if applicable); however this offset highly depends on your location, orientation and surroundings. |   | 60 |
 
 *Telemetry Input Sources - Mandatory*
 
