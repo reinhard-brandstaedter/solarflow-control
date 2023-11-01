@@ -229,10 +229,14 @@ class SolarflowHub:
             r = divmod(limit,30)[1]
             limit = 30 * m + 30 * (r // 15)
 
+        # Charge-Through:
+        # If charge-through is enabled the hub will not provide any power if the last full state is to long ago
+        # this ensures regular loading to 100% to avoid battery-drift
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
         if  self.chargeThrough and (limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0)):
-            log.info(f'Battery hasn\'t fully charged for {fullage:2.1f} hours or is empty, not discharging')
+            log.info(f'Battery hasn\'t fully charged for {fullage:2.1f} hours! To ensure it is fully charged at least every {self.FULL_CHARGE_AGE} not discharging now!')
+            # either limit to 0 or only give away what is higher than min_charge_level
             limit = 0
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
