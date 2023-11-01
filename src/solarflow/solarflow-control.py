@@ -59,23 +59,12 @@ SMT_TYPE =              config.get('global', 'smartmeter_type', fallback=None) \
                         or os.environ.get('SMARTMETER_TYPE',"Smartmeter")
 
 # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
-MIN_CHARGE_LEVEL =      config.getint('control', 'min_charge_level', fallback=None) \
-                        or int(os.environ.get('MIN_CHARGE_LEVEL',125))          
+MIN_CHARGE_POWER =      config.getint('control', 'min_charge_power', fallback=None) \
+                        or int(os.environ.get('MIN_CHARGE_POWER',125))          
 
 # The maximum discharge level of the packSoc. Even if there is more demand it will not go beyond that
-MAX_DISCHARGE_LEVEL =   config.getint('control', 'max_discharge_level', fallback=None) \
-                        or int(os.environ.get('MAX_DISCHARGE_LEVEL',145))   
-
-# The minimum state of charge of the battery to start discharging also throughout the day
-DAY_DISCHARGE_SOC =     config.getint('control', 'day_discharge_soc', fallback=None) \
-                        or int(os.environ.get('DAY_DISCHARGE_SOC',50))    
-
-CHARGE_THROUGH_THRESHOLD =  config.getint('control', 'charge_through_threshold', fallback=None) \
-                        or int(os.environ.get('CHARGE_THROUGH_THRESHOLD',60))      
-
-# if we produce more than what we need we can feed that much to the grid
-OVERAGE_LIMIT =         config.getint('control', 'overage_limit', fallback=None) \
-                        or int(os.environ.get('OVERAGE_LIMIT',15))  
+MAX_DISCHARGE_POWER =   config.getint('control', 'max_discharge_power', fallback=None) \
+                        or int(os.environ.get('MAX_DISCHARGE_POWER',145))   
 
 # battery SoC levels to consider the battry full or empty                                            
 BATTERY_LOW =           config.getint('control', 'battery_low', fallback=None) \
@@ -86,11 +75,7 @@ BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) 
 # the maximum allowed inverter output
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
                         or int(os.environ.get('MAX_INVERTER_LIMIT',800))                                               
-MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_LEVEL
-
-# the delta between two consecutive measurements on houshold usage to consider it a fast rise or drop   
-FAST_CHANGE_OFFSET =    config.getint('control', 'fast_change_offset', fallback=None) \
-                        or int(os.environ.get('FAST_CHANGE_OFFSET',200))
+MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_POWER
 
 # wether to limit the inverter or the solarflow hub
 limit_inverter =        config.getboolean('control', 'limit_inverter', fallback=None) \
@@ -110,21 +95,12 @@ location: LocationInfo
 # topic for the current household consumption (e.g. from smartmeter): int Watts
 # if there is no single topic wich aggregates multiple phases (e.g. shelly 3EM) you can specify the topic in an array like this
 # topic_house = shellies/shellyem3/emeter/1/power, shellies/shellyem3/emeter/2/power, shellies/shellyem3/emeter/3/power
-topic_house =       config.get('mqtt_telemetry_topics', 'topic_house', fallback=None) \
-                    or os.environ.get('TOPIC_HOUSE',None)
-topics_house =      [ t.strip() for t in topic_house.split(',')] if topic_house else []
-
-# topic for the microinverter input to home (e.g. from OpenDTU, AhouyDTU)
-topic_acinput =     config.get('mqtt_telemetry_topics', 'topic_acinput', fallback=None) \
-                    or os.environ.get('TOPIC_ACINPUT',"solar/ac/power")
-
-limit_window =  config.getint('control', 'limit_window', fallback=None) \
-                or int(os.environ.get('LIMIT_WINDOW',5))
-limit_values =  [0]*limit_window
+#topic_house =       config.get('mqtt_telemetry_topics', 'topic_house', fallback=None) \
+#                    or os.environ.get('TOPIC_HOUSE',None)
+#topics_house =      [ t.strip() for t in topic_house.split(',')] if topic_house else []
 
 client_id = f'solarflow-ctrl-{random.randint(0, 100)}'
 
-charge_through = False
 
 class MyLocation:
     ip = ""
@@ -211,32 +187,29 @@ def getSFPowerLimit(hub, demand) -> int:
     sunset = s['sunset']
     path = ""
 
-    if hub_solarpower > MIN_CHARGE_LEVEL:
+    if hub_solarpower > MIN_CHARGE_POWER:
         path += "1." 
-        if hub_solarpower - MIN_CHARGE_LEVEL < MAX_DISCHARGE_LEVEL and hub_electricLevel > DAY_DISCHARGE_SOC:
+        if hub_solarpower - MIN_CHARGE_POWER < MAX_DISCHARGE_POWER:
             path += "1."
-            limit = min(demand,MAX_DISCHARGE_LEVEL)
+            limit = min(demand,MAX_DISCHARGE_POWER)
         else:
             path += "2."
-            limit = min(demand,hub_solarpower - MIN_CHARGE_LEVEL)
-    if hub_solarpower <= MIN_CHARGE_LEVEL:  
+            limit = min(demand,hub_solarpower - MIN_CHARGE_POWER)
+    if hub_solarpower <= MIN_CHARGE_POWER:  
         path += "2."
         sunrise_off = timedelta(minutes = SUNRISE_OFFSET)
         sunset_off = timedelta(minutes = SUNSET_OFFSET)
-        if (now < (sunrise + sunrise_off) or now > sunset - sunset_off) and hub_electricLevel > DAY_DISCHARGE_SOC: 
+        if (now < (sunrise + sunrise_off) or now > sunset - sunset_off): 
             path += "1."                
-            limit = min(demand,MAX_DISCHARGE_LEVEL)
+            limit = min(demand,MAX_DISCHARGE_POWER)
         else:
             path += "2."                                     
             limit = 0
-    log.info(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")} - Decision path: {path}')
+    log.info(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")} - Solarflow limit: {limit:4.1f} - Decision path: {path}')
     return limit
 
 
 def limitHomeInput(client: mqtt_client):
-    global home
-    global packSoc, batterySocs
-    global charge_through
     global location
 
     hub = client._userdata['hub']
@@ -347,8 +320,8 @@ def limitHomeInput(client: mqtt_client):
             # TODO: here we need to do all the calculation of how much we want to drain from solarflow
             # remainder must be calculated according to preferences of charging power, battery state,
             # day/nighttime input limites etc.
-            remainder = getSFPowerLimit(hub,remainder)
             log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W!')
+            remainder = getSFPowerLimit(hub,remainder)
 
             inv_limit = inv.setLimit(max(remainder,getDirectPanelLimit(inv,hub)))
             hub_limit = hub.setOutputLimit(remainder+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
@@ -437,16 +410,12 @@ def main(argv):
     log.info(f'Limit via inverter: {limit_inverter}')
 
     log.info("Control Parameters:")
-    log.info(f'  MIN_CHARGE_LEVEL = {MIN_CHARGE_LEVEL}')
-    log.info(f'  MAX_DISCHARGE_LEVEL = {MAX_DISCHARGE_LEVEL}')
+    log.info(f'  MIN_CHARGE_POWER = {MIN_CHARGE_POWER}')
+    log.info(f'  MAX_DISCHARGE_LEVEL = {MAX_DISCHARGE_POWER}')
     log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
     log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
-    log.info(f'  DAY_DISCHARGE_SOC = {DAY_DISCHARGE_SOC}')
-    log.info(f'  CHARGE_THROUGH_THRESHOLD = {CHARGE_THROUGH_THRESHOLD}')
-    log.info(f'  OVERAGE_LIMIT = {OVERAGE_LIMIT}')
     log.info(f'  MAX_INVERTER_LIMIT = {MAX_INVERTER_LIMIT}')
     log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
-    log.info(f'  FAST_CHANGE_OFFSET = {FAST_CHANGE_OFFSET}')
     log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
     log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
 
