@@ -96,6 +96,12 @@ FAST_CHANGE_OFFSET =    config.getint('control', 'fast_change_offset', fallback=
 limit_inverter =        config.getboolean('control', 'limit_inverter', fallback=None) \
                         or bool(os.environ.get('LIMIT_INVERTER',False))
 
+#Adjustments possible to sunrise and sunset offset
+SUNRISE_OFFSET =    config.getint('global', 'sunrise_offset', fallback=60) \
+                        or int(os.environ.get('SUNRISE_OFFSET',60))                                               
+SUNSET_OFFSET =    config.getint('global', 'sunset_offset', fallback=60) \
+                        or int(os.environ.get('SUNSET_OFFSET',60))                                               
+
 # Location Info
 LAT = config.getfloat('global', 'latitude', fallback=None) or float(os.environ.get('LATITUDE',0))
 LNG = config.getfloat('global', 'longitude', fallback=None) or float(os.environ.get('LONGITUDE',0))
@@ -215,8 +221,9 @@ def getSFPowerLimit(hub, demand) -> int:
             limit = min(demand,hub_solarpower - MIN_CHARGE_LEVEL)
     if hub_solarpower <= MIN_CHARGE_LEVEL:  
         path += "2."
-        sun_offset = timedelta(minutes = 60)
-        if (now < (sunrise + sun_offset) or now > sunset - sun_offset) and hub_electricLevel > DAY_DISCHARGE_SOC: 
+        sunrise_off = timedelta(minutes = SUNRISE_OFFSET)
+        sunset_off = timedelta(minutes = SUNSET_OFFSET)
+        if (now < (sunrise + sunrise_off) or now > sunset - sunset_off) and hub_electricLevel > DAY_DISCHARGE_SOC: 
             path += "1."                
             limit = min(demand,MAX_DISCHARGE_LEVEL)
         else:
@@ -440,7 +447,9 @@ def main(argv):
     log.info(f'  MAX_INVERTER_LIMIT = {MAX_INVERTER_LIMIT}')
     log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
     log.info(f'  FAST_CHANGE_OFFSET = {FAST_CHANGE_OFFSET}')
-    
+    log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
+    log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
+
 
     loc = MyLocation()
     if not LNG and not LAT:
