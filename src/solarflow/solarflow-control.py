@@ -205,7 +205,7 @@ def getSFPowerLimit(hub, demand) -> int:
         else:
             path += "2."                                     
             limit = 0
-    log.info(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")} - Solarflow limit: {limit:4.1f} - Decision path: {path}')
+    log.info(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")} - Solarflow limit: {limit:4.1f}W - Decision path: {path}')
     return limit
 
 
