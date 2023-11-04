@@ -14,16 +14,14 @@ FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
-class SolarflowHub:
+class Solarflow:
+    opts = {"device_id":str ,"full_charge_interval":int}
     SF_PRODUCT_ID = "73bkTV"
-    #FULL_CHARGE_AGE = 24            # do not discharge if battery hasn't been fully charged within this time (hours)
-    EMPTY_RECHARGE_DURATION = 2     # do not discharge if battery hasn't at least charged for this time (hours)
-    DISCHARGE_MIN_LEVEL = 75        # minimum SoC 
 
-    def __init__(self, device_id: str, client: mqtt_client, full_charge_age_hours:int):
+    def __init__(self, client: mqtt_client, device_id: str, full_charge_interval:int):
         self.client = client
         self.deviceId = device_id
-        self.FULL_CHARGE_AGE= full_charge_age_hours
+        self.fullChargeInterval= full_charge_interval
         self.fwVersion = "unknown"
         self.solarInputValues = TimewindowBuffer(minutes=1)
         self.solarInputPower = -1       # solar input power of connected panels
@@ -235,8 +233,8 @@ class SolarflowHub:
         # this ensures regular loading to 100% to avoid battery-drift
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
-        if  self.chargeThrough and (limit > 0 and (fullage > self.FULL_CHARGE_AGE or fullage < 0)):
-            log.info(f'Battery hasn\'t fully charged for {fullage:2.1f} hours! To ensure it is fully charged at least every {self.FULL_CHARGE_AGE}hrs not discharging now!')
+        if  self.chargeThrough and (limit > 0 and (fullage > self.fullChargeInterval or fullage < 0)):
+            log.info(f'Battery hasn\'t fully charged for {fullage:2.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval}hrs not discharging now!')
             # either limit to 0 or only give away what is higher than min_charge_level
             limit = 0
 

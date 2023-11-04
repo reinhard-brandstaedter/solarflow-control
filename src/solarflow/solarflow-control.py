@@ -9,7 +9,7 @@ from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import click
 import math
-from solarflow import SolarflowHub
+from solarflow import Solarflow
 import dtus
 import smartmeters
 
@@ -352,7 +352,8 @@ def getOpts(configtype) -> dict:
 
 def run():
     client = connect_mqtt()
-    hub = SolarflowHub(device_id=sf_device_id,client=client,full_charge_age_hours=FULL_CHARGE_AGE)
+    hub_opts = getOpts(Solarflow)
+    hub = Solarflow(client=client,**hub_opts)
 
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
