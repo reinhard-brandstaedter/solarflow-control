@@ -16,13 +16,14 @@ log = logging.getLogger("")
 
 class SolarflowHub:
     SF_PRODUCT_ID = "73bkTV"
-    FULL_CHARGE_AGE = 24            # do not discharge if battery hasn't been fully charged within this time (hours)
+    #FULL_CHARGE_AGE = 24            # do not discharge if battery hasn't been fully charged within this time (hours)
     EMPTY_RECHARGE_DURATION = 2     # do not discharge if battery hasn't at least charged for this time (hours)
     DISCHARGE_MIN_LEVEL = 75        # minimum SoC 
 
-    def __init__(self, device_id: str, client: mqtt_client):
+    def __init__(self, device_id: str, client: mqtt_client, full_charge_age_hours:int):
         self.client = client
         self.deviceId = device_id
+        self.FULL_CHARGE_AGE= full_charge_age_hours
         self.fwVersion = "unknown"
         self.solarInputValues = TimewindowBuffer(minutes=1)
         self.solarInputPower = -1       # solar input power of connected panels
