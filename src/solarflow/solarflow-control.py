@@ -174,10 +174,11 @@ def subscribe(client: mqtt_client):
         log.info(f'SFControl subscribing: {t}')
 
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
-def getDirectPanelLimit(inv, hub) -> int:
+def getDirectPanelLimit(inv, hub, smt) -> int:
     direct_panel_power = inv.getDirectDCPower()
     if direct_panel_power < MAX_INVERTER_LIMIT:
-        return math.ceil(max(inv.getDirectDCPowerValues())*1.2)
+        rise_factor = 1.2 if smt.getPower() > 0 else 1
+        return math.ceil(max(inv.getDirectDCPowerValues())*rise_factor)
         #return math.ceil(max( max(inv.getHubDCPowerValues()), max(inv.getDirectDCPowerValues()) ))
     else:
         return int(MAX_INVERTER_LIMIT*(inv.getNrHubChannels()/inv.getNrTotalChannels()))
@@ -312,7 +313,7 @@ def limitHomeInput(client: mqtt_client):
         direct_panel_power = inv.getDirectDCPower()
         if demand <= direct_panel_power:
             # we can conver demand with direct panel power, just use all of it
-            inv_limit = inv.setLimit(getDirectPanelLimit(inv,hub))
+            inv_limit = inv.setLimit(getDirectPanelLimit(inv,hub,smt))
             hub_limit = hub.setOutputLimit(0)
         if demand > direct_panel_power:
             # the remainder should come from SFHub, in case the remainder is greater than direct panels power
@@ -327,7 +328,7 @@ def limitHomeInput(client: mqtt_client):
             log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W!')
             remainder = getSFPowerLimit(hub,remainder)
 
-            inv_limit = inv.setLimit(max(remainder,getDirectPanelLimit(inv,hub)))
+            inv_limit = inv.setLimit(max(remainder,getDirectPanelLimit(inv,hub,smt)))
             hub_limit = hub.setOutputLimit(remainder+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
     else:
         hub_limit = hub.setOutputLimit(limit)
