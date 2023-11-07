@@ -211,6 +211,15 @@ def getSFPowerLimit(hub, demand) -> int:
             path += "2."                                     
             limit = 0
     log.info(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")} - Solarflow limit: {limit:4.1f}W - Decision path: {path}')
+
+    # get battery Soc at sunset/sunrise
+    td = timedelta(minutes = 1)
+    if now > sunset and now < sunset + td:
+        hub.setSunsetSoC(hub_electricLevel)
+    if now > sunrise and now < sunrise + td:
+        hub.setSunriseSoC(hub_electricLevel)
+        log.info(f'Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!')
+
     return limit
 
 

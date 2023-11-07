@@ -40,6 +40,9 @@ class Solarflow:
         self.property_topic = f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/write'
         self.chargeThrough = True
         self.dryrun = False
+        self.sunriseSoC = None
+        self.sunsetSoC = None
+        self.nightConsumption = 100
 
     def __str__(self):
         batteries = "|".join([f'{v:>2}' for v in self.batteries.values()])
@@ -153,6 +156,16 @@ class Solarflow:
         self.lastEmptyTS = datetime.fromtimestamp(value)
         log.info(f'Reading last empty time: {datetime.fromtimestamp(value)}')
 
+    def setSunriseSoC(self, soc:int):
+        self.sunriseSoC = soc
+        if self.sunsetSoC:
+            self.nightConsumption = self.sunsetSoC - self.sunriseSoC
+
+    def setSunsetSoC(self, soc:int):
+        self.sunsetSoC = soc
+
+    def getNightConsumption(self):
+        return self.nightConsumption
 
     # handle content of mqtt message and update properties accordingly
     def handleMsg(self, msg):
