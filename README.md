@@ -22,6 +22,7 @@ This project is tightly related to (and works together with) my other projects r
 
 ![solarflow control](https://github.com/reinhard-brandstaedter/solarflow-control/blob/master/img/schema.png?raw=true)
 
+
 ### Preamble
 To control how much data is fed from the Solarflow Hub to Home (our main goal) we need to (i) find out how much power we need at any given time and (ii) be able to steer the output to home either via the inverter or the solarflow hub (or both), in dependency of any panels connected directly to the same inverter as solarflow.
 
