@@ -85,11 +85,7 @@ limit_inverter =        config.getboolean('control', 'limit_inverter', fallback=
 SUNRISE_OFFSET =    config.getint('global', 'sunrise_offset', fallback=60) \
                         or int(os.environ.get('SUNRISE_OFFSET',60))                                               
 SUNSET_OFFSET =    config.getint('global', 'sunset_offset', fallback=60) \
-                        or int(os.environ.get('SUNSET_OFFSET',60))                                               
-
-#Full charge cycle in hours to ensure that battery is charged from time to time
-FULL_CHARGE_AGE =    config.getint('control', 'full_charge_age', fallback=24) \
-                        or int(os.environ.get('FULL_CHARGE_AGE',24))                                               
+                        or int(os.environ.get('SUNSET_OFFSET',60))                                                                                             
 
 # Location Info
 LAT = config.getfloat('global', 'latitude', fallback=None) or float(os.environ.get('LATITUDE',0))
@@ -427,9 +423,6 @@ def main(argv):
     log.info("Control Parameters:")
     log.info(f'  MIN_CHARGE_POWER = {MIN_CHARGE_POWER}')
     log.info(f'  MAX_DISCHARGE_LEVEL = {MAX_DISCHARGE_POWER}')
-    log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
-    log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
-    log.info(f'  FULL_CHARGE_AGE = {FULL_CHARGE_AGE}')
     log.info(f'  MAX_INVERTER_LIMIT = {MAX_INVERTER_LIMIT}')
     log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
     log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
