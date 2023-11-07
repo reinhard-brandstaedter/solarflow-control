@@ -213,46 +213,4 @@ Finally, when enough data is collected, you will see the tool starting it's work
 ...
 ```
 
-### Examples
-Below examples assume you have docker installed on your system (supported architectures are x86 and ARMv6 (Raspi)). You will also need a MQTT broker which has the above described topics/telemetry present. The examples are run on Linux/MacOS, if you are using Windows ther might be slight changes in the docker commands.
-
-#### Offline Solarflow Hub reporting to your MQTT broker directly
-This is the preferred an most efficient, reliable way as it doesn't depend on any cloud service. I'm using this 24/7.
-I'm assuming your SF hub is already reporting to your local MQTT already. If not please see (how to do so)[https://github.com/reinhard-brandstaedter/solarflow-bt-manager#disconnecting-the-hub-from-the-cloud]
-
-Launch the topic mapper, which is simply used to create beautified MQTT topic of the various state topics of the solarflow hub:
-
-```
-docker run -d -e  SF_DEVICE_ID=<your device id> \
-              -e MQTT_HOST=<your mqtt host> \
-              -e MQTT_USER=<your mqtt user> \
-              -e MQTT_PWD=<your mqtt password> \
-              --name solarflow-topicmapper rbrandstaedter/solarflow-topic-mapper:master
-```
-
-After the topic mapper is started you should see a ```solarflow-hub``` topic with various sub-topics and telemetry data from your hub. This data is needed to continue.
-
-Create a ```config.ini``` file with your parameters:
-
-```
-### your local MQTT broker, the hub and other required data is reporting to
-[local]
-mqtt_host = 192.168.1.245
-#mqtt_port = 
-#mqtt_user =
-#mqtt_pwd =
-
-### in offline mode none of the below Zendure is needed
-[zendure]
-#login = 
-#password = 
-# since Zendure introduces regional brokers please set the one where you have registered your device
-# Global: mq.zen-iot.com
-# EU: mqtteu.zen-iot.com
-#zen_mqtt = mq.zen-iot.com
-# likewise for the API endpoint please select the correct one
-# Global: https://app.zendure.tech
-# EU: https://app.zendure.tech/eu
-#zen_api = https://app.zendure.tech
-
-```
+## Examples
