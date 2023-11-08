@@ -1,0 +1,35 @@
+version: "3.5"
+
+networks:
+   solarflow-net:
+     name: sf_network
+     driver: bridge
+
+services:
+  control:
+    image: rbrandstaedter/solarflow-control:refactoring
+    container_name: "sf-control"
+    volumes:
+      - ${PWD}/config.ini:/solarflow/config.ini
+    networks: 
+      - solarflow-net
+    restart: "no"
+    logging:
+      options:
+        max-size: 50m
+
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: "sf-mqtt"
+    ports:
+      - 1883:1883
+    environment:
+      - "PYTHONUNBUFFERED=1"
+    networks: 
+      - solarflow-net
+    volumes:
+      - ${PWD}/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: "no"
+    logging:
+      options:
+        max-size: 50m

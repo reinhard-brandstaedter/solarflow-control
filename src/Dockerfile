@@ -1,9 +1,9 @@
-FROM python:3.10-alpine
+FROM rbrandstaedter/solarflow-control-baseimage:latest
 
+RUN pip install Jinja2 requests
 # Create stdconfig directory
-WORKDIR /
+WORKDIR /solarflow
 
-COPY solarflow-control.py /
+COPY solarflow /solarflow
 
-RUN pip install paho-mqtt astral click ip2geotools
 ENTRYPOINT ["python","solarflow-control.py"]

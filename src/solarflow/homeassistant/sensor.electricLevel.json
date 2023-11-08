@@ -1,0 +1,16 @@
+{
+    "name": "Battery Level",
+    "stat_t": "~electricLevel",
+    "bat_lev_t": "~electricLevel",
+    "uniq_id": "{{ device_id }}-electricLevel",
+    "dev_cla": "battery",
+    "unit_of_meas": "%",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}
