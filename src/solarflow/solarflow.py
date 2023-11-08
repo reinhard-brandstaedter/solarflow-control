@@ -1,6 +1,5 @@
 from paho.mqtt import client as mqtt_client
-from datetime import datetime, timedelta
-from functools import reduce
+from datetime import datetime
 import logging
 import json
 import sys
