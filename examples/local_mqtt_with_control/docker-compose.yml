@@ -6,26 +6,11 @@ networks:
      driver: bridge
 
 services:
-  statuspage:
-    image: rbrandstaedter/solarflow-statuspage:master
-    container_name: "sf-statuspage"
-    command: "--online"
-    ports:
-      - 5000:5000
-    volumes:
-      - ${PWD}/statuspage-config.ini:/config.ini
-    networks: 
-      - solarflow-net
-    restart: "no"
-    logging:
-      options:
-        max-size: 50m
-  
   control:
-    image: rbrandstaedter/solarflow-control:master
+    image: rbrandstaedter/solarflow-control:refactoring
     container_name: "sf-control"
     volumes:
-      - ${PWD}/control-config.ini:/config.ini
+      - ${PWD}/config.ini:/solarflow/config.ini
     networks: 
       - solarflow-net
     restart: "no"
