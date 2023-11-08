@@ -223,3 +223,4 @@ See the [examples](/examples/) for in-detail setup instructions and templates to
 
 If you read this far you probably are really interested or maybe a happy user. If you like it and would like to buy me a coffee:
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=RUZP3LCKH56CU)
+
