@@ -20,8 +20,9 @@ This project is tightly related to (and works together with) my other projects r
 - [Solarflow Bluetooth Manager](https://github.com/reinhard-brandstaedter/solarflow-bt-manager) - how to disconnect the Solarflow Hub fromt he cloud and make it work "offline"
 - [Solarflow Status Page](https://github.com/reinhard-brandstaedter/solarflow-statuspage) - a lean statuspage that displays Solarflow Hub's telemetry data in realtime
 
-![solarflow control](https://github.com/reinhard-brandstaedter/solarflow-control/blob/master/img/schema.png?raw=true)
 
+![solarflow control](https://github.com/reinhard-brandstaedter/solarflow-control/blob/master/img/schema.png?raw=true)
+*solarflow-control leverages telemetry data from all involved devices and controls them accordingly*
 
 ### Preamble
 To control how much data is fed from the Solarflow Hub to Home (our main goal) we need to (i) find out how much power we need at any given time and (ii) be able to steer the output to home either via the inverter or the solarflow hub (or both), in dependency of any panels connected directly to the same inverter as solarflow.
@@ -214,3 +215,5 @@ Finally, when enough data is collected, you will see the tool starting it's work
 ```
 
 ## Examples
+
+See the (examples)[/examples/] for in-detail setup instructions and templates to get started with.
