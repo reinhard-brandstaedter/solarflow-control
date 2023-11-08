@@ -1,4 +1,4 @@
-import random, json, time, logging, sys, getopt, os
+import random, time, logging, sys, getopt, os
 from datetime import datetime, timedelta
 from functools import reduce
 from paho.mqtt import client as mqtt_client
@@ -7,7 +7,6 @@ from astral.sun import sun
 import requests
 from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
-import click
 import math
 from solarflow import Solarflow
 import dtus
@@ -375,7 +374,7 @@ def run():
     client.loop_start()
 
     while True:
-        time.sleep(15)
+        time.sleep(10)
         limitHomeInput(client)
         
     client.loop_stop()
