@@ -216,4 +216,4 @@ Finally, when enough data is collected, you will see the tool starting it's work
 
 ## Examples
 
-See the (examples)[/examples/] for in-detail setup instructions and templates to get started with.
+See the [examples](/examples/) for in-detail setup instructions and templates to get started with.
