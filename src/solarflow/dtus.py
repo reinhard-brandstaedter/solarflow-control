@@ -1,8 +1,7 @@
 from paho.mqtt import client as mqtt_client
-from datetime import datetime, timedelta
 from functools import reduce
 import logging
-import json
+import math
 import sys
 from utils import TimewindowBuffer
 
@@ -123,7 +122,8 @@ class DTU:
         inv_limit = limit*(len(self.channelsDCPower)-1)
 
         self.limitAbsoluteBuffer.add(inv_limit)
-        inv_limit = int(self.limitAbsoluteBuffer.wavg())
+        # OpenDTU and AhoysDTU expect even limits?
+        inv_limit = int(math.ceil(self.limitAbsoluteBuffer.wavg() / 2.) * 2)
         
         if self.limitAbsolute != inv_limit and self.reachable:
             (not self.dryrun) and self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')

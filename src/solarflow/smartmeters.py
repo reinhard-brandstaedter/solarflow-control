@@ -99,4 +99,24 @@ class Poweropti(Smartmeter):
 
     def handleMsg(self, msg):
         pass
+
+class ShellyEM3(Smartmeter):
+    opt = {"base_topic":str}
+
+    def __init__(self, client: mqtt_client, base_topic:str):
+        self.client = client
+        self.base_topic = base_topic
+        self.power = TimewindowBuffer(minutes=1)
+        self.phase_values = {}
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}')
+
+    def subscribe(self):
+        topics = [f'{self.base_topic}/emeter/0/power'
+                  f'{self.base_topic}/emeter/1/power'
+                  f'{self.base_topic}/emeter/2/power'
+                 ]
+        for t in topics:
+            self.client.subscribe(t)
+            log.info(f'Shelly3EM subscribing: {t}')
+
             
