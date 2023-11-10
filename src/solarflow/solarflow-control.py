@@ -374,7 +374,7 @@ def run():
     client.loop_start()
 
     while True:
-        time.sleep(10)
+        time.sleep(15)
         limitHomeInput(client)
         
     client.loop_stop()
