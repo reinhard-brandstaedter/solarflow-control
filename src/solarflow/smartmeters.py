@@ -111,9 +111,9 @@ class ShellyEM3(Smartmeter):
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}')
 
     def subscribe(self):
-        topics = [f'{self.base_topic}/emeter/1/power'
+        topics = [f'{self.base_topic}/emeter/0/power'
+                  f'{self.base_topic}/emeter/1/power'
                   f'{self.base_topic}/emeter/2/power'
-                  f'{self.base_topic}/emeter/3/power'
                  ]
         for t in topics:
             self.client.subscribe(t)
