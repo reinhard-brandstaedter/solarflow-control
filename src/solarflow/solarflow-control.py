@@ -80,6 +80,10 @@ MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_POWER
 limit_inverter =        config.getboolean('control', 'limit_inverter', fallback=None) \
                         or bool(os.environ.get('LIMIT_INVERTER',False))
 
+# interval for performing control steps
+steering_interval =     config.getint('control', 'steering_interval', fallback=None) \
+                        or int(os.environ.get('STEERING_INTERVAL',15))
+
 #Adjustments possible to sunrise and sunset offset
 SUNRISE_OFFSET =    config.getint('global', 'sunrise_offset', fallback=60) \
                         or int(os.environ.get('SUNRISE_OFFSET',60))                                               
@@ -374,7 +378,7 @@ def run():
     client.loop_start()
 
     while True:
-        time.sleep(15)
+        time.sleep(steering_interval)
         limitHomeInput(client)
         
     client.loop_stop()
