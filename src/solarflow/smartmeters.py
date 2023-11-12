@@ -101,7 +101,7 @@ class Poweropti(Smartmeter):
         pass
 
 class ShellyEM3(Smartmeter):
-    opt = {"base_topic":str}
+    opts = {"base_topic":str}
 
     def __init__(self, client: mqtt_client, base_topic:str):
         self.client = client
