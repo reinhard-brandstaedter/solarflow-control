@@ -338,7 +338,7 @@ def limitHomeInput(client: mqtt_client):
 
             lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
             inv_limit = inv.setLimit(lmt)
-            log.info(f'Setting hub limit ({lmt+10}) bigger than inverter (channel) limit ({lmt}) to avoid MPPT challenges.')
+            log.info(f'Setting hub limit ({lmt+10}W) bigger than inverter (channel) limit ({lmt}W) to avoid MPPT challenges.')
             hub_limit = hub.setOutputLimit(lmt+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
     else:
         hub_limit = hub.setOutputLimit(limit)
