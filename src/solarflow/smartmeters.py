@@ -119,4 +119,19 @@ class ShellyEM3(Smartmeter):
             self.client.subscribe(t)
             log.info(f'Shelly3EM subscribing: {t}')
 
-            
+class VZLogger(Smartmeter):
+    opts = {"cur_usage_topic":str}
+
+    def __init__(self, client: mqtt_client, cur_usage_topic:str):
+        self.client = client
+        self.base_topic = cur_usage_topic
+        self.power = TimewindowBuffer(minutes=1)
+        self.phase_values = {}
+        log.info(f'Using {type(self).__name__}: Current Usage Topic: {self.base_topic}')
+
+    def subscribe(self):
+        topics = [f'{self.base_topic}',
+                 ]
+        for t in topics:
+            self.client.subscribe(t)
+            log.info(f'VZLogger subscribing: {t}')
