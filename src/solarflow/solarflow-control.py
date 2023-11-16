@@ -219,7 +219,7 @@ def getSFPowerLimit(hub, demand) -> int:
         hub.setSunriseSoC(hub_electricLevel)
         log.info(f'Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!')
 
-    return limit
+    return int(limit)
 
 
 def limitHomeInput(client: mqtt_client):
@@ -333,11 +333,13 @@ def limitHomeInput(client: mqtt_client):
             # TODO: here we need to do all the calculation of how much we want to drain from solarflow
             # remainder must be calculated according to preferences of charging power, battery state,
             # day/nighttime input limites etc.
-            log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W!')
+            log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W ...')
             remainder = getSFPowerLimit(hub,remainder)
 
-            inv_limit = inv.setLimit(max(remainder,getDirectPanelLimit(inv,hub,smt)))
-            hub_limit = hub.setOutputLimit(remainder+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
+            lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
+            inv_limit = inv.setLimit(lmt)
+            log.info(f'Setting hub limit ({lmt+10}W) bigger than inverter (channel) limit ({lmt}W) to avoid MPPT challenges.')
+            hub_limit = hub.setOutputLimit(lmt+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
     else:
         hub_limit = hub.setOutputLimit(limit)
 

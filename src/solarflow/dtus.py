@@ -115,7 +115,7 @@ class DTU:
     def setLimit(self, limit:int):
         # failsafe, never set the inverter limit to 0, keep a minimum
         # see: https://github.com/lumapu/ahoy/issues/1079
-        limit = 10 if limit < 10 else limit
+        limit = 10 if limit < 10 else int(limit)
 
         # make sure that the inverter limit (which is applied to all MPPTs output equally) matches globally for what we need
         #inv_limit = limit*(1/(len(self.sf_inverter_channels)/(len(self.channelsDCPower)-1)))
