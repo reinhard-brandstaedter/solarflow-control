@@ -27,6 +27,7 @@ class Solarflow:
         self.outputPackPower = 0        # charging power of battery pack 
         self.packInputPower = 0         # discharging power of battery pack
         self.outputHomePower = -1       # power sent to home
+        self.bypass = False             # Power Bypass Active/Inactive
 
         self.electricLevel = -1         # state of charge of battery pack
         self.batteries = {"none":-1}    # state of charge for individual batteries
@@ -49,6 +50,7 @@ class Solarflow:
                         S:{self.solarInputPower:>3.1f}W {self.solarInputValues}, \
                         B:{self.electricLevel:>3}% ({batteries}), \
                         C:{self.outputPackPower-self.packInputPower:>4}W, \
+                        P:{self.bypass}, \
                         F:{self.getLastFullBattery():3.1f}h, \
                         E:{self.getLastEmptyBattery():3.1f}h, \
                         H:{self.outputHomePower:>3}W, \
@@ -68,6 +70,7 @@ class Solarflow:
             f'solarflow-hub/{self.deviceId}/telemetry/outputHomePower',
             f'solarflow-hub/{self.deviceId}/telemetry/outputLimit',
             f'solarflow-hub/{self.deviceId}/telemetry/masterSoftVersion',
+            f'solarflow-hub/{self.deviceId}/telemetry/pass',
             f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/socLevel',
             f'solarflow-hub/{self.deviceId}/control/#'
         ]
@@ -132,6 +135,9 @@ class Solarflow:
         self.fwVersion = f'{major}.{minor}.{build}'
 
         self.pushHomeassistantConfig()
+    
+    def updByPass(self, value:int):
+        self.bypass = bool(value)
 
     def setChargeThrough(self, value):
         if type(value) == str:
@@ -224,6 +230,8 @@ class Solarflow:
                     self.setLastFullTimestamp(float(value))
                 case "lastEmptyTimestamp":
                     self.setLastEmptyTimestamp(float(value))
+                case "pass":
+                    self.updByPass(int(value))
                 case _:
                     log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
