@@ -195,10 +195,10 @@ def getSFPowerLimit(hub, demand) -> int:
         path += "1." 
         if hub_solarpower - MIN_CHARGE_POWER < MAX_DISCHARGE_POWER:
             path += "1."
-            limit = min(demand,MAX_DISCHARGE_POWER)
+            limit = min(demand - MIN_CHARGE_POWER,MAX_DISCHARGE_POWER)
         else:
             path += "2."
-            limit = min(demand,hub_solarpower - MIN_CHARGE_POWER)
+            limit = min(demand - MIN_CHARGE_POWER,hub_solarpower - MIN_CHARGE_POWER)
     if hub_solarpower <= MIN_CHARGE_POWER:  
         path += "2."
         sunrise_off = timedelta(minutes = SUNRISE_OFFSET)
@@ -329,23 +329,23 @@ def limitHomeInput(client: mqtt_client):
         remainder = demand-direct_panel_power
         log.info(f'Direct connected panels can\'t cover demand {direct_panel_power:4.1f}W/{demand:4.1f}W, trying to get rest ({remainder:4.1f}W) from SF.')
 
-    # TODO: here we need to do all the calculation of how much we want to drain from solarflow
-    # remainder must be calculated according to preferences of charging power, battery state,
-    # day/nighttime input limites etc.
-    log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W ...')
-    remainder = getSFPowerLimit(hub,remainder)
-    log.info(f'Solarflow is willing to contribute {remainder:4.1f}W!')
+        # TODO: here we need to do all the calculation of how much we want to drain from solarflow
+        # remainder must be calculated according to preferences of charging power, battery state,
+        # day/nighttime input limites etc.
+        log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W ...')
+        remainder = getSFPowerLimit(hub,remainder)
+        log.info(f'Solarflow is willing to contribute {remainder:4.1f}W!')
 
-    direct_limit = getDirectPanelLimit(inv,hub,smt)
-    log.info(f'Direct connected panel limit is {direct_limit}.')
+        direct_limit = getDirectPanelLimit(inv,hub,smt)
+        log.info(f'Direct connected panel limit is {direct_limit}.')
 
-    hub_limit = hub.setOutputLimit(remainder+10)
-    inv_limit = inv.setLimit(max(hub_limit,direct_limit))
+        hub_limit = hub.setOutputLimit(remainder+10)
+        inv_limit = inv.setLimit(max(hub_limit,direct_limit))
 
-    #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
-    #inv_limit = inv.setLimit(lmt)
-    #log.info(f'Setting hub limit ({remainder}W) bigger than inverter (channel) limit ({direct_limit}W) to avoid MPPT challenges.')
-    #hub_limit = hub.setOutputLimit(lmt+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
+        #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
+        #inv_limit = inv.setLimit(lmt)
+        #log.info(f'Setting hub limit ({remainder}W) bigger than inverter (channel) limit ({direct_limit}W) to avoid MPPT challenges.')
+        #hub_limit = hub.setOutputLimit(lmt+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
 
     panels_dc = "|".join([f'{v:>2}' for v in inv.getDirectDCPowerValues()])
     hub_dc = "|".join([f'{v:>2}' for v in inv.getHubDCPowerValues()])
