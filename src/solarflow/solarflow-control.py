@@ -325,7 +325,6 @@ def limitHomeInput(client: mqtt_client):
     if demand > direct_panel_power:
         # the remainder should come from SFHub, in case the remainder is greater than direct panels power
         # we need to make sure the inverter limit is set accordingly high
-
         remainder = demand-direct_panel_power
         log.info(f'Direct connected panels can\'t cover demand {direct_panel_power:4.1f}W/{demand:4.1f}W, trying to get rest ({remainder:4.1f}W) from SF.')
 
@@ -333,13 +332,15 @@ def limitHomeInput(client: mqtt_client):
         # remainder must be calculated according to preferences of charging power, battery state,
         # day/nighttime input limites etc.
         log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W ...')
-        remainder = getSFPowerLimit(hub,remainder)
-        log.info(f'Solarflow is willing to contribute {remainder:4.1f}W!')
+        sf_contribution = getSFPowerLimit(hub,remainder)
+        log.info(f'Solarflow is willing to contribute {sf_contribution:4.1f}W!')
 
         direct_limit = getDirectPanelLimit(inv,hub,smt)
         log.info(f'Direct connected panel limit is {direct_limit}.')
 
-        hub_limit = hub.setOutputLimit(remainder+10)
+        hub_limit = hub.setOutputLimit(sf_contribution)
+        if hub_limit < direct_limit-10:
+            hub_limit = direct_limit + 10
         inv_limit = inv.setLimit(max(hub_limit,direct_limit))
 
         #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
