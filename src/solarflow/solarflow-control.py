@@ -195,10 +195,10 @@ def getSFPowerLimit(hub, demand) -> int:
         path += "1." 
         if hub_solarpower - MIN_CHARGE_POWER < MAX_DISCHARGE_POWER:
             path += "1."
-            limit = min(demand,MAX_DISCHARGE_POWER)
+            limit = min(demand - MIN_CHARGE_POWER,MAX_DISCHARGE_POWER)
         else:
             path += "2."
-            limit = min(demand,hub_solarpower - MIN_CHARGE_POWER)
+            limit = min(demand - MIN_CHARGE_POWER,hub_solarpower - MIN_CHARGE_POWER)
     if hub_solarpower <= MIN_CHARGE_POWER:  
         path += "2."
         sunrise_off = timedelta(minutes = SUNRISE_OFFSET)
