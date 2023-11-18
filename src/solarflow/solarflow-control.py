@@ -317,31 +317,35 @@ def limitHomeInput(client: mqtt_client):
     inv_limit = 0
     hub_limit = 0
 
-    if limit_inverter:
-        direct_panel_power = inv.getDirectDCPower()
-        if demand <= direct_panel_power:
-            # we can conver demand with direct panel power, just use all of it
-            inv_limit = inv.setLimit(getDirectPanelLimit(inv,hub,smt))
-            hub_limit = hub.setOutputLimit(0)
-        if demand > direct_panel_power:
-            # the remainder should come from SFHub, in case the remainder is greater than direct panels power
-            # we need to make sure the inverter limit is set accordingly high
+    direct_panel_power = inv.getDirectDCPower()
+    if demand <= direct_panel_power:
+        # we can conver demand with direct panel power, just use all of it
+        inv_limit = inv.setLimit(getDirectPanelLimit(inv,hub,smt))
+        hub_limit = hub.setOutputLimit(0)
+    if demand > direct_panel_power:
+        # the remainder should come from SFHub, in case the remainder is greater than direct panels power
+        # we need to make sure the inverter limit is set accordingly high
 
-            remainder = demand-direct_panel_power
-            log.info(f'Direct connected panels can\'t cover demand {direct_panel_power:4.1f}W/{demand:4.1f}W, trying to get rest ({remainder:4.1f}W) from SF.')
+        remainder = demand-direct_panel_power
+        log.info(f'Direct connected panels can\'t cover demand {direct_panel_power:4.1f}W/{demand:4.1f}W, trying to get rest ({remainder:4.1f}W) from SF.')
 
-            # TODO: here we need to do all the calculation of how much we want to drain from solarflow
-            # remainder must be calculated according to preferences of charging power, battery state,
-            # day/nighttime input limites etc.
-            log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W ...')
-            remainder = getSFPowerLimit(hub,remainder)
+    # TODO: here we need to do all the calculation of how much we want to drain from solarflow
+    # remainder must be calculated according to preferences of charging power, battery state,
+    # day/nighttime input limites etc.
+    log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W ...')
+    remainder = getSFPowerLimit(hub,remainder)
+    log.info(f'Solarflow is willing to contribute {remainder:4.1f}W!')
 
-            lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
-            inv_limit = inv.setLimit(lmt)
-            log.info(f'Setting hub limit ({lmt+10}W) bigger than inverter (channel) limit ({lmt}W) to avoid MPPT challenges.')
-            hub_limit = hub.setOutputLimit(lmt+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
-    else:
-        hub_limit = hub.setOutputLimit(limit)
+    direct_limit = getDirectPanelLimit(inv,hub,smt)
+    log.info(f'Direct connected panel limit is {direct_limit}.')
+
+    hub_limit = hub.setOutputLimit(remainder+10)
+    inv_limit = inv.setLimit(max(hub_limit,direct_limit))
+
+    #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
+    #inv_limit = inv.setLimit(lmt)
+    #log.info(f'Setting hub limit ({remainder}W) bigger than inverter (channel) limit ({direct_limit}W) to avoid MPPT challenges.')
+    #hub_limit = hub.setOutputLimit(lmt+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
 
     panels_dc = "|".join([f'{v:>2}' for v in inv.getDirectDCPowerValues()])
     hub_dc = "|".join([f'{v:>2}' for v in inv.getHubDCPowerValues()])
