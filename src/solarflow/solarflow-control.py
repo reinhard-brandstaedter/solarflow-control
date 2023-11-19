@@ -333,12 +333,12 @@ def limitHomeInput(client: mqtt_client):
         # day/nighttime input limites etc.
         log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W ...')
         sf_contribution = getSFPowerLimit(hub,remainder)
-        log.info(f'Solarflow is willing to contribute {sf_contribution:4.1f}W!')
 
         direct_limit = getDirectPanelLimit(inv,hub,smt)
         log.info(f'Direct connected panel limit is {direct_limit}.')
 
         hub_limit = hub_lmt = hub.setOutputLimit(sf_contribution)
+        log.info(f'Solarflow is willing to contribute {hub_limit:4.1f}W!')
         if hub_limit < direct_limit-10:
             hub_lmt = direct_limit + 10
         inv_limit = inv.setLimit(max(hub_lmt,direct_limit))
