@@ -191,15 +191,15 @@ def getSFPowerLimit(hub, demand) -> int:
     sunset = s['sunset']
     path = ""
 
-    if hub_solarpower > MIN_CHARGE_POWER:
+    if hub_solarpower - demand > MIN_CHARGE_POWER:
         path += "1." 
         if hub_solarpower - MIN_CHARGE_POWER < MAX_DISCHARGE_POWER:
             path += "1."
-            limit = min(demand - MIN_CHARGE_POWER,MAX_DISCHARGE_POWER)
+            limit = min(demand,MAX_DISCHARGE_POWER)
         else:
             path += "2."
-            limit = min(demand - MIN_CHARGE_POWER,hub_solarpower - MIN_CHARGE_POWER)
-    if hub_solarpower <= MIN_CHARGE_POWER:  
+            limit = min(demand,hub_solarpower - MIN_CHARGE_POWER)
+    if hub_solarpower - demand <= MIN_CHARGE_POWER:  
         path += "2."
         sunrise_off = timedelta(minutes = SUNRISE_OFFSET)
         sunset_off = timedelta(minutes = SUNSET_OFFSET)
@@ -208,7 +208,7 @@ def getSFPowerLimit(hub, demand) -> int:
             limit = min(demand,MAX_DISCHARGE_POWER)
         else:
             path += "2."                                     
-            limit = 0
+            limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 else hub_solarpower - MIN_CHARGE_POWER
     log.info(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")} - Solarflow limit: {limit:4.1f}W - Decision path: {path}')
 
     # get battery Soc at sunset/sunrise
