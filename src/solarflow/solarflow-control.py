@@ -172,10 +172,17 @@ def subscribe(client: mqtt_client):
         client.subscribe(t)
         log.info(f'SFControl subscribing: {t}')
 
+def limitedRise(x) -> int:
+    rise = MAX_INVERTER_LIMIT-MAX_INVERTER_LIMIT*math.exp(-0.0075*x)
+    log.info()
+    return int(rise)
+
+
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
 def getDirectPanelLimit(inv, hub, smt) -> int:
     direct_panel_power = inv.getDirectDCPower()
     if direct_panel_power < MAX_INVERTER_LIMIT:
+        return math.ceil(max(inv.getDirectDCPowerValues())) if smt.getPower() < 0 else limitedRise(max(inv.getDirectDCPowerValues()))
         rise_factor = 1.5 if smt.getPower() > 0 else 1
         return math.ceil(max(inv.getDirectDCPowerValues())*rise_factor)
         #return math.ceil(max( max(inv.getHubDCPowerValues()), max(inv.getDirectDCPowerValues()) ))
