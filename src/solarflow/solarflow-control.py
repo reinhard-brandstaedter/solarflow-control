@@ -273,8 +273,9 @@ def limitHomeInput(client: mqtt_client):
         log.info(f'Direct connected panel limit is {direct_limit}W.')
 
         limit = direct_limit
-        if hub_limit > direct_limit + 10:
-            limit = hub_limit + 10
+
+        if hub_limit > direct_limit > hub_limit - 10:
+            limit = hub_limit - 10
   
         inv_limit = inv.setLimit(limit)
 
