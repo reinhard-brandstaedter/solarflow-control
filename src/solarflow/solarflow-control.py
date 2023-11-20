@@ -209,7 +209,6 @@ def getSFPowerLimit(hub, demand) -> int:
         else:
             path += "2."                                     
             limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 else hub_solarpower - MIN_CHARGE_POWER
-    log.info(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")} - Solarflow limit: {limit:4.1f}W - Decision path: {path}')
 
     # get battery Soc at sunset/sunrise
     td = timedelta(minutes = 1)
@@ -219,6 +218,7 @@ def getSFPowerLimit(hub, demand) -> int:
         hub.setSunriseSoC(hub_electricLevel)
         log.info(f'Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!')
 
+    log.info(f'Based on time, solarpower ({hub_solarpower}W) and minimum charge power ({MIN_CHARGE_POWER}W) hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
 
 
@@ -239,81 +239,7 @@ def limitHomeInput(client: mqtt_client):
     grid_power = smt.getPower()
     inv_acpower = inv.getACPower()
     demand = grid_power + inv_acpower
-    limit = 0
-    
-    '''
-    now = datetime.now(tz=location.tzinfo)   
-    s = sun(location.observer, date=now, tzinfo=location.timezone)
-    sunrise = s['sunrise']
-    sunset = s['sunset']
 
-    hub_electricLevel = hub.getElectricLevel()
-    hub_solarpower = hub.getSolarInputPower()
-
-    # now all the logic when/how to set limit
-    path = ""
-    if  hub_electricLevel > BATTERY_HIGH:
-        path = "1."
-        if hub_solarpower > 0 and hub_solarpower > MIN_CHARGE_LEVEL:    # producing more than what is needed => only take what is needed and charge, giving a bit extra to demand
-            path += "1."
-            limit = min(demand + OVERAGE_LIMIT,hub_solarpower + OVERAGE_LIMIT)
-        if hub_solarpower > 0 and hub_solarpower <= MIN_CHARGE_LEVEL:   # producing less than the minimum charge level 
-            path += "2."
-            if now <= sunrise or now > sunset:
-                path += "1"                         # in the morning keep using packSoc
-                limit = MAX_DISCHARGE_LEVEL
-            else:         
-                path += "2"                                      
-                limit = hub_solarpower + OVERAGE_LIMIT              # everything goes to the house throughout the day, in case SF regulated solarinput down we need to demand a bit more stepwise
-        if hub_solarpower <= 0:
-            path += "3"                                     
-            limit = min(demand,MAX_DISCHARGE_LEVEL)             # not producing and demand is less than discharge limit => discharge with what is needed but limit to MAX
-    elif hub_electricLevel <= BATTERY_LOW:
-        path = "2."                                         
-        limit = 0                                               # battery is at low stage, stop discharging
-    else:
-        path = "3."
-        if hub_solarpower > MIN_CHARGE_LEVEL:
-            path += "1." 
-            if hub_solarpower - MIN_CHARGE_LEVEL < MAX_DISCHARGE_LEVEL and hub_electricLevel > DAY_DISCHARGE_SOC:
-                path += "1."
-                limit = min(demand,MAX_DISCHARGE_LEVEL)
-            else:
-                path += "2."
-                limit = min(demand,hub_solarpower - MIN_CHARGE_LEVEL)      # give charging precedence
-        if hub_solarpower <= MIN_CHARGE_LEVEL:  
-            path += "2."                                                # producing less than the minimum charge level 
-            sun_offset = timedelta(minutes = 60)
-            if (now < (sunrise + sun_offset) or now > sunset - sun_offset) or hub_electricLevel > DAY_DISCHARGE_SOC: 
-                path += "1"                
-                limit = min(demand,MAX_DISCHARGE_LEVEL)                 # in the morning keep using battery, in the evening start using battery
-                td = timedelta(minutes = 5)
-                if charge_through or (now > sunset and now < sunset + td and hub_electricLevel < CHARGE_THROUGH_THRESHOLD):      # charge through mode, do not discharge when battery is low at sunset
-                    not charge_through and log.info(f'Entering charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {hub_electricLevel}): no discharging')
-                    charge_through = True
-                    limit = 0
-            else:
-                path += "2"                                     
-                limit = 0
-                charge_through and log.info(f'Leaving charge-through mode (Threshold: {CHARGE_THROUGH_THRESHOLD}, SoC: {hub_electricLevel})')
-                charge_through = False
-                    
-
-    if len(limit_values) >= limit_window:
-        limit_values.pop(0)
-    limit_values.append(0 if limit<0 else limit)                # to recover faster from negative demands
-    limit = int(reduce(lambda a,b: a+b, limit_values)/len(limit_values))
-
-    lm = ",".join([f'{v:>4.1f}' for v in limit_values])
-
-    panels_dc = "|".join([f'{v:>2}' for v in inv.getDirectDCPowerValues()])
-    hub_dc = "|".join([f'{v:>2}' for v in inv.getHubDCPowerValues()])
-    log.info(' '.join(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")}, \
-             Demand: {demand:4.1f}W, \
-             Panel DC: ({panels_dc}), \
-             Hub DC: ({hub_dc}), \
-             => Limit: {limit}W - [{lm}] - decisionpath: {path}'.split()))
-    '''
     inv_limit = 0
     hub_limit = 0
 
@@ -326,7 +252,7 @@ def limitHomeInput(client: mqtt_client):
         # the remainder should come from SFHub, in case the remainder is greater than direct panels power
         # we need to make sure the inverter limit is set accordingly high
         remainder = demand-direct_panel_power
-        log.info(f'Direct connected panels can\'t cover demand {direct_panel_power:4.1f}W/{demand:4.1f}W, trying to get rest ({remainder:4.1f}W) from SF.')
+        log.info(f'Direct connected panels can\'t cover demand {direct_panel_power:4.1f}W/{demand:4.1f}W, trying to get rest from hub.')
 
         # TODO: here we need to do all the calculation of how much we want to drain from solarflow
         # remainder must be calculated according to preferences of charging power, battery state,
@@ -334,11 +260,11 @@ def limitHomeInput(client: mqtt_client):
         log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W ...')
         sf_contribution = getSFPowerLimit(hub,remainder)
 
-        direct_limit = getDirectPanelLimit(inv,hub,smt)
-        log.info(f'Direct connected panel limit is {direct_limit}.')
-
         hub_limit = hub_lmt = hub.setOutputLimit(sf_contribution)
         log.info(f'Solarflow is willing to contribute {hub_limit:4.1f}W!')
+        direct_limit = getDirectPanelLimit(inv,hub,smt)
+        log.info(f'Direct connected panel limit is {direct_limit}W.')
+
         if hub_limit < direct_limit-10:
             hub_lmt = direct_limit + 10
         inv_limit = inv.setLimit(max(hub_lmt,direct_limit))
@@ -350,7 +276,14 @@ def limitHomeInput(client: mqtt_client):
 
     panels_dc = "|".join([f'{v:>2}' for v in inv.getDirectDCPowerValues()])
     hub_dc = "|".join([f'{v:>2}' for v in inv.getHubDCPowerValues()])
-    log.info(' '.join(f'Demand: {demand:4.1f}W, \
+
+    now = datetime.now(tz=location.tzinfo)   
+    s = sun(location.observer, date=now, tzinfo=location.timezone)
+    sunrise = s['sunrise']
+    sunset = s['sunset']
+
+    log.info(' '.join(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")} \
+             Demand: {demand:4.1f}W, \
              Panel DC: ({panels_dc}), \
              Hub DC: ({hub_dc}), \
              Inverter Limit: {inv_limit:4.1f}W, \
