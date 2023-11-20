@@ -276,6 +276,8 @@ def limitHomeInput(client: mqtt_client):
 
         if hub_limit > direct_limit > hub_limit - 10:
             limit = hub_limit - 10
+        if direct_limit < 10:
+            limit = hub_limit
   
         inv_limit = inv.setLimit(limit)
 
