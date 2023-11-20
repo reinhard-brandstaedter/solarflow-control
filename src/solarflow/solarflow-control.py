@@ -174,7 +174,7 @@ def subscribe(client: mqtt_client):
 
 def limitedRise(x) -> int:
     rise = MAX_INVERTER_LIMIT-MAX_INVERTER_LIMIT*math.exp(-0.0075*x)
-    log.info()
+    log.info(f'Raising inverter limit from {x}W to {rise}W')
     return int(rise)
 
 
