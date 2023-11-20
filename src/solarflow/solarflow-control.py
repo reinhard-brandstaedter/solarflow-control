@@ -218,7 +218,7 @@ def getSFPowerLimit(hub, demand) -> int:
         hub.setSunriseSoC(hub_electricLevel)
         log.info(f'Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!')
 
-    log.info(f'Based on time, solarpower ({hub_solarpower}W) and minimum charge power ({MIN_CHARGE_POWER}W) hub could contribute {limit:4.1f}W - Decision path: {path}')
+    log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) and minimum charge power ({MIN_CHARGE_POWER}W), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
 
 
@@ -260,14 +260,14 @@ def limitHomeInput(client: mqtt_client):
         log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W ...')
         sf_contribution = getSFPowerLimit(hub,remainder)
 
-        hub_limit = hub_lmt = hub.setOutputLimit(sf_contribution)
+        hub_limit = hub.setOutputLimit(sf_contribution)
         log.info(f'Solarflow is willing to contribute {hub_limit:4.1f}W!')
         direct_limit = getDirectPanelLimit(inv,hub,smt)
         log.info(f'Direct connected panel limit is {direct_limit}W.')
 
-        if hub_limit < direct_limit-10:
-            hub_lmt = direct_limit + 10
-        inv_limit = inv.setLimit(max(hub_lmt,direct_limit))
+        if hub_limit > direct_limit + 10:
+            direct_limit = hub_limit - 10
+        inv_limit = inv.setLimit(max(hub_limit,direct_limit))
 
         #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
         #inv_limit = inv.setLimit(lmt)
