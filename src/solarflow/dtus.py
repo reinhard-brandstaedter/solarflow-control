@@ -128,7 +128,7 @@ class DTU:
         if self.limitAbsolute != inv_limit and self.reachable:
             (not self.dryrun) and self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
             #log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
-            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting inverter output limit to {inv_limit} W (1 min moving average of {limit}W x {len(self.channelsDCPower)-1})')
+            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting inverter output limit to {inv_limit}W (1 min moving average of {limit}W x {len(self.channelsDCPower)-1})')
         else:
             not self.reachable and log.info(f'{"[DRYRUN] " if self.dryrun else ""}Inverter is not reachable/down. Can\'t set limit')
             self.reachable and log.info(f'Not setting inverter output limit as it is identical to current limit!')
