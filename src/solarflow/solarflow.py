@@ -254,7 +254,7 @@ class Solarflow:
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
         if  self.chargeThrough and (limit > 0 and (fullage > self.fullChargeInterval or fullage < 0)):
-            log.info(f'Battery hasn\'t fully charged for {fullage:2.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval}hrs not discharging now!')
+            log.info(f'Battery hasn\'t fully charged for {fullage:.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval}hrs not discharging now!')
             # either limit to 0 or only give away what is higher than min_charge_level
             limit = 0
 
@@ -265,9 +265,9 @@ class Solarflow:
         outputlimit = {"properties": { "outputLimit": limit }}
         if self.outputLimit != limit:
             (not self.dryrun) and self.client.publish(self.property_topic,json.dumps(outputlimit))
-            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting solarflow output limit to {limit:4.1f}W')
+            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting solarflow output limit to {limit:.1f}W')
         else:
-            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Not setting solarflow output limit to {limit:4.1f}W as it is identical to current limit!')
+            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Not setting solarflow output limit to {limit:.1f}W as it is identical to current limit!')
         return limit
 
     def setBuzzer(self, state: bool):

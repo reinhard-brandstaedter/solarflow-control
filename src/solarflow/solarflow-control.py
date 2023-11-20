@@ -252,16 +252,16 @@ def limitHomeInput(client: mqtt_client):
         # the remainder should come from SFHub, in case the remainder is greater than direct panels power
         # we need to make sure the inverter limit is set accordingly high
         remainder = demand-direct_panel_power
-        log.info(f'Direct connected panels can\'t cover demand {direct_panel_power:4.1f}W/{demand:4.1f}W, trying to get rest from hub.')
+        log.info(f'Direct connected panels can\'t cover demand {direct_panel_power:.1f}W/{demand:.1f}W, trying to get rest from hub.')
 
         # TODO: here we need to do all the calculation of how much we want to drain from solarflow
         # remainder must be calculated according to preferences of charging power, battery state,
         # day/nighttime input limites etc.
-        log.info(f'Checking if Solarflow is willing to contribute {remainder:4.1f}W ...')
+        log.info(f'Checking if Solarflow is willing to contribute {remainder:.1f}W ...')
         sf_contribution = getSFPowerLimit(hub,remainder)
 
         hub_limit = hub.setOutputLimit(sf_contribution)
-        log.info(f'Solarflow is willing to contribute {hub_limit:4.1f}W!')
+        log.info(f'Solarflow is willing to contribute {hub_limit:.1f}W!')
         direct_limit = getDirectPanelLimit(inv,hub,smt)
         log.info(f'Direct connected panel limit is {direct_limit}W.')
 
@@ -283,11 +283,11 @@ def limitHomeInput(client: mqtt_client):
     sunset = s['sunset']
 
     log.info(' '.join(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")} \
-             Demand: {demand:4.1f}W, \
+             Demand: {demand:.1f}W, \
              Panel DC: ({panels_dc}), \
              Hub DC: ({hub_dc}), \
-             Inverter Limit: {inv_limit:4.1f}W, \
-             Hub Limit: {hub_limit:4.1f}W'.split()))
+             Inverter Limit: {inv_limit:.1f}W, \
+             Hub Limit: {hub_limit:.1f}W'.split()))
 
 def getOpts(configtype) -> dict:
     global config
