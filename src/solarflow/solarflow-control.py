@@ -176,7 +176,7 @@ def subscribe(client: mqtt_client):
 def getDirectPanelLimit(inv, hub, smt) -> int:
     direct_panel_power = inv.getDirectDCPower()
     if direct_panel_power < MAX_INVERTER_LIMIT:
-        rise_factor = 1.2 if smt.getPower() > 0 else 1
+        rise_factor = 1.5 if smt.getPower() > 0 else 1
         return math.ceil(max(inv.getDirectDCPowerValues())*rise_factor)
         #return math.ceil(max( max(inv.getHubDCPowerValues()), max(inv.getDirectDCPowerValues()) ))
     else:
