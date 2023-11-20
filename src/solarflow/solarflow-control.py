@@ -174,7 +174,7 @@ def subscribe(client: mqtt_client):
 
 def limitedRise(x) -> int:
     rise = MAX_INVERTER_LIMIT-MAX_INVERTER_LIMIT*math.exp(-0.0075*x)
-    log.info(f'Raising inverter limit from {x}W to {rise}W')
+    log.info(f'Raising inverter limit from {x}W to {rise:.1}W')
     return int(rise)
 
 
@@ -272,9 +272,11 @@ def limitHomeInput(client: mqtt_client):
         direct_limit = getDirectPanelLimit(inv,hub,smt)
         log.info(f'Direct connected panel limit is {direct_limit}W.')
 
+        limit = direct_limit
         if hub_limit > direct_limit + 10:
-            direct_limit = hub_limit - 10
-        inv_limit = inv.setLimit(max(hub_limit,direct_limit))
+            limit = hub_limit + 10
+  
+        inv_limit = inv.setLimit(limit)
 
         #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
         #inv_limit = inv.setLimit(lmt)
