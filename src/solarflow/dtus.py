@@ -11,6 +11,7 @@ FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
+AC_LEGAL_LIMIT = 1000
 
 class DTU:
     opts = {"base_topic":str, "sf_inverter_channels":list}
@@ -124,6 +125,12 @@ class DTU:
         self.limitAbsoluteBuffer.add(inv_limit)
         # OpenDTU and AhoysDTU expect even limits?
         inv_limit = int(math.ceil(self.limitAbsoluteBuffer.wavg() / 2.) * 2)
+
+        # failsafe: ensure that the inverter's AC output doesn't exceed acceptable legal limits
+        # note this could mean that the inverter limit is still higher but it ensures that not too much power is generated
+        if self.getACPower() > AC_LEGAL_LIMIT:
+            # decrease inverter limit slowly
+            inv_limit -= 2
         
         if self.limitAbsolute != inv_limit and self.reachable:
             (not self.dryrun) and self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
@@ -132,6 +139,7 @@ class DTU:
         else:
             not self.reachable and log.info(f'{"[DRYRUN] " if self.dryrun else ""}Inverter is not reachable/down. Can\'t set limit')
             self.reachable and log.info(f'Not setting inverter output limit as it is identical to current limit!')
+
         return inv_limit
     
 
