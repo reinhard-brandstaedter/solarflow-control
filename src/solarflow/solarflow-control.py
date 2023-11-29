@@ -216,6 +216,8 @@ def getSFPowerLimit(hub, demand) -> int:
         else:
             path += "2."                                     
             limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 else hub_solarpower - MIN_CHARGE_POWER
+            # slower charging at the end, as it often happens to jump, waiting for bypass
+            limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
 
     # get battery Soc at sunset/sunrise
     td = timedelta(minutes = 1)
