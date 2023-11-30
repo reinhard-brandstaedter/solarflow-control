@@ -76,6 +76,9 @@ MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=
                         or int(os.environ.get('MAX_INVERTER_LIMIT',800))                                               
 MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_POWER
 
+# this controls the internal calculation of limited growth for setting inverter limits
+INVERTER_START_LIMIT = 5
+
 # wether to limit the inverter or the solarflow hub
 limit_inverter =        config.getboolean('control', 'limit_inverter', fallback=None) \
                         or bool(os.environ.get('LIMIT_INVERTER',False))
@@ -173,7 +176,7 @@ def subscribe(client: mqtt_client):
         log.info(f'SFControl subscribing: {t}')
 
 def limitedRise(x) -> int:
-    rise = MAX_INVERTER_LIMIT-MAX_INVERTER_LIMIT*math.exp(-0.0025*x)
+    rise = MAX_INVERTER_LIMIT-(MAX_INVERTER_LIMIT-INVERTER_START_LIMIT)*math.exp(-0.0025*x)
     log.info(f'Raising inverter limit from {x:.1f}W to {rise:.1f}W')
     return int(rise)
 
