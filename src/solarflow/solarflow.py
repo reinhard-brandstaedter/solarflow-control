@@ -30,7 +30,8 @@ class Solarflow:
         self.bypass = False             # Power Bypass Active/Inactive
 
         self.electricLevel = -1         # state of charge of battery pack
-        self.batteries = {"none":-1}    # state of charge for individual batteries
+        self.batteriesSoC = {"none":-1}    # state of charge for individual batteries
+        self.batteriesVol = {"none":-1}    # voltage for individual batteries
         self.outputLimit = -1           # power limit for home output
         self.outputLimitBuffer = TimewindowBuffer(minutes=2)
         self.lastFullTS = None          # keep track of last time the battery pack was full (100%)
@@ -45,10 +46,12 @@ class Solarflow:
         self.nightConsumption = 100
 
     def __str__(self):
-        batteries = "|".join([f'{v:>2}' for v in self.batteries.values()])
+        batteries_soc = "|".join([f'{v:>2}' for v in self.batteriesSoC.values()])
+        batteries_vol = "|".join([f'{v:>2}' for v in self.batteriesVol.values()])
         return ' '.join(f'{red}HUB: \
                         S:{self.solarInputPower:>3.1f}W {self.solarInputValues}, \
-                        B:{self.electricLevel:>3}% ({batteries}), \
+                        B:{self.electricLevel:>3}% ({batteries_soc}), \
+                        V:{sum(batteriesVol.values()) / len(batteriesVol)} ({batteries_vol}), \
                         C:{self.outputPackPower-self.packInputPower:>4}W, \
                         P:{self.bypass}, \
                         F:{self.getLastFullBattery():3.1f}h, \
@@ -72,6 +75,7 @@ class Solarflow:
             f'solarflow-hub/{self.deviceId}/telemetry/masterSoftVersion',
             f'solarflow-hub/{self.deviceId}/telemetry/pass',
             f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/socLevel',
+            f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/totalVol',
             f'solarflow-hub/{self.deviceId}/control/#'
         ]
         for t in topics:
@@ -125,8 +129,12 @@ class Solarflow:
         self.outputLimit = value
     
     def updBatterySoC(self, sn:str, value:int):
-        self.batteries.pop("none",None)
-        self.batteries.update({sn:value})
+        self.batteriesSoC.pop("none",None)
+        self.batteriesSoc.update({sn:value})
+
+    def updBatteryVol(self, sn:str, value:int):
+        self.batteriesVol.pop("none",None)
+        self.batteriesVol.update({sn:value})
     
     def updMasterSoftVersion(self, value:int):
         major = (value & 0xf000) >> 12
@@ -220,6 +228,9 @@ class Solarflow:
                 case "socLevel":
                     sn = msg.topic.split('/')[-2]
                     self.updBatterySoC(sn=sn, value=int(value))
+                case "totalVol":
+                    sn = msg.topic.split('/')[-2]
+                    self.updBatteryVol(sn=sn, value=int(value))
                 case "masterSoftVersion":
                     self.updMasterSoftVersion(value=int(value))
                 case "chargeThrough":
