@@ -51,7 +51,7 @@ class Solarflow:
         return ' '.join(f'{red}HUB: \
                         S:{self.solarInputPower:>3.1f}W {self.solarInputValues}, \
                         B:{self.electricLevel:>3}% ({batteries_soc}), \
-                        V:{sum(self.batteriesVol.values()) / len(self.batteriesVol)} ({batteries_vol}), \
+                        V:{(sum(self.batteriesVol.values()) / len(self.batteriesVol)):2.1f} ({batteries_vol:2.1f}), \
                         C:{self.outputPackPower-self.packInputPower:>4}W, \
                         P:{self.bypass}, \
                         F:{self.getLastFullBattery():3.1f}h, \
@@ -134,7 +134,7 @@ class Solarflow:
 
     def updBatteryVol(self, sn:str, value:int):
         self.batteriesVol.pop("none",None)
-        self.batteriesVol.update({sn:value})
+        self.batteriesVol.update({sn:value/100})
     
     def updMasterSoftVersion(self, value:int):
         major = (value & 0xf000) >> 12
