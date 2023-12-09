@@ -130,7 +130,7 @@ class Solarflow:
     
     def updBatterySoC(self, sn:str, value:int):
         self.batteriesSoC.pop("none",None)
-        self.batteriesSoc.update({sn:value})
+        self.batteriesSoC.update({sn:value})
 
     def updBatteryVol(self, sn:str, value:int):
         self.batteriesVol.pop("none",None)
