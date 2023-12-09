@@ -51,7 +51,7 @@ class Solarflow:
         return ' '.join(f'{red}HUB: \
                         S:{self.solarInputPower:>3.1f}W {self.solarInputValues}, \
                         B:{self.electricLevel:>3}% ({batteries_soc}), \
-                        V:{sum(batteriesVol.values()) / len(batteriesVol)} ({batteries_vol}), \
+                        V:{sum(self.batteriesVol.values()) / len(self.batteriesVol)} ({batteries_vol}), \
                         C:{self.outputPackPower-self.packInputPower:>4}W, \
                         P:{self.bypass}, \
                         F:{self.getLastFullBattery():3.1f}h, \
