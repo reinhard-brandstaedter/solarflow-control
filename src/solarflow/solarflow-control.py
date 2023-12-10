@@ -222,6 +222,11 @@ def getSFPowerLimit(hub, demand) -> int:
             # slower charging at the end, as it often happens to jump, waiting for bypass
             limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
 
+    # if the hub is currently in bypass mode, we do not want to limit the output in any way
+    # Note: this seems to have changed with FW 2.0.33 as befor in bypass mode the limit was ignored, now it isn't
+    if hub.bypass:
+        limit = hub_solarpower
+
     # get battery Soc at sunset/sunrise
     td = timedelta(minutes = 1)
     if now > sunset and now < sunset + td:
@@ -230,7 +235,7 @@ def getSFPowerLimit(hub, demand) -> int:
         hub.setSunriseSoC(hub_electricLevel)
         log.info(f'Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!')
 
-    log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) and minimum charge power ({MIN_CHARGE_POWER}W), hub could contribute {limit:4.1f}W - Decision path: {path}')
+    log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.bypass}), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
 
 
