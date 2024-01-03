@@ -4,6 +4,7 @@ from functools import reduce
 from paho.mqtt import client as mqtt_client
 from astral import LocationInfo
 from astral.sun import sun
+from flask import Flask
 import requests
 from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
@@ -315,6 +316,11 @@ def getOpts(configtype) -> dict:
         opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
     return opts
 
+#Monitoring returns status code 200 unter /health assuming service runs
+app = Flask(__name__)
+@app.route("/health")
+def health():
+    return
 
 def run():
     client = connect_mqtt()
