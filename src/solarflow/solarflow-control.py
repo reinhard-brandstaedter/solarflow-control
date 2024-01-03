@@ -6,7 +6,7 @@ from astral import LocationInfo
 from astral.sun import sun
 from flask import Flask
 import requests
-from ip2geotools.databases.noncommercial import DbIpCity
+#from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import math
 from solarflow import Solarflow
@@ -320,7 +320,8 @@ def getOpts(configtype) -> dict:
 app = Flask(__name__)
 @app.route("/health")
 def health():
-    return
+    data = {"status": "success"}
+    return data, 200
 
 def run():
     client = connect_mqtt()
@@ -339,6 +340,9 @@ def run():
     client.on_message = on_message
 
     client.loop_start()
+
+#Init Monitoring state of script
+    app.run()
 
     while True:
         time.sleep(steering_interval)
