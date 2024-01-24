@@ -1,0 +1,15 @@
+{
+    "name": "Battery Max Temp",
+    "stat_t": "~maxTemp", 
+    "value_template": "[[ (value | float/10 - 273.15) | round(0) ]]",
+    "uniq_id": "{{ device_id }}-maxTemp",
+    "dev_cla": "temperature",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/batteries/AO4HLEJLFC03669/"
+}
