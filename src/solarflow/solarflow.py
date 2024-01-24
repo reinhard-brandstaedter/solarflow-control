@@ -271,7 +271,7 @@ class Solarflow:
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
         self.outputLimitBuffer.add(limit)
-        limit = int(self.outputLimitBuffer.avg())
+        limit = int(self.outputLimitBuffer.qwavg())
 
         outputlimit = {"properties": { "outputLimit": limit }}
         if self.outputLimit != limit:

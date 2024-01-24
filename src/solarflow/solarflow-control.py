@@ -220,7 +220,7 @@ def getSFPowerLimit(hub, demand) -> int:
             limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
 
     # if the hub is currently in bypass mode, we do not want to limit the output in any way
-    # Note: this seems to have changed with FW 2.0.33 as befor in bypass mode the limit was ignored, now it isn't
+    # Note: this seems to have changed with FW 2.0.33 as before in bypass mode the limit was ignored, now it isn't
     if hub.bypass:
         limit = MAX_INVERTER_LIMIT
 
