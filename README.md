@@ -118,7 +118,7 @@ total_accessor = Power.Total_in
 poweropti_user = <PowerFox API user>
 poweropti_password = <Powerfox API password>
 
-[shelly3em]
+[shellyem3]
 # The MQTT base topic your Shelly 3EM (Pro) is posting it's telemetry data to
 # Note: you have to configure your Shelly to use MQTT
 base_topic = shellies/shellyem3/
