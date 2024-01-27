@@ -1,0 +1,19 @@
+{
+    "name": "Bypass",
+    "cmd_t": "iot/73bkTV/{{ device_id }}/properties/write",
+    "stat_t": "~passMode",
+    "uniq_id": "{{ device_id }}-passMode",
+    "dev_cla": "switch",
+    "payload_on": "{\"properties\": {\"passMode\": 2 }}",
+    "payload_off": "{\"properties\": {\"passMode\": 0 }}",
+    "state_on": 2,
+    "state_off": 0,
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}

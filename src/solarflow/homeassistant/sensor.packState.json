@@ -1,0 +1,14 @@
+{
+    "name": "Pack State",
+    "stat_t": "~packState",
+    "uniq_id": "{{ device_id }}-packState",
+    "value_template": "[[ 'Idle' if value=='0' else ('Charging' if value=='1' else ('Discharging' if value=='2' else 'Unknown')) ]]",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}
