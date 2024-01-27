@@ -252,7 +252,7 @@ def limitHomeInput(client: mqtt_client):
         
     grid_power = smt.getPower()
     inv_acpower = inv.getACPower()
-    demand = grid_power + inv_acpower
+    demand = grid_power + inv_acpower if (grid_power > 0) else 0 
 
     inv_limit = 0
     hub_limit = 0
