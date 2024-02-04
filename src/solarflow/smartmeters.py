@@ -28,7 +28,7 @@ class Smartmeter:
     def __str__(self):
         return ' '.join(f'{green}SMT: \
                         T:{self.__class__.__name__} \
-                        P:{self.power.qwavg():>3.1f}W {self.power}{reset}'.split())
+                        P:{sum(self.phase_values.values()):>3.1f}W {self.power}{reset}'.split())
                         
     def subscribe(self):
         topics = [f'{self.base_topic}']
@@ -41,7 +41,9 @@ class Smartmeter:
 
     def updPower(self):
         phase_sum = sum(self.phase_values.values())
-        self.power.add(phase_sum)
+        # by recording smartmeter usage only up to a certain max power we can ensure that
+        # demand drops from short high-consumption spikes are faster settled
+        self.power.add(phase_sum if phase_sum < 1000 else 1000)
         self.client.publish("solarflow-hub/smartmeter/homeUsage",phase_sum)
 
     def handleMsg(self, msg):

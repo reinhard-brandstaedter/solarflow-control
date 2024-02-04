@@ -186,9 +186,6 @@ def getDirectPanelLimit(inv, hub, smt) -> int:
     direct_panel_power = inv.getDirectDCPower()
     if direct_panel_power < MAX_INVERTER_LIMIT:
         return math.ceil(max(inv.getDirectDCPowerValues())) if smt.getPower() < 0 else limitedRise(max(inv.getDirectDCPowerValues()))
-        rise_factor = 1.5 if smt.getPower() > 0 else 1
-        return math.ceil(max(inv.getDirectDCPowerValues())*rise_factor)
-        #return math.ceil(max( max(inv.getHubDCPowerValues()), max(inv.getDirectDCPowerValues()) ))
     else:
         return int(MAX_INVERTER_LIMIT*(inv.getNrHubChannels()/inv.getNrTotalChannels()))
 
@@ -222,6 +219,11 @@ def getSFPowerLimit(hub, demand) -> int:
             # slower charging at the end, as it often happens to jump, waiting for bypass
             limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
 
+    # if the hub is currently in bypass mode, we do not want to limit the output in any way
+    # Note: this seems to have changed with FW 2.0.33 as before in bypass mode the limit was ignored, now it isn't
+    if hub.bypass:
+        limit = MAX_INVERTER_LIMIT
+
     # get battery Soc at sunset/sunrise
     td = timedelta(minutes = 1)
     if now > sunset and now < sunset + td:
@@ -230,7 +232,7 @@ def getSFPowerLimit(hub, demand) -> int:
         hub.setSunriseSoC(hub_electricLevel)
         log.info(f'Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!')
 
-    log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) and minimum charge power ({MIN_CHARGE_POWER}W), hub could contribute {limit:4.1f}W - Decision path: {path}')
+    log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.bypass}), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
 
 
@@ -250,7 +252,7 @@ def limitHomeInput(client: mqtt_client):
         
     grid_power = smt.getPower()
     inv_acpower = inv.getACPower()
-    demand = grid_power + inv_acpower
+    demand = grid_power + inv_acpower if (grid_power > 0) else 0 
 
     inv_limit = 0
     hub_limit = 0
