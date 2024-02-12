@@ -184,7 +184,7 @@ class OpenDTU(DTU):
                     self.updTotalPowerDC(value)
                 case "limit_absolute":
                     self.updLimitAbsolute(value)
-                case "limit_releative":
+                case "limit_relative":
                     self.updLimitRelative(value)
                 case "producing":
                     self.updProducing(value)
