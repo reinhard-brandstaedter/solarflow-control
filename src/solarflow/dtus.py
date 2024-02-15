@@ -91,6 +91,9 @@ class DTU:
         for idx,v in enumerate(self.channelsDCPower):
             if idx not in self.sf_inverter_channels and idx > 0:
                 direct.append(v)
+        # in case the inverter is not reachable or not producing, return 0
+        if len(direct) == 0:
+            return [0]
         return direct
 
     def getNrDirectChannels(self) -> int:
