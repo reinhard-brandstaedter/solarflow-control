@@ -69,6 +69,9 @@ class TimewindowBuffer:
         n = len(self.values)
         if n == 0: return 0
         return reduce(lambda a,b: a+b, [v[1]*((i+1)*(i+1)) for i,v in enumerate(self.values)])/((n*(n+1)*(2*n+1))/6)
+    
+    def clear(self):
+        self.values = []
 
     
 def deep_get(dictionary, keys, default=None):
