@@ -13,15 +13,16 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 class Smartmeter:
-    opts = {"base_topic":str, "cur_accessor":str, "total_accessor":str}
+    opts = {"base_topic":str, "cur_accessor":str, "total_accessor":str, "rapid_change_diff":int}
 
-    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in"):
+    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500):
         self.client = client
         self.base_topic = base_topic
         self.power = TimewindowBuffer(minutes=1)
         self.phase_values = {}
         self.cur_accessor = cur_accessor
         self.total_accessor = total_accessor
+        self.rapid_change_diff = rapid_change_diff
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Current power accessor: {self.cur_accessor}, Total power accessor: {self.total_accessor}')
 
     
@@ -41,6 +42,14 @@ class Smartmeter:
 
     def updPower(self):
         phase_sum = sum(self.phase_values.values())
+        # rapid change detection
+        diff = phase_sum - self.getPower()
+        if diff > self.rapid_change_diff:
+            log.info("Rapid rise in demand detected, clearing buffer!")
+            self.power.clear()
+        if diff < 0 and abs(diff) > self.rapid_change_diff:
+            log.info("Rapid drop in demand detected, clearing buffer!")
+            self.power.clear()
         # by recording smartmeter usage only up to a certain max power we can ensure that
         # demand drops from short high-consumption spikes are faster settled
         self.power.add(phase_sum if phase_sum < 1000 else 1000)

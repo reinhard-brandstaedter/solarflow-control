@@ -26,6 +26,8 @@ class DTU:
         self.channelsDCPower = []
         self.sf_inverter_channels = sf_inverter_channels
         self.limitAbsolute = 0
+        self.limitRelative = -1
+        self.maxPower = 0
         self.limitAbsoluteBuffer = TimewindowBuffer(minutes=1)
         self.producing = True
         self.reachable = True
@@ -37,7 +39,7 @@ class DTU:
         return ' '.join(f'{yellow}INV: \
                         AC:{self.acPower.qwavg():>3.1f}W, \
                         DC:{self.dcPower:>3.1f}W ({chPower}), \
-                        L:{self.limitAbsolute:>3}W{reset}'.split())
+                        L:{self.limitAbsolute:>3}W [{self.maxPower:>3}W]{reset}'.split())
 
     def subscribe(self, topics):
         topics.append(f'solarflow-hub/+/control/dryRun')
@@ -63,6 +65,10 @@ class DTU:
     def updLimitAbsolute(self, value:float):
         self.limitAbsolute = value
     
+    def updLimitRelative(self, value:float):
+        self.limitRelative = value
+        self.maxPower = int(round(self.limitAbsolute/self.limitRelative*100,-2))
+    
     def updProducing(self, value):
         self.producing = bool(value)
 
@@ -85,6 +91,9 @@ class DTU:
         for idx,v in enumerate(self.channelsDCPower):
             if idx not in self.sf_inverter_channels and idx > 0:
                 direct.append(v)
+        # in case the inverter is not reachable or not producing, return 0
+        if len(direct) == 0:
+            return [0]
         return direct
 
     def getNrDirectChannels(self) -> int:
@@ -126,6 +135,9 @@ class DTU:
         # OpenDTU and AhoysDTU expect even limits?
         inv_limit = int(math.ceil(self.limitAbsoluteBuffer.wavg() / 2.) * 2)
 
+        # Avoid setting limit higher than 150% of inverter capacity
+        inv_limit = self.maxPower*1.5 if inv_limit > self.maxPower*1.5 else inv_limit
+
         # failsafe: ensure that the inverter's AC output doesn't exceed acceptable legal limits
         # note this could mean that the inverter limit is still higher but it ensures that not too much power is generated
         if self.getACPower() > AC_LEGAL_LIMIT:
@@ -160,7 +172,8 @@ class OpenDTU(DTU):
             f'{self.base_topic}/+/power',
             f'{self.base_topic}/status/producing',
             f'{self.base_topic}/status/reachable',
-            f'{self.base_topic}/status/limit_absolute'
+            f'{self.base_topic}/status/limit_absolute',
+            f'{self.base_topic}/status/limit_relative'
         ]
         super().subscribe(topics)
 
@@ -174,6 +187,8 @@ class OpenDTU(DTU):
                     self.updTotalPowerDC(value)
                 case "limit_absolute":
                     self.updLimitAbsolute(value)
+                case "limit_relative":
+                    self.updLimitRelative(value)
                 case "producing":
                     self.updProducing(value)
                 case "reachable":
