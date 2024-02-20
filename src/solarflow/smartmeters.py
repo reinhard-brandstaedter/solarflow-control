@@ -50,7 +50,6 @@ class Smartmeter:
         if diff < 0 and abs(diff) > self.rapid_change_diff:
             log.info("Rapid drop in demand detected, clearing buffer!")
             self.power.clear()
-
         # by recording smartmeter usage only up to a certain max power we can ensure that
         # demand drops from short high-consumption spikes are faster settled
         self.power.add(phase_sum if phase_sum < 1000 else 1000)
