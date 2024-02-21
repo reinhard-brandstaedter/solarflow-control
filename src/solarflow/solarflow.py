@@ -174,6 +174,7 @@ class Solarflow:
 
     def setBatteryTarget(self, value):
         self.batteryTarget = value
+        log.info(f'Reading battery target mode: {value}')
 
     def setSunriseSoC(self, soc:int):
         self.sunriseSoC = soc
