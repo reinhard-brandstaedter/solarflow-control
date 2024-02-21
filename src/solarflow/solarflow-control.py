@@ -4,8 +4,9 @@ from functools import reduce
 from paho.mqtt import client as mqtt_client
 from astral import LocationInfo
 from astral.sun import sun
+from flask import Flask
 import requests
-from ip2geotools.databases.noncommercial import DbIpCity
+#from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import math
 from solarflow import Solarflow
@@ -317,6 +318,12 @@ def getOpts(configtype) -> dict:
         opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
     return opts
 
+#Monitoring returns status code 200 unter /health assuming service runs
+app = Flask(__name__)
+@app.route("/health")
+def health():
+    data = {"status": "success"}
+    return data, 200
 
 def run():
     client = connect_mqtt()
@@ -335,6 +342,9 @@ def run():
     client.on_message = on_message
 
     client.loop_start()
+
+#Init Monitoring state of script
+    app.run()
 
     while True:
         time.sleep(steering_interval)
