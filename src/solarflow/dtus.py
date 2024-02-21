@@ -110,7 +110,10 @@ class DTU:
         for idx,v in enumerate(self.channelsDCPower):
             if idx in self.sf_inverter_channels and idx > 0:
                 hub.append(v)
-        return hub
+        return 
+    
+    def getHubDCPower(self) -> float:
+        return sum(self.getHubDCPowerValues())
 
     def getNrHubChannels(self) -> int:
         return len(self.sf_inverter_channels)

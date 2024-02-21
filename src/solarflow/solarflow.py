@@ -319,5 +319,8 @@ class Solarflow:
     
     def getElectricLevel(self):
         return self.electricLevel
+    
+    def getBypass(self):
+        return self.bypass
 
 

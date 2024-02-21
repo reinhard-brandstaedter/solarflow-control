@@ -183,9 +183,11 @@ def limitedRise(x) -> int:
 
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
 def getDirectPanelLimit(inv, hub, smt) -> int:
-    direct_panel_power = inv.getDirectDCPower()
+    # if hub is in bypass mode we can treat it just like a direct panel
+    direct_panel_power = inv.getDirectDCPower() + inv.getHubDCPower() if hub.getBypass() else 0
     if direct_panel_power < MAX_INVERTER_LIMIT:
-        return math.ceil(max(inv.getDirectDCPowerValues())) if smt.getPower() < 0 else limitedRise(max(inv.getDirectDCPowerValues()))
+        dc_values = inv.getDirectDCPowerValues() + inv.getHubDCPowerValues() if hub.getBypass() else inv.getDirectDCPowerValues()
+        return math.ceil(max(dc_values)) if smt.getPower() < 0 else limitedRise(max(dc_values))
     else:
         return int(MAX_INVERTER_LIMIT*(inv.getNrHubChannels()/inv.getNrTotalChannels()))
 
