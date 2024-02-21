@@ -37,6 +37,7 @@ class Solarflow:
         self.lastFullTS = None          # keep track of last time the battery pack was full (100%)
         self.lastEmptyTS = None         # keep track of last time the battery pack was empty (0%)
         self.lastSolarInputTS = None    # time of the last received solar input value
+        self.batteryTarget = None
 
         self.property_topic = f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/write'
         self.chargeThrough = True
@@ -110,10 +111,12 @@ class Solarflow:
             log.info(f'Battery is full: {self.electricLevel}')
             self.lastFullTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
+            self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',"discharging",retain=True)
         if value == 0:
             log.info(f'Battery is empty: {self.electricLevel}')
             self.lastEmptyTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastEmptyTimestamp',int(datetime.timestamp(self.lastEmptyTS)),retain=True)
+            self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',"charging",retain=True)
         self.electricLevel = value
     
     def updOutputPack(self, value:int):
@@ -168,6 +171,9 @@ class Solarflow:
     def setLastEmptyTimestamp(self, value):
         self.lastEmptyTS = datetime.fromtimestamp(value)
         log.info(f'Reading last empty time: {datetime.fromtimestamp(value)}')
+
+    def setBatteryTarget(self, value):
+        self.batteryTarget = value
 
     def setSunriseSoC(self, soc:int):
         self.sunriseSoC = soc
@@ -241,6 +247,8 @@ class Solarflow:
                     self.setLastFullTimestamp(float(value))
                 case "lastEmptyTimestamp":
                     self.setLastEmptyTimestamp(float(value))
+                case "batteryTarget":
+                    self.setBatteryTarget(value)
                 case "pass":
                     self.updByPass(int(value))
                 case _:
@@ -264,7 +272,8 @@ class Solarflow:
         # this ensures regular loading to 100% to avoid battery-drift
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
-        if  self.chargeThrough and (limit > 0 and (fullage > self.fullChargeInterval or fullage < 0)):
+        can_discharge = (self.batteryTarget == "discharging") or (self.batteryTarget == "charging" and fullage < self.fullChargeInterval)
+        if  self.chargeThrough and (limit > 0 and (not can_discharge or fullage < 0)):
             log.info(f'Battery hasn\'t fully charged for {fullage:.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval}hrs not discharging now!')
             # either limit to 0 or only give away what is higher than min_charge_level
             limit = 0
