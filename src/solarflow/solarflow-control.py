@@ -222,7 +222,8 @@ def getSFPowerLimit(hub, demand) -> int:
     # if the hub is currently in bypass mode, we do not want to limit the output in any way
     # Note: this seems to have changed with FW 2.0.33 as before in bypass mode the limit was ignored, now it isn't
     if hub.bypass:
-        limit = MAX_INVERTER_LIMIT
+        #limit = MAX_INVERTER_LIMIT
+        limit = limitedRise(hub.getSolarInputPower())
 
     # get battery Soc at sunset/sunrise
     td = timedelta(minutes = 1)
