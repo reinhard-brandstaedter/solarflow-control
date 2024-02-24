@@ -14,14 +14,15 @@ log = logging.getLogger("")
 AC_LEGAL_LIMIT = 1000
 
 class DTU:
-    opts = {"base_topic":str, "sf_inverter_channels":list}
+    opts = {"base_topic":str, "sf_inverter_channels":list, "ac_limit":int}
     limit_topic = ""
     limit_unit = ""
 
-    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:[]=[]):
+    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:[]=[], ac_limit:int=800 ):
         self.client = client
         self.base_topic = base_topic
         self.acPower = TimewindowBuffer(minutes=1)
+        self.acLimit = ac_limit
         self.dcPower = 0
         self.channelsDCPower = []
         self.sf_inverter_channels = sf_inverter_channels
@@ -143,9 +144,11 @@ class DTU:
 
         # failsafe: ensure that the inverter's AC output doesn't exceed acceptable legal limits
         # note this could mean that the inverter limit is still higher but it ensures that not too much power is generated
-        if self.getACPower() > AC_LEGAL_LIMIT:
+        if self.getACPower() > self.acLimit:
             # decrease inverter limit slowly
-            inv_limit -= 2
+            inv_limit = self.limitAbsolute - 2
+            log.info("Current inverter AC output is higher than configured output limit (ac_limit), reducing limit to {inv_limit}")
+            
         
         if self.limitAbsolute != inv_limit and self.reachable:
             (not self.dryrun) and self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
