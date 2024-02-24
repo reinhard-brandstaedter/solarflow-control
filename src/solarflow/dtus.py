@@ -170,7 +170,7 @@ class OpenDTU(DTU):
         super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels, ac_limit=ac_limit)
         self.base_topic = f'{base_topic}/{inverter_serial}'
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}'
-        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}, AC Limit: {self.ac_limit}')
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}, AC Limit: {self.acLimit}')
 
     def subscribe(self):
         topics = [
