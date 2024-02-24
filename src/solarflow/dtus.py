@@ -162,7 +162,7 @@ class DTU:
     
 
 class OpenDTU(DTU):
-    opts = {"base_topic":str ,"inverter_serial":int,"sf_inverter_channels":list}
+    opts = {"base_topic":str ,"inverter_serial":int,"sf_inverter_channels":list, "ac_limit":int}
     limit_topic = "cmd/limit_nonpersistent_absolute"
     limit_unit = ""
 
