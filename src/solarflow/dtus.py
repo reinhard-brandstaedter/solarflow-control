@@ -166,11 +166,11 @@ class OpenDTU(DTU):
     limit_topic = "cmd/limit_nonpersistent_absolute"
     limit_unit = ""
 
-    def __init__(self, client: mqtt_client, base_topic:str, inverter_serial:int, sf_inverter_channels:[]=[]):
-        super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels)
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_serial:int, sf_inverter_channels:[]=[], ac_limit:int=800):
+        super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels, ac_limit=ac_limit)
         self.base_topic = f'{base_topic}/{inverter_serial}'
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}'
-        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}')
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}, AC Limit: {self.ac_limit}')
 
     def subscribe(self):
         topics = [
