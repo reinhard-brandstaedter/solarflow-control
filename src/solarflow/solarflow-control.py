@@ -328,7 +328,7 @@ def run():
 
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
-    dtu = dtuType(client=client,**dtu_opts)
+    dtu = dtuType(client=client,ac_limit=MAX_INVERTER_LIMIT,**dtu_opts)
 
     smtType = getattr(smartmeters, SMT_TYPE)
     smt_opts = getOpts(smtType)
