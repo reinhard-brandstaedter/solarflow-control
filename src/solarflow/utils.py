@@ -85,9 +85,7 @@ class TimewindowBuffer:
             df = pd.DataFrame(data)
             X = df["X"]
             X = np.array(X).reshape(-1,1)
-            log.info(X)
             y = df["y"]
-            log.info(y)
 
             model = LinearRegression()
             model.fit(X,y)
