@@ -81,13 +81,14 @@ class TimewindowBuffer:
     def predict(self) -> []:
         if len(self.values) >= 10:
             data = {'X': [i for i,v in enumerate(self.values)],
-                    'y': [v for i,v in enumerate(self.values)]}
+                    'y': [v[1] for i,v in enumerate(self.values)]}
             df = pd.DataFrame(data)
             X = df["X"]
-            log.info(X.shape())
+            log.info(X)
             X = np.array(X).reshape(-1,1)
+            log.info(X)
             y = df["y"]
-            log.info(y.shape())
+            log.info(y)
 
             model = LinearRegression()
             model.fit(X,y)
