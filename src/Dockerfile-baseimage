@@ -6,7 +6,7 @@ WORKDIR /
 # dependencies needed for ARMv6/7 builds
 RUN pip install --upgrade pip && \
     pip install --upgrade setuptools && \
-    apt install cmake libxml2-dev libxslt-dev libffi libffi-dev g++ gcc musl-dev rust cargo openssl-dev && \
+    #apt install cmake libxml2-dev libxslt-dev libffi libffi-dev g++ gcc musl-dev rust cargo openssl-dev && \
     pip install paho-mqtt astral ip2geotools numpy ninja scikit-learn 
 # && \
 #    apk del openssl-dev libffi-dev xz-dev libxml2-dev libxslt-dev openssl-dev linux-headers musl-dev gcc rust cargo && \
