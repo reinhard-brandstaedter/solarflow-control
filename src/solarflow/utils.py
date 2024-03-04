@@ -76,8 +76,8 @@ class TimewindowBuffer:
         self.values = []
 
     def predict(self) -> []:
-        x = list(map(lambda i: i[0], self.values))
-        y = list(map(lambda i: i[1], self.values))
+        x = [list(map(lambda i: i[0], self.values))]
+        y = [list(map(lambda i: i[1], self.values))]
 
         model = LinearRegression()
         model.fit(x, y)
