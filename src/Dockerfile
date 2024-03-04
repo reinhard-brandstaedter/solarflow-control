@@ -1,6 +1,6 @@
 FROM rbrandstaedter/solarflow-control-baseimage:latest
 
-RUN pip install Jinja2 requests
+RUN pip install Jinja2 requests paho-mqtt
 # Create stdconfig directory
 WORKDIR /solarflow
 
