@@ -15,7 +15,7 @@ log = logging.getLogger("")
 class Smartmeter:
     opts = {"base_topic":str, "cur_accessor":str, "total_accessor":str, "rapid_change_diff":int}
 
-    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500):
+    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500, callback = callback):
         self.client = client
         self.base_topic = base_topic
         self.power = TimewindowBuffer(minutes=2)
@@ -24,6 +24,7 @@ class Smartmeter:
         self.total_accessor = total_accessor
         self.rapid_change_diff = rapid_change_diff
         self.last_trigger_value = 0
+        self.trigger_callback = callback
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Current power accessor: {self.cur_accessor}, Total power accessor: {self.total_accessor}')
 
     
@@ -40,6 +41,9 @@ class Smartmeter:
     
     def ready(self):
         return len(self.phase_values) > 0
+
+    def calllback(self):
+        pass
 
     def updPower(self):
         phase_sum = sum(self.phase_values.values())
