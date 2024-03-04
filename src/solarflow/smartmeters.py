@@ -23,6 +23,7 @@ class Smartmeter:
         self.cur_accessor = cur_accessor
         self.total_accessor = total_accessor
         self.rapid_change_diff = rapid_change_diff
+        self.last_trigger_value = 0
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Current power accessor: {self.cur_accessor}, Total power accessor: {self.total_accessor}')
 
     
@@ -54,6 +55,11 @@ class Smartmeter:
         # demand drops from short high-consumption spikes are faster settled
         self.power.add(phase_sum if phase_sum < 1000 else 1000)
         self.client.publish("solarflow-hub/smartmeter/homeUsage",phase_sum)
+
+        # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
+        if abs(phase_sum - self.last_trigger_value) >= 10:
+            self.last_trigger_value = phase_sum
+            self.trigger_callback
 
     def handleMsg(self, msg):
         if msg.topic.startswith(self.base_topic) and msg.payload:
