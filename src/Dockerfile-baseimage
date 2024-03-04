@@ -7,7 +7,7 @@ WORKDIR /
 RUN pip install --upgrade pip && \
     pip install --upgrade setuptools && \
     apk add cmake libxml2-dev libxslt-dev libffi libffi-dev g++ gcc musl-dev rust cargo openssl-dev && \
-    pip install paho-mqtt astral ip2geotools ninja scikit-learn && \
+    pip install paho-mqtt astral ip2geotools numpy ninja scikit-learn && \
     apk del openssl-dev libffi-dev xz-dev libxml2-dev libxslt-dev openssl-dev linux-headers musl-dev gcc rust cargo && \
     rm -rf /root/.cache/ && \
     rm -rf /var/cache/apk/*
