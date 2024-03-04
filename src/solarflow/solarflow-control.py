@@ -5,7 +5,7 @@ from paho.mqtt import client as mqtt_client
 from astral import LocationInfo
 from astral.sun import sun
 import requests
-import geoip2.webservice
+import geoip2.database
 #from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import math
@@ -122,7 +122,7 @@ class MyLocation:
         
         
     def getCoordinates(self) -> tuple:
-        with geoip2.webservice.Client(host="geolite.info") as client:
+        with geoip2.database.Reader('/solarflow/geolite2-city.mmdb') as reader:
             response = client.city(self.ip)
             log.info(f"IP Address: {self.ip}")
             log.info(f"Location: {response.city.name}, {response.country.name}")
