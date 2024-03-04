@@ -79,20 +79,23 @@ class TimewindowBuffer:
         self.values = []
 
     def predict(self) -> []:
-        data = {'X': [i for i,v in enumerate(self.values)],
-                'y': [v for i,v in enumerate(self.values)]}
-        df = pd.DataFrame(data)
-        X = df[["X"]]
-        y = df["y"]
+        if len(self.values) >= 10:
+            data = {'X': [i for i,v in enumerate(self.values)],
+                    'y': [v for i,v in enumerate(self.values)]}
+            df = pd.DataFrame(data)
+            X = df[["X"]]
+            y = df["y"]
 
-        X_Train, X_Test, Y_Train, Y_Test = train_test_split(X, y, test_size = 1/3, random_state = 0)
+            X_Train, X_Test, Y_Train, Y_Test = train_test_split(X, y, test_size = 1/3, random_state = 0)
 
-        model = LinearRegression()
-        model.fit(X_Train, Y_Train)
+            model = LinearRegression()
+            model.fit(X_Train, Y_Train)
 
-        y_pred = model.predict(X_Test) 
+            y_pred = model.predict(X_Test) 
 
-        return y_pred
+            return y_pred
+        else:
+            return []
 
     
 def deep_get(dictionary, keys, default=None):
