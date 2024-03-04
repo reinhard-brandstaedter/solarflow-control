@@ -322,6 +322,8 @@ def getOpts(configtype) -> dict:
         opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
     return opts
 
+def smartmeter_callback():
+    log.info("Smartmeter Callback!")
 
 def run():
     client = connect_mqtt()
@@ -334,7 +336,7 @@ def run():
 
     smtType = getattr(smartmeters, SMT_TYPE)
     smt_opts = getOpts(smtType)
-    smt = smtType(client=client,**smt_opts)
+    smt = smtType(client=client,**smt_opts,callback=smartmeter_callback)
 
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
