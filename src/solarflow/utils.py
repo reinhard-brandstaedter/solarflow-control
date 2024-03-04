@@ -4,6 +4,8 @@ from functools import reduce
 from threading import Timer
 import logging
 import sys
+import numpy as np
+import pandas as pd
 from sklearn.linear_model import LinearRegression
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
@@ -76,17 +78,20 @@ class TimewindowBuffer:
         self.values = []
 
     def predict(self) -> []:
-        x_date = list(map(lambda i: i[0], self.values))
-        x = [list(map(lambda i: (i[0]).strftime("%H:%M:%S"), self.values))]
-        y = [list(map(lambda i: i[1], self.values))]
+        data = {'X': [i for i,v in enumerate(self.values)],
+                'y': [v for i,v in enumerate(self.values)]}
+        df = pd.DataFrame(data)
+        X = df[["X"]]
+        y = df["y"]
+
+        X_Train, X_Test, Y_Train, Y_Test = train_test_split(X, y, test_size = 1/3, random_state = 0)
 
         model = LinearRegression()
-        model.fit(x, y)
+        model.fit(X_Train, Y_Train)
 
-        x_predict = [(x_date[-1:]+timedelta(seconds=10)).strftime("%H:%M:%S"),(x_date[-1:]+timedelta(seconds=20)).strftime("%H:%M:%S")]  # put the dates of which you want to predict kwh here
-        y_predict = model.predict(x_predict)
+        y_pred = model.predict(X_Test) 
 
-        return y_predict
+        return y_pred
 
     
 def deep_get(dictionary, keys, default=None):
