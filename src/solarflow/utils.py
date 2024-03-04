@@ -86,12 +86,10 @@ class TimewindowBuffer:
             X = df[["X"]]
             y = df["y"]
 
-            X_Train, X_Test, Y_Train, Y_Test = train_test_split(X, y, test_size = 1/3, random_state = 0)
-
             model = LinearRegression()
-            model.fit(X_Train, Y_Train)
+            model.fit(X,y)
 
-            y_pred = model.predict(X_Test) 
+            y_pred = model.predict(np.array([[2, 5]]))
 
             return y_pred
         else:
