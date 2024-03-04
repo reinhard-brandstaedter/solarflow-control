@@ -76,13 +76,14 @@ class TimewindowBuffer:
         self.values = []
 
     def predict(self) -> []:
-        x = [list(map(lambda i: i[0], self.values))]
+        x_date = list(map(lambda i: i[0], self.values))
+        x = [list(map(lambda i: (i[0]).strftime("%H:%M:%S"), self.values))]
         y = [list(map(lambda i: i[1], self.values))]
 
         model = LinearRegression()
         model.fit(x, y)
 
-        x_predict = [(x[-1:]+timedelta(seconds=10)).strftime("%H:%M:%S"),(x[-1:]+timedelta(seconds=20)).strftime("%H:%M:%S")]  # put the dates of which you want to predict kwh here
+        x_predict = [(x_date[-1:]+timedelta(seconds=10)).strftime("%H:%M:%S"),(x_date[-1:]+timedelta(seconds=20)).strftime("%H:%M:%S")]  # put the dates of which you want to predict kwh here
         y_predict = model.predict(x_predict)
 
         return y_predict
