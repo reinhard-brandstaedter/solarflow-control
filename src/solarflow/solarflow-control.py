@@ -123,7 +123,7 @@ class MyLocation:
         
     def getCoordinates(self) -> tuple:
         with geoip2.database.Reader('/solarflow/geolite2-city.mmdb') as reader:
-            response = client.city(self.ip)
+            response = reader.city(self.ip)
             log.info(f"IP Address: {self.ip}")
             log.info(f"Location: {response.city.name}, {response.country.name}")
             log.info(f"Coordinates: (Lat: {response.location.latitude}, Lng: {response.location.longitude})")
