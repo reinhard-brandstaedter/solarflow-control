@@ -5,7 +5,8 @@ from paho.mqtt import client as mqtt_client
 from astral import LocationInfo
 from astral.sun import sun
 import requests
-from ip2geotools.databases.noncommercial import DbIpCity
+import geoip2.webservice
+#from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import math
 from solarflow import Solarflow
@@ -121,11 +122,12 @@ class MyLocation:
         
         
     def getCoordinates(self) -> tuple:
-        res = DbIpCity.get(self.ip, api_key="free")
-        log.info(f"IP Address: {res.ip_address}")
-        log.info(f"Location: {res.city}, {res.region}, {res.country}")
-        log.info(f"Coordinates: (Lat: {res.latitude}, Lng: {res.longitude})")
-        return (res.latitude,res.longitude)
+        with geoip2.webservice.Client(host="geolite.info") as client:
+            response = client.city(self.ip)
+            log.info(f"IP Address: {self.ip}")
+            log.info(f"Location: {response.city.name}, {response.country.name}")
+            log.info(f"Coordinates: (Lat: {response.location.latitude}, Lng: {response.location.longitude})")
+        return (response.location.latitude,response.location.longitude)
 
 def on_message(client, userdata, msg):
     #delegate message handling to hub,smartmeter, dtu
