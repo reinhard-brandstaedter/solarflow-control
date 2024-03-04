@@ -29,7 +29,7 @@ class Smartmeter:
     def __str__(self):
         return ' '.join(f'{green}SMT: \
                         T:{self.__class__.__name__} \
-                        P:{sum(self.phase_values.values()):>3.1f}W {self.power}{reset}'.split())
+                        P:{sum(self.phase_values.values()):>3.1f}W {self.power} Predict: {self.power.predict()}{reset}'.split())
                         
     def subscribe(self):
         topics = [f'{self.base_topic}']

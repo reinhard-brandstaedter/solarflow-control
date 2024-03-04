@@ -1,8 +1,10 @@
 from datetime import datetime
+from datetime import timedelta
 from functools import reduce
 from threading import Timer
 import logging
 import sys
+from sklearn.linear_model import LinearRegression
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -72,6 +74,18 @@ class TimewindowBuffer:
     
     def clear(self):
         self.values = []
+
+    def predict(self) -> []:
+        x = list(map(lambda i: i[0], self.values))
+        y = list(map(lambda i: i[1], self.values))
+
+        model = LinearRegression()
+        model.fit(x, y)
+
+        x_predict = [x[-1:]+timedelta(seconds=10),x[-1:]+timedelta(seconds=20)]  # put the dates of which you want to predict kwh here
+        y_predict = model.predict(x_predict)
+
+        return y_predict
 
     
 def deep_get(dictionary, keys, default=None):
