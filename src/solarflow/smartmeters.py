@@ -18,7 +18,7 @@ class Smartmeter:
     def calllback():
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500, callback = calllback, ):
+    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500, callback = calllback):
         self.client = client
         self.base_topic = base_topic
         self.power = TimewindowBuffer(minutes=1)
@@ -63,7 +63,7 @@ class Smartmeter:
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
         if abs(phase_sum - self.last_trigger_value) >= 10:
             self.last_trigger_value = phase_sum
-            self.trigger_callback
+        self.trigger_callback()
 
     def handleMsg(self, msg):
         if msg.topic.startswith(self.base_topic) and msg.payload:
