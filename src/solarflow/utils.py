@@ -57,6 +57,10 @@ class TimewindowBuffer:
             else:
                 break
 
+    # most recent measurement
+    def last(self) -> float:
+        return self.values[-1][1]
+    
     # standard moving average
     def avg(self) -> float:
         n = len(self.values)
