@@ -98,7 +98,7 @@ class TimewindowBuffer:
 
             return list(map(lambda x: round(x,1), y_pred))
         else:
-            return [self.values[-1][1]] if len(self.values) > 0 else 0
+            return [self.values[-1][1]] if len(self.values) > 0 else [0]
 
     
 def deep_get(dictionary, keys, default=None):
