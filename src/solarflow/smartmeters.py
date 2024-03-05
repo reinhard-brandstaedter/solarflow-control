@@ -85,7 +85,7 @@ class Smartmeter:
     def getPower(self):
         return self.power.qwavg()
     
-    def getPredictedPower(self)
+    def getPredictedPower(self):
         return self.power.predict()[0]
 
 
