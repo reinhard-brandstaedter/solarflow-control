@@ -23,7 +23,7 @@ class DTU:
         self.base_topic = base_topic
         self.acPower = TimewindowBuffer(minutes=1)
         self.acLimit = ac_limit
-        self.dcPower = 0
+        self.dcPower = TimewindowBuffer(minutes=1)
         self.channelsDCPower = []
         self.sf_inverter_channels = sf_inverter_channels
         self.limitAbsolute = 0
@@ -39,7 +39,7 @@ class DTU:
         chPower = "|".join([f'{v:>3.1f}' for v in self.channelsDCPower][1:])
         return ' '.join(f'{yellow}INV: \
                         AC:{self.getCurrentACPower():>3.1f}W, AC_Prediction: {self.getPredictedACPower():>3.1f}W, \
-                        DC:{self.dcPower:>3.1f}W ({chPower}), \
+                        DC:{self.getCurrentDCPower():>3.1f}W, DC_prediction: {self.getPredictedDCPower():>3.1f}W ({chPower}), \
                         L:{self.limitAbsolute:>3}W [{self.maxPower:>3}W]{reset}'.split())
 
     def subscribe(self, topics):
@@ -61,6 +61,7 @@ class DTU:
             self.channelsDCPower[channel] = value
     
     def updTotalPowerDC(self, value:float):
+        self.dcPower.add(value)
         self.dcPower = value
 
     def updLimitAbsolute(self, value:float):
@@ -89,9 +90,15 @@ class DTU:
     
     def getCurrentACPower(self):
         return self.acPower.last()
+
+    def getCurrentDCPower(self):
+        return self.dcPower.last()
     
     def getPredictedACPower(self):
         return self.acPower.predict()[0]
+
+    def getPredictedDCPower(self):
+        return self.dcPower.predict()[0]
     
     def getDirectDCPowerValues(self) -> []:
         direct = []
