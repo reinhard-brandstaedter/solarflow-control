@@ -79,7 +79,7 @@ class TimewindowBuffer:
         self.values = []
 
     def predict(self) -> []:
-        if len(self.values) >= 10:
+        if len(self.values) >= 5:
             data = {'X': [i for i,v in enumerate(self.values)],
                     'y': [v[1] for i,v in enumerate(self.values)]}
             df = pd.DataFrame(data)

@@ -16,9 +16,9 @@ class Smartmeter:
     opts = {"base_topic":str, "cur_accessor":str, "total_accessor":str, "rapid_change_diff":int}
 
     def calllback():
-        pass
+        log.info("default callback")
 
-    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500, callback = calllback):
+    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500, callback = calllback, ):
         self.client = client
         self.base_topic = base_topic
         self.power = TimewindowBuffer(minutes=2)

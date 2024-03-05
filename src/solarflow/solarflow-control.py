@@ -336,7 +336,7 @@ def run():
 
     smtType = getattr(smartmeters, SMT_TYPE)
     smt_opts = getOpts(smtType)
-    smt = smtType(client=client,**smt_opts,callback=smartmeter_callback)
+    smt = smtType(client=client,callback=smartmeter_callback, **smt_opts)
 
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
