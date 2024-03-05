@@ -90,9 +90,9 @@ class TimewindowBuffer:
             model = LinearRegression()
             model.fit(X,y)
 
-            y_pred = model.predict(np.array([[2]]))
+            y_pred = model.predict(np.array([[5]]))
 
-            return y_pred
+            return list(map(lambda x: round(x,1), y_pred))
         else:
             return []
 
