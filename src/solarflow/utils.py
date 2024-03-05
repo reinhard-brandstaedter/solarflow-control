@@ -94,7 +94,7 @@ class TimewindowBuffer:
 
             return list(map(lambda x: round(x,1), y_pred))
         else:
-            return []
+            return [self.values[-1]]
 
     
 def deep_get(dictionary, keys, default=None):

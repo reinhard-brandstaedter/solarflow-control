@@ -87,6 +87,9 @@ class DTU:
     def getACPower(self):
         return self.acPower.qwavg()
     
+    def getPredictedACPower(self):
+        return self.acPower.predict()[0]
+    
     def getDirectDCPowerValues(self) -> []:
         direct = []
         for idx,v in enumerate(self.channelsDCPower):
