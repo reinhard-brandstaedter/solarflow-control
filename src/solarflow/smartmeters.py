@@ -59,7 +59,7 @@ class Smartmeter:
         # demand drops from short high-consumption spikes are faster settled
         self.power.add(phase_sum if phase_sum < 1000 else 1000)
         self.client.publish("solarflow-hub/smartmeter/homeUsage",phase_sum)
-        self.client.publish("solarflow-hub/smartmeter/homeUsagePredicted",self.getPredictedPower())
+        self.client.publish("solarflow-hub/smartmeter/homeUsagePredicted",int(self.getPredictedPower()))
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
         if abs(phase_sum - self.last_trigger_value) >= 10:
