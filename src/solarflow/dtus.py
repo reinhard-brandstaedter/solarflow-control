@@ -38,7 +38,7 @@ class DTU:
     def __str__(self):
         chPower = "|".join([f'{v:>3.1f}' for v in self.channelsDCPower][1:])
         return ' '.join(f'{yellow}INV: \
-                        AC:{self.acPower.qwavg():>3.1f}W, \
+                        AC:{self.acPower.qwavg():>3.1f}W, AC_Prediction: {self.acPower.predict()}, \
                         DC:{self.dcPower:>3.1f}W ({chPower}), \
                         L:{self.limitAbsolute:>3}W [{self.maxPower:>3}W]{reset}'.split())
 
