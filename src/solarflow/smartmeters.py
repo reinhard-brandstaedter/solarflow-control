@@ -62,8 +62,9 @@ class Smartmeter:
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
         if abs(phase_sum - self.last_trigger_value) >= 10:
+            log.info(f'Trigger limit function: {phase_sum} : {self.last_trigger_value}')
             self.last_trigger_value = phase_sum
-        self.trigger_callback(self.client)
+            self.trigger_callback(self.client)
 
     def handleMsg(self, msg):
         if msg.topic.startswith(self.base_topic) and msg.payload:

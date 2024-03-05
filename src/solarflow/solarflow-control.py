@@ -323,7 +323,7 @@ def getOpts(configtype) -> dict:
     return opts
 
 def smartmeter_callback(client: mqtt_client):
-    log.info("Smartmeter Callback!")
+    #log.info("Smartmeter Callback!")
     limitHomeInput(client)
 
 def run():
