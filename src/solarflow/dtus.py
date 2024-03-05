@@ -67,7 +67,7 @@ class DTU:
 
         # TODO: experimental, trigger limit calculation only on significant changes of DC power prediction
         predicted = self.getPredictedDCPower()
-        if abs(predicted - self.last_trigger_value) >= 10:
+        if abs(predicted - self.last_trigger_value) >= 5:
             log.info(f'DTU triggers limit function: {predicted} : {self.last_trigger_value}')
             self.last_trigger_value = predicted
             self.trigger_callback(self.client)

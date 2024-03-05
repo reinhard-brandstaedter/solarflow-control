@@ -62,9 +62,10 @@ class Smartmeter:
         self.client.publish("solarflow-hub/smartmeter/homeUsagePredicted",int(round(self.getPredictedPower())))
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
-        if abs(phase_sum - self.last_trigger_value) >= 10:
-            log.info(f'Trigger limit function: {phase_sum} : {self.last_trigger_value}')
-            self.last_trigger_value = phase_sum
+        predicted = self.getPredictedPower()
+        if abs(predicted - self.last_trigger_value) >= 10:
+            log.info(f'SMT triggers limit function: {predicted} : {self.last_trigger_value}')
+            self.last_trigger_value = predicted
             self.trigger_callback(self.client)
 
     def handleMsg(self, msg):
