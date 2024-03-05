@@ -62,7 +62,7 @@ class DTU:
     
     def updTotalPowerDC(self, value:float):
         self.dcPower.add(value)
-        self.dcPower = value
+        #self.dcPower = value
 
     def updLimitAbsolute(self, value:float):
         self.limitAbsolute = value
