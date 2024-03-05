@@ -322,7 +322,7 @@ def getOpts(configtype) -> dict:
         opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
     return opts
 
-def smartmeter_callback(client: mqtt_client):
+def limit_callback(client: mqtt_client):
     #log.info("Smartmeter Callback!")
     limitHomeInput(client)
 
@@ -333,11 +333,11 @@ def run():
 
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
-    dtu = dtuType(client=client,ac_limit=MAX_INVERTER_LIMIT,**dtu_opts)
+    dtu = dtuType(client=client,ac_limit=MAX_INVERTER_LIMIT,callback=limit_callback,**dtu_opts)
 
     smtType = getattr(smartmeters, SMT_TYPE)
     smt_opts = getOpts(smtType)
-    smt = smtType(client=client,callback=smartmeter_callback, **smt_opts)
+    smt = smtType(client=client,callback=limit_callback, **smt_opts)
 
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
