@@ -322,8 +322,9 @@ def getOpts(configtype) -> dict:
         opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
     return opts
 
-def smartmeter_callback():
+def smartmeter_callback(client: mqtt_client):
     log.info("Smartmeter Callback!")
+    limitHomeInput(client)
 
 def run():
     client = connect_mqtt()
@@ -341,13 +342,14 @@ def run():
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
 
-    client.loop_start()
+    #client.loop_start()
+    client.loop_forever()
 
-    while True:
-        time.sleep(steering_interval)
-        limitHomeInput(client)
+    #while True:
+    #    time.sleep(steering_interval)
+    #    limitHomeInput(client)
         
-    client.loop_stop()
+    #client.loop_stop()
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
