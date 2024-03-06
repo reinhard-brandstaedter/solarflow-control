@@ -1,11 +1,20 @@
-ARG IMAGE=rbrandstaedter/solarflow-control-baseimage:latest
-FROM $IMAGE
+FROM python:3.11-alpine as compiler
+ENV PYTHONUNBUFFERED 1
 
-ENV VIRTUAL_ENV=/solarflow
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+WORKDIR /solarflow/
 
-WORKDIR /solarflow
+RUN python -m venv /opt/venv
+# Enable venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-COPY solarflow /solarflow
+COPY ./requirements.txt /solarflow/requirements.txt
+RUN pip install -Ur requirements.txt
 
-ENTRYPOINT ["python","solarflow-control.py"]
+FROM python:3.11-alpine as runner
+WORKDIR /solarflow/
+COPY --from=compiler /opt/venv /opt/venv
+
+# Enable venv
+ENV PATH="/opt/venv/bin:$PATH"
+COPY . /solarflow/
+CMD ["python", "solarflow-control.py", ]
