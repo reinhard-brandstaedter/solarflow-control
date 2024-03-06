@@ -1,13 +1,11 @@
-FROM alpine:3.19
+FROM python:3.11-alpine
 
-# Create stdconfig directory
-WORKDIR /
+ENV VIRTUAL_ENV=/solarflow
+RUN apk add py3-requests py3-scikit-learn py3-paho-mqtt py3-maxminddb py3-aiohttp py3-cryptography py3-geoip2 && \
+    python3 -m venv --system-site-packages $VIRTUAL_ENV
 
-# dependencies needed for ARMv6/7 builds
-RUN apk add python3 py3-pip py3-requests py3-scikit-learn py3-paho-mqtt py3-maxminddb py3-aiohttp py3-cryptography py3-geoip2 && \
-    pip install astral && \
-#apk del openssl-dev libffi-dev xz-dev libxml2-dev libxslt-dev openssl-dev linux-headers musl-dev gcc rust cargo && \
-    rm -rf /root/.cache/ && \
-    rm -rf /var/cache/apk/*
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN pip install astral
 
 ENTRYPOINT ["python"]
