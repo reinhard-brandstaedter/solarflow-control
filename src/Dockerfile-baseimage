@@ -4,7 +4,7 @@ FROM alpine:3.19
 WORKDIR /
 
 # dependencies needed for ARMv6/7 builds
-RUN apk add python3 py3-requests py3-scikit-learn py3-paho-mqtt py3-maxminddb py3-aiohttp py3-cryptography py3-geoip2 && \
+RUN apk add python3 py3-pip py3-requests py3-scikit-learn py3-paho-mqtt py3-maxminddb py3-aiohttp py3-cryptography py3-geoip2 && \
     pip install astral && \
 #apk del openssl-dev libffi-dev xz-dev libxml2-dev libxslt-dev openssl-dev linux-headers musl-dev gcc rust cargo && \
     rm -rf /root/.cache/ && \
