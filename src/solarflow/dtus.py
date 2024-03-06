@@ -18,12 +18,15 @@ class DTU:
     limit_topic = ""
     limit_unit = ""
 
-    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:[]=[], ac_limit:int=800 ):
+    def default_calllback(self):
+        log.info("default callback")
+
+    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:[]=[], ac_limit:int=800, callback = default_calllback ):
         self.client = client
         self.base_topic = base_topic
         self.acPower = TimewindowBuffer(minutes=1)
         self.acLimit = ac_limit
-        self.dcPower = 0
+        self.dcPower = TimewindowBuffer(minutes=1)
         self.channelsDCPower = []
         self.sf_inverter_channels = sf_inverter_channels
         self.limitAbsolute = 0
@@ -35,12 +38,14 @@ class DTU:
         self.reachable = True
         self.dryrun = False
         self.limit_nonpersistent_absolute = f'{base_topic}/{self.limit_topic}'
+        self.trigger_callback = callback
+        self.last_trigger_value = 0
     
     def __str__(self):
         chPower = "|".join([f'{v:>3.1f}' for v in self.channelsDCPower][1:])
         return ' '.join(f'{yellow}INV: \
-                        AC:{self.acPower.qwavg():>3.1f}W, \
-                        DC:{self.dcPower:>3.1f}W ({chPower}), \
+                        AC:{self.getCurrentACPower():>3.1f}W, AC_Prediction: {self.getPredictedACPower():>3.1f}W, \
+                        DC:{self.getCurrentDCPower():>3.1f}W, DC_prediction: {self.getPredictedDCPower():>3.1f}W ({chPower}), \
                         L:{self.limitAbsolute:>3}W [{self.maxPower:>3}W]{reset}'.split())
 
     def subscribe(self, topics):
@@ -60,9 +65,18 @@ class DTU:
             if channel == 0:
                 self.acPower.add(value)
             self.channelsDCPower[channel] = value
+
+        # TODO: experimental, trigger limit calculation only on significant changes of DC power prediction
+        predicted = self.getPredictedDCPower()
+        if abs(predicted - self.last_trigger_value) >= 5:
+            log.info(f'DTU triggers limit function: {predicted} : {self.last_trigger_value}')
+            self.last_trigger_value = predicted
+            self.trigger_callback(self.client)
+        
     
     def updTotalPowerDC(self, value:float):
-        self.dcPower = value
+        self.dcPower.add(value)
+        #self.dcPower = value
 
     def updLimitAbsolute(self, value:float):
         self.limitAbsolute = value
@@ -96,6 +110,18 @@ class DTU:
 
     def getACPower(self):
         return self.acPower.qwavg()
+    
+    def getCurrentACPower(self):
+        return self.acPower.last()
+
+    def getCurrentDCPower(self):
+        return self.dcPower.last()
+    
+    def getPredictedACPower(self):
+        return self.acPower.predict()[0]
+
+    def getPredictedDCPower(self):
+        return self.dcPower.predict()[0]
     
     def getDirectDCPowerValues(self) -> []:
         direct = []
@@ -176,8 +202,8 @@ class OpenDTU(DTU):
     limit_topic = "cmd/limit_nonpersistent_absolute"
     limit_unit = ""
 
-    def __init__(self, client: mqtt_client, base_topic:str, inverter_serial:int, sf_inverter_channels:[]=[], ac_limit:int=800):
-        super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels, ac_limit=ac_limit)
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_serial:int, sf_inverter_channels:[]=[], ac_limit:int=800, callback = DTU.default_calllback):
+        super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels, ac_limit=ac_limit, callback=callback)
         self.base_topic = f'{base_topic}/{inverter_serial}'
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}'
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}, AC Limit: {self.acLimit}')
