@@ -5,8 +5,8 @@ WORKDIR /
 
 # dependencies needed for ARMv6/7 builds
 RUN pip install --upgrade pip && \
-    apk add libxml2-dev libxslt-dev libffi libffi-dev gcc musl-dev rust cargo openssl-dev && \
-    pip install paho-mqtt astral ip2geotools && \
+    apk add libxml2-dev libxslt-dev libffi libffi-dev gcc musl-dev rust cargo openssl-dev py3-scikit-learn py3-paho-mqtt py3-lxml py3-lxml-pyc py3-lazy-object-proxy py3-lazy-object-proxy-pyc py3-maxminddb py3-aiohttp py3-cryptography py3-geoip2 && \
+    pip install astral ip2geotools && \
     apk del openssl-dev libffi-dev xz-dev libxml2-dev libxslt-dev openssl-dev linux-headers musl-dev gcc rust cargo && \
     rm -rf /root/.cache/ && \
     rm -rf /var/cache/apk/*
