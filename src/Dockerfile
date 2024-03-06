@@ -6,6 +6,6 @@ RUN pip install Jinja2 requests
 WORKDIR /solarflow
 
 COPY solarflow /solarflow
-ENV PYTHONPATH=/usr/lib/python3.10/site-packages
+ENV PYTHONPATH=/usr/lib/python3.10/site-packages:/usr/lib/python3.11/site-packages
 
 ENTRYPOINT ["python","solarflow-control.py"]
