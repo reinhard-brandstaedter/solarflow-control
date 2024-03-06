@@ -1,4 +1,4 @@
-FROM $IMAGE
+FROM baseimage
 
 RUN pip install Jinja2 requests
 # Create stdconfig directory
