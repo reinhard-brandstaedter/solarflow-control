@@ -13,8 +13,9 @@ RUN pip install -Ur requirements.txt
 FROM python:3.11-alpine as runner
 WORKDIR /solarflow/
 COPY --from=compiler /opt/venv /opt/venv
+COPY --from=compiler /usr/lib/python3.11/site-packages/* /opt/venv/lib/python3.11/site-packages/*
 
 # Enable venv
 ENV PATH="/opt/venv/bin:$PATH"
-COPY . /solarflow/
+COPY solarflow /solarflow/
 CMD ["python", "solarflow-control.py", ]
