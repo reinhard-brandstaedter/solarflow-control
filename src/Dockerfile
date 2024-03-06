@@ -4,7 +4,7 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /solarflow/
 COPY ./requirements.txt /solarflow/requirements.txt
 
-RUN apk add py3-scikit-learn py3-requests py3-geoip2 && \
+RUN apk add py3-scikit-learn py3-requests py3-geoip2 py3-paho-mqtt && \
     python -m venv --system-site-packages /opt/venv
 
 ENV PATH="/opt/venv/bin:$PATH"
