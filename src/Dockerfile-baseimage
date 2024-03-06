@@ -1,8 +1,10 @@
-FROM python:3.11-alpine
+FROM python:3.11-alpine3.19
 
 ENV VIRTUAL_ENV=/solarflow
 RUN apk add py3-requests py3-scikit-learn py3-paho-mqtt py3-maxminddb py3-aiohttp py3-cryptography py3-geoip2 && \
-    python3 -m venv --system-site-packages $VIRTUAL_ENV
+    python3 -m venv --system-site-packages $VIRTUAL_ENV && \
+    rm -rf /root/.cache/ && \
+    rm -rf /var/cache/apk/*
 
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
