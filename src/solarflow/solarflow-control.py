@@ -5,7 +5,8 @@ from paho.mqtt import client as mqtt_client
 from astral import LocationInfo
 from astral.sun import sun
 import requests
-from ip2geotools.databases.noncommercial import DbIpCity
+import geoip2.database
+#from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import math
 from solarflow import Solarflow
@@ -121,11 +122,12 @@ class MyLocation:
         
         
     def getCoordinates(self) -> tuple:
-        res = DbIpCity.get(self.ip, api_key="free")
-        log.info(f"IP Address: {res.ip_address}")
-        log.info(f"Location: {res.city}, {res.region}, {res.country}")
-        log.info(f"Coordinates: (Lat: {res.latitude}, Lng: {res.longitude})")
-        return (res.latitude,res.longitude)
+        with geoip2.database.Reader('/solarflow/geolite2-city.mmdb') as reader:
+            response = reader.city(self.ip)
+            log.info(f"IP Address: {self.ip}")
+            log.info(f"Location: {response.city.name}, {response.country.name}")
+            log.info(f"Coordinates: (Lat: {response.location.latitude}, Lng: {response.location.longitude})")
+        return (response.location.latitude,response.location.longitude)
 
 def on_message(client, userdata, msg):
     #delegate message handling to hub,smartmeter, dtu
@@ -253,8 +255,8 @@ def limitHomeInput(client: mqtt_client):
     if not(hub.ready() and inv.ready() and smt.ready()):
         return
         
-    grid_power = smt.getPower()
-    inv_acpower = inv.getACPower()
+    grid_power = smt.getPredictedPower()
+    inv_acpower = inv.getPredictedACPower()
     demand = grid_power + inv_acpower if (grid_power > 0) else 0 
 
     inv_limit = 0
@@ -320,6 +322,9 @@ def getOpts(configtype) -> dict:
         opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
     return opts
 
+def limit_callback(client: mqtt_client):
+    #log.info("Smartmeter Callback!")
+    limitHomeInput(client)
 
 def run():
     client = connect_mqtt()
@@ -328,22 +333,23 @@ def run():
 
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
-    dtu = dtuType(client=client,ac_limit=MAX_INVERTER_LIMIT,**dtu_opts)
+    dtu = dtuType(client=client,ac_limit=MAX_INVERTER_LIMIT,callback=limit_callback,**dtu_opts)
 
     smtType = getattr(smartmeters, SMT_TYPE)
     smt_opts = getOpts(smtType)
-    smt = smtType(client=client,**smt_opts)
+    smt = smtType(client=client,callback=limit_callback, **smt_opts)
 
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
 
-    client.loop_start()
+    #client.loop_start()
+    client.loop_forever()
 
-    while True:
-        time.sleep(steering_interval)
-        limitHomeInput(client)
+    #while True:
+    #    time.sleep(steering_interval)
+    #    limitHomeInput(client)
         
-    client.loop_stop()
+    #client.loop_stop()
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
