@@ -28,6 +28,7 @@ class DTU:
         self.sf_inverter_channels = sf_inverter_channels
         self.limitAbsolute = 0
         self.limitRelative = -1
+        self.maxPowerValues = []
         self.maxPower = 0
         self.limitAbsoluteBuffer = TimewindowBuffer(minutes=1)
         self.producing = True
@@ -68,7 +69,16 @@ class DTU:
     
     def updLimitRelative(self, value:float):
         self.limitRelative = value
-        self.maxPower = int(round(self.limitAbsolute/self.limitRelative*100,-2))
+        # use 5 updates to determine maxPower of inverter
+        power = int(round(self.limitAbsolute/self.limitRelative*100,-2))
+        if len(self.maxPowerValues) < 5:
+            self.maxPowerValues.append(power)
+        avg = (reduce(lambda x, y: x + y, self.maxPowerValues)) / len(self.maxPowerValues)
+        if len(self.maxPowerValues) == 5 and avg == self.maxPowerValues[0]:
+            # we found the max power, no more searching
+            self.maxPower = avg
+        else:
+            self.maxPowerValues.pop(0)
     
     def updProducing(self, value):
         self.producing = bool(value)
