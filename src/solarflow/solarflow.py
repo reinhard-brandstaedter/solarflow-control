@@ -267,6 +267,12 @@ class Solarflow:
             m = divmod(limit,30)[0]
             r = divmod(limit,30)[1]
             limit = 30 * m + 30 * (r // 15)
+        
+        # If battery SoC reaches 0% during night, it has been observed that in the morning with first light, residual energy in the batteries gets released
+        # Hub goes then into error and no charging occurs (probably deep discharge assumed by the battery).
+        # Hence setting the output limit 0 if SoC 0%
+        if self.electricLevel == 0:
+            limit = 0
 
         # Charge-Through:
         # If charge-through is enabled the hub will not provide any power if the last full state is to long ago
@@ -281,7 +287,7 @@ class Solarflow:
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
         self.outputLimitBuffer.add(limit)
-        limit = int(self.outputLimitBuffer.qwavg())
+        limit = int(self.outputLimitBuffer.wavg())
 
         outputlimit = {"properties": { "outputLimit": limit }}
         if self.outputLimit != limit:

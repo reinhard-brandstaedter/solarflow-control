@@ -1,4 +1,5 @@
-FROM rbrandstaedter/solarflow-control-baseimage:latest
+ARG IMAGE=rbrandstaedter/solarflow-control-baseimage:latest
+FROM $IMAGE
 
 RUN pip install Jinja2 requests
 # Create stdconfig directory
