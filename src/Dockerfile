@@ -14,4 +14,4 @@ RUN pip install -Ur requirements.txt
 WORKDIR /solarflow/
 
 COPY solarflow /solarflow/
-CMD ["python", "solarflow-control.py", ]
+ENTRYPOINT ["python3", "solarflow-control.py"]
