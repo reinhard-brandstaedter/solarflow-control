@@ -160,7 +160,7 @@ def on_disconnect(client, userdata, rc):
         log.error("Disconnected from MQTT broker!")
 
 def connect_mqtt() -> mqtt_client:
-    client = mqtt_client.Client(mqtt.CallbackAPIVersion.VERSION1,client_id)
+    client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION1,client_id)
     if mqtt_user is not None and mqtt_pwd is not None:
         client.username_pw_set(mqtt_user, mqtt_pwd)
     client.on_connect = on_connect
