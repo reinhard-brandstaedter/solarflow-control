@@ -229,7 +229,8 @@ def getSFPowerLimit(hub, demand) -> int:
             path += "2."                                     
             limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 else hub_solarpower - MIN_CHARGE_POWER
             # slower charging at the end, as it often happens to jump, waiting for bypass
-            limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
+            # Issue #140 as the hubs SoC reporting is somewhat inconsistent at the top end, remove slow charging
+            # limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
 
     # if the hub is currently in bypass mode, we do not want to limit the output in any way
     # Note: this seems to have changed with FW 2.0.33 as before in bypass mode the limit was ignored, now it isn't
