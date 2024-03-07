@@ -5,7 +5,7 @@ from paho.mqtt import client as mqtt_client
 from astral import LocationInfo
 from astral.sun import sun
 import requests
-import geoip2.database
+#import geoip2.database
 #from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import math
