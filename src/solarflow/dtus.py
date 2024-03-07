@@ -88,14 +88,15 @@ class DTU:
             power = int(round(self.limitAbsolute/self.limitRelative*100,-2))
             if len(self.maxPowerValues) < 5:
                 self.maxPowerValues.append(power)
+
             avg = (reduce(lambda x, y: x + y, self.maxPowerValues)) / len(self.maxPowerValues)
-            if len(self.maxPowerValues) == 5 and avg == self.maxPowerValues[0] and avg > 0:
-                # we found the max power, no more searching
-                self.maxPower = avg
-                log.info(f'Determined inverter\'s max capacity: {self.maxPower}')
-            else:
-                if len(self.maxPowerValues) >= 5:
+            if len(self.maxPowerValues) >= 5:
+                if avg != self.maxPowerValues[0]:  # not stable yet, remove one
                     self.maxPowerValues.pop(0) 
+                if avg == self.maxPowerValues[0] and avg > 100 and self.maxPower != avg:
+                    # we found the max power, no more searching
+                    self.maxPower = avg
+                    log.info(f'Determined inverter\'s max capacity: {self.maxPower}')
     
     def updProducing(self, value):
         self.producing = bool(value)
