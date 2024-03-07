@@ -126,11 +126,12 @@ class MyLocation:
         try:
             result = requests.get(f'http://ip-api.com/json/{self.ip}')
             response = result.json()
-            log.info(f"IP Address: {self.ip}")
-            log.info(f"Location: {response.city}, {response.regionName}, {response.country}")
-            log.info(f"Coordinates: (Lat: {response.lat}, Lng: {response.lon}")
-            lat = {response.lat}
-            lon = {response.lon}
+            log.info(response)
+            log.info(f'IP Address: {self.ip}')
+            log.info(f'Location: {response["city"]}, {response["regionName"]}, {response["country"]}')
+            log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]}')
+            lat = response["lat"]
+            lon = response["lon"]
         except:
             log.error(f'Can\'t determine location from my IP {self.ip}. Location detection failed, no accurate sunrise/sunset detection possible')
 

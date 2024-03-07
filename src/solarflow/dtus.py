@@ -86,11 +86,11 @@ class DTU:
         # use 5 updates to determine maxPower of inverter
         if (self.limitRelative > 0 and self.limitAbsolute > 0):
             power = int(round(self.limitAbsolute/self.limitRelative*100,-2))
-            log.info("Determining inverter's max capacity")
+            log.info(f'Determining inverter\'s max capacity: {self.maxPowerValues}')
             if len(self.maxPowerValues) < 5:
                 self.maxPowerValues.append(power)
             avg = (reduce(lambda x, y: x + y, self.maxPowerValues)) / len(self.maxPowerValues)
-            if len(self.maxPowerValues) == 5 and avg == self.maxPowerValues[0] and avg > 100:
+            if len(self.maxPowerValues) == 5 and avg == self.maxPowerValues[0] and avg > 0:
                 # we found the max power, no more searching
                 self.maxPower = avg
             else:
