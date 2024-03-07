@@ -122,12 +122,19 @@ class MyLocation:
         
         
     def getCoordinates(self) -> tuple:
-        with geoip2.database.Reader('/solarflow/geolite2-city.mmdb') as reader:
-            response = reader.city(self.ip)
+        lat = lon = 0.0
+        try:
+            result = requests.get(f'http://ip-api.com/json/{self.ip}')
+            response = result.json()
             log.info(f"IP Address: {self.ip}")
-            log.info(f"Location: {response.city.name}, {response.country.name}")
-            log.info(f"Coordinates: (Lat: {response.location.latitude}, Lng: {response.location.longitude})")
-        return (response.location.latitude,response.location.longitude)
+            log.info(f"Location: {response.city}, {response.regionName}, {response.country}")
+            log.info(f"Coordinates: (Lat: {response.lat}, Lng: {response.lon}")
+            lat = {response.lat}
+            lon = {response.lon}
+        except:
+            log.error(f'Can\'t determine location from my IP {self.ip}. Location detection failed, no accurate sunrise/sunset detection possible')
+
+        return (lat,lon)
 
 def on_message(client, userdata, msg):
     #delegate message handling to hub,smartmeter, dtu
