@@ -94,7 +94,8 @@ class DTU:
                 # we found the max power, no more searching
                 self.maxPower = avg
             else:
-                self.maxPowerValues.pop(0)
+                if len(self.maxPowerValues) >= 5:
+                    self.maxPowerValues.pop(0) 
     
     def updProducing(self, value):
         self.producing = bool(value)
