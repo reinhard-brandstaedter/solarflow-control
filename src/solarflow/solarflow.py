@@ -37,6 +37,7 @@ class Solarflow:
         self.lastFullTS = None          # keep track of last time the battery pack was full (100%)
         self.lastEmptyTS = None         # keep track of last time the battery pack was empty (0%)
         self.lastSolarInputTS = None    # time of the last received solar input value
+        self.batteryTarget = None
 
         self.property_topic = f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/write'
         self.chargeThrough = True
@@ -110,10 +111,12 @@ class Solarflow:
             log.info(f'Battery is full: {self.electricLevel}')
             self.lastFullTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
+            self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',"discharging",retain=True)
         if value == 0:
             log.info(f'Battery is empty: {self.electricLevel}')
             self.lastEmptyTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastEmptyTimestamp',int(datetime.timestamp(self.lastEmptyTS)),retain=True)
+            self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',"charging",retain=True)
         self.electricLevel = value
     
     def updOutputPack(self, value:int):
@@ -168,6 +171,10 @@ class Solarflow:
     def setLastEmptyTimestamp(self, value):
         self.lastEmptyTS = datetime.fromtimestamp(value)
         log.info(f'Reading last empty time: {datetime.fromtimestamp(value)}')
+
+    def setBatteryTarget(self, value):
+        self.batteryTarget = value
+        log.info(f'Reading battery target mode: {value}')
 
     def setSunriseSoC(self, soc:int):
         self.sunriseSoC = soc
@@ -241,6 +248,8 @@ class Solarflow:
                     self.setLastFullTimestamp(float(value))
                 case "lastEmptyTimestamp":
                     self.setLastEmptyTimestamp(float(value))
+                case "batteryTarget":
+                    self.setBatteryTarget(value)
                 case "pass":
                     self.updByPass(int(value))
                 case _:
@@ -258,20 +267,27 @@ class Solarflow:
             m = divmod(limit,30)[0]
             r = divmod(limit,30)[1]
             limit = 30 * m + 30 * (r // 15)
+        
+        # If battery SoC reaches 0% during night, it has been observed that in the morning with first light, residual energy in the batteries gets released
+        # Hub goes then into error and no charging occurs (probably deep discharge assumed by the battery).
+        # Hence setting the output limit 0 if SoC 0%
+        if self.electricLevel == 0:
+            limit = 0
 
         # Charge-Through:
         # If charge-through is enabled the hub will not provide any power if the last full state is to long ago
         # this ensures regular loading to 100% to avoid battery-drift
         fullage = self.getLastFullBattery()
         emptyage = self.getLastEmptyBattery()
-        if  self.chargeThrough and (limit > 0 and (fullage > self.fullChargeInterval or fullage < 0)):
+        can_discharge = (self.batteryTarget == "discharging") or (self.batteryTarget == "charging" and fullage < self.fullChargeInterval)
+        if  self.chargeThrough and (limit > 0 and (not can_discharge or fullage < 0)):
             log.info(f'Battery hasn\'t fully charged for {fullage:.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval}hrs not discharging now!')
             # either limit to 0 or only give away what is higher than min_charge_level
             limit = 0
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
         self.outputLimitBuffer.add(limit)
-        limit = int(self.outputLimitBuffer.qwavg())
+        limit = int(self.outputLimitBuffer.wavg())
 
         outputlimit = {"properties": { "outputLimit": limit }}
         if self.outputLimit != limit:
@@ -309,5 +325,8 @@ class Solarflow:
     
     def getElectricLevel(self):
         return self.electricLevel
+    
+    def getBypass(self):
+        return self.bypass
 
 

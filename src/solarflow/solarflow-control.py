@@ -5,7 +5,8 @@ from paho.mqtt import client as mqtt_client
 from astral import LocationInfo
 from astral.sun import sun
 import requests
-from ip2geotools.databases.noncommercial import DbIpCity
+#import geoip2.database
+#from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import math
 from solarflow import Solarflow
@@ -121,11 +122,20 @@ class MyLocation:
         
         
     def getCoordinates(self) -> tuple:
-        res = DbIpCity.get(self.ip, api_key="free")
-        log.info(f"IP Address: {res.ip_address}")
-        log.info(f"Location: {res.city}, {res.region}, {res.country}")
-        log.info(f"Coordinates: (Lat: {res.latitude}, Lng: {res.longitude})")
-        return (res.latitude,res.longitude)
+        lat = lon = 0.0
+        try:
+            result = requests.get(f'http://ip-api.com/json/{self.ip}')
+            response = result.json()
+            log.info(response)
+            log.info(f'IP Address: {self.ip}')
+            log.info(f'Location: {response["city"]}, {response["regionName"]}, {response["country"]}')
+            log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]}')
+            lat = response["lat"]
+            lon = response["lon"]
+        except:
+            log.error(f'Can\'t determine location from my IP {self.ip}. Location detection failed, no accurate sunrise/sunset detection possible')
+
+        return (lat,lon)
 
 def on_message(client, userdata, msg):
     #delegate message handling to hub,smartmeter, dtu
@@ -183,9 +193,11 @@ def limitedRise(x) -> int:
 
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
 def getDirectPanelLimit(inv, hub, smt) -> int:
-    direct_panel_power = inv.getDirectDCPower()
+    # if hub is in bypass mode we can treat it just like a direct panel
+    direct_panel_power = inv.getDirectDCPower() + inv.getHubDCPower() if hub.getBypass() else 0
     if direct_panel_power < MAX_INVERTER_LIMIT:
-        return math.ceil(max(inv.getDirectDCPowerValues())) if smt.getPower() < 0 else limitedRise(max(inv.getDirectDCPowerValues()))
+        dc_values = inv.getDirectDCPowerValues() + inv.getHubDCPowerValues() if hub.getBypass() else inv.getDirectDCPowerValues()
+        return math.ceil(max(dc_values)) if smt.getPower() < 0 else limitedRise(max(dc_values))
     else:
         return int(MAX_INVERTER_LIMIT*(inv.getNrHubChannels()/inv.getNrTotalChannels()))
 
@@ -217,12 +229,14 @@ def getSFPowerLimit(hub, demand) -> int:
             path += "2."                                     
             limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 else hub_solarpower - MIN_CHARGE_POWER
             # slower charging at the end, as it often happens to jump, waiting for bypass
-            limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
+            # Issue #140 as the hubs SoC reporting is somewhat inconsistent at the top end, remove slow charging
+            # limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
 
     # if the hub is currently in bypass mode, we do not want to limit the output in any way
     # Note: this seems to have changed with FW 2.0.33 as before in bypass mode the limit was ignored, now it isn't
     if hub.bypass:
-        limit = MAX_INVERTER_LIMIT
+        #limit = MAX_INVERTER_LIMIT
+        limit = limitedRise(hub.getSolarInputPower())
 
     # get battery Soc at sunset/sunrise
     td = timedelta(minutes = 1)
@@ -250,8 +264,8 @@ def limitHomeInput(client: mqtt_client):
     if not(hub.ready() and inv.ready() and smt.ready()):
         return
         
-    grid_power = smt.getPower()
-    inv_acpower = inv.getACPower()
+    grid_power = smt.getPredictedPower()
+    inv_acpower = inv.getPredictedACPower()
     demand = grid_power + inv_acpower if (grid_power > 0) else 0 
 
     inv_limit = 0
@@ -317,6 +331,9 @@ def getOpts(configtype) -> dict:
         opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
     return opts
 
+def limit_callback(client: mqtt_client):
+    #log.info("Smartmeter Callback!")
+    limitHomeInput(client)
 
 def run():
     client = connect_mqtt()
@@ -325,22 +342,23 @@ def run():
 
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
-    dtu = dtuType(client=client,**dtu_opts)
+    dtu = dtuType(client=client,ac_limit=MAX_INVERTER_LIMIT,callback=limit_callback,**dtu_opts)
 
     smtType = getattr(smartmeters, SMT_TYPE)
     smt_opts = getOpts(smtType)
-    smt = smtType(client=client,**smt_opts)
+    smt = smtType(client=client,callback=limit_callback, **smt_opts)
 
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
 
-    client.loop_start()
+    #client.loop_start()
+    client.loop_forever()
 
-    while True:
-        time.sleep(steering_interval)
-        limitHomeInput(client)
+    #while True:
+    #    time.sleep(steering_interval)
+    #    limitHomeInput(client)
         
-    client.loop_stop()
+    #client.loop_stop()
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd

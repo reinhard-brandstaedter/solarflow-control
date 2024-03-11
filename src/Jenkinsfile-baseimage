@@ -18,8 +18,8 @@ pipeline {
             steps {
                 sh 'printenv'
                 dir("${env.WORKSPACE}/src"){
-                    sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,linux/arm/v6 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
-                    sh label: 'Build Base Image', script: 'docker -H ${DOCKER_HOST} buildx build  --push --platform linux/amd64,linux/arm/v6 -t ${DOCKER_REGISTRY}/solarflow-control-baseimage:latest -f Dockerfile-baseimage .'
+                    sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
+                    sh label: 'Build Base Image', script: 'docker -H ${DOCKER_HOST} buildx build  --push --platform linux/amd64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control-baseimage:${BRANCH_NAME} -f Dockerfile-baseimage .'
                 }
             }
         }

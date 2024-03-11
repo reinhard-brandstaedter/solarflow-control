@@ -15,7 +15,10 @@ log = logging.getLogger("")
 class Smartmeter:
     opts = {"base_topic":str, "cur_accessor":str, "total_accessor":str, "rapid_change_diff":int}
 
-    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500):
+    def default_calllback(self):
+        log.info("default callback")
+
+    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500, callback = default_calllback):
         self.client = client
         self.base_topic = base_topic
         self.power = TimewindowBuffer(minutes=1)
@@ -23,13 +26,15 @@ class Smartmeter:
         self.cur_accessor = cur_accessor
         self.total_accessor = total_accessor
         self.rapid_change_diff = rapid_change_diff
+        self.last_trigger_value = 0
+        self.trigger_callback = callback
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Current power accessor: {self.cur_accessor}, Total power accessor: {self.total_accessor}')
 
     
     def __str__(self):
         return ' '.join(f'{green}SMT: \
                         T:{self.__class__.__name__} \
-                        P:{sum(self.phase_values.values()):>3.1f}W {self.power}{reset}'.split())
+                        P:{sum(self.phase_values.values()):>3.1f}W {self.power} Predict: {self.getPredictedPower():>3.1f}W{reset}'.split())
                         
     def subscribe(self):
         topics = [f'{self.base_topic}']
@@ -43,7 +48,8 @@ class Smartmeter:
     def updPower(self):
         phase_sum = sum(self.phase_values.values())
         # rapid change detection
-        diff = phase_sum - self.getPower()
+        diff = (phase_sum if phase_sum < 1000 else 1000) - self.getPower()
+
         if diff > self.rapid_change_diff:
             log.info("Rapid rise in demand detected, clearing buffer!")
             self.power.clear()
@@ -54,6 +60,14 @@ class Smartmeter:
         # demand drops from short high-consumption spikes are faster settled
         self.power.add(phase_sum if phase_sum < 1000 else 1000)
         self.client.publish("solarflow-hub/smartmeter/homeUsage",phase_sum)
+        self.client.publish("solarflow-hub/smartmeter/homeUsagePredicted",int(round(self.getPredictedPower())))
+
+        # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
+        predicted = self.getPredictedPower()
+        if abs(predicted - self.last_trigger_value) >= 10:
+            log.info(f'SMT triggers limit function: {predicted} : {self.last_trigger_value}')
+            self.last_trigger_value = predicted
+            self.trigger_callback(self.client)
 
     def handleMsg(self, msg):
         if msg.topic.startswith(self.base_topic) and msg.payload:
@@ -74,18 +88,24 @@ class Smartmeter:
 
     def getPower(self):
         return self.power.qwavg()
+    
+    def getPredictedPower(self):
+        return self.power.predict()[0]
 
 
 class Poweropti(Smartmeter):
     POWEROPTI_API = "https://backend.powerfox.energy/api/2.0/my/main/current"
-    opts = {"poweropti_user":str, "poweropti_password":str}
+    opts = {"poweropti_user":str, "poweropti_password":str, "rapid_change_diff":int}
 
-    def __init__(self, client: mqtt_client, poweropti_user:str, poweropti_password:str):
+    def __init__(self, client: mqtt_client, poweropti_user:str, poweropti_password:str, rapid_change_diff:int = 500, callback = Smartmeter.default_calllback):
         self.client = client
         self.user = poweropti_user
         self.password = poweropti_password
         self.power = TimewindowBuffer(minutes=1)
         self.phase_values = {}
+        self.rapid_change_diff = rapid_change_diff
+        self.last_trigger_value = 0
+        self.trigger_callback = callback
         self.session = None
 
     def pollPowerfoxAPI(self):
@@ -112,13 +132,16 @@ class Poweropti(Smartmeter):
         pass
 
 class ShellyEM3(Smartmeter):
-    opts = {"base_topic":str}
+    opts = {"base_topic":str, "rapid_change_diff":int}
 
-    def __init__(self, client: mqtt_client, base_topic:str):
+    def __init__(self, client: mqtt_client, base_topic:str, rapid_change_diff:int = 500, callback = Smartmeter.default_calllback):
         self.client = client
         self.base_topic = base_topic
         self.power = TimewindowBuffer(minutes=1)
         self.phase_values = {}
+        self.rapid_change_diff = rapid_change_diff
+        self.last_trigger_value = 0
+        self.trigger_callback = callback
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}')
 
     def subscribe(self):
@@ -131,13 +154,16 @@ class ShellyEM3(Smartmeter):
             log.info(f'Shelly3EM subscribing: {t}')
 
 class VZLogger(Smartmeter):
-    opts = {"cur_usage_topic":str}
+    opts = {"cur_usage_topic":str, "rapid_change_diff":int}
 
-    def __init__(self, client: mqtt_client, cur_usage_topic:str):
+    def __init__(self, client: mqtt_client, cur_usage_topic:str, rapid_change_diff:int = 500, callback = Smartmeter.default_calllback):
         self.client = client
         self.base_topic = cur_usage_topic
         self.power = TimewindowBuffer(minutes=1)
         self.phase_values = {}
+        self.rapid_change_diff = rapid_change_diff
+        self.last_trigger_value = 0
+        self.trigger_callback = callback
         log.info(f'Using {type(self).__name__}: Current Usage Topic: {self.base_topic}')
 
     def subscribe(self):

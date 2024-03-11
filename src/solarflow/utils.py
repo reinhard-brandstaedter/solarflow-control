@@ -1,8 +1,13 @@
 from datetime import datetime
+from datetime import timedelta
 from functools import reduce
 from threading import Timer
 import logging
 import sys
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -52,6 +57,10 @@ class TimewindowBuffer:
             else:
                 break
 
+    # most recent measurement
+    def last(self) -> float:
+        return self.values[-1][1]
+    
     # standard moving average
     def avg(self) -> float:
         n = len(self.values)
@@ -72,6 +81,24 @@ class TimewindowBuffer:
     
     def clear(self):
         self.values = []
+
+    def predict(self) -> []:
+        if len(self.values) >= 5:
+            data = {'X': [i for i,v in enumerate(self.values)],
+                    'y': [v[1] for i,v in enumerate(self.values)]}
+            df = pd.DataFrame(data)
+            X = df["X"]
+            X = np.array(X).reshape(-1,1)
+            y = df["y"]
+
+            model = LinearRegression()
+            model.fit(X,y)
+
+            y_pred = model.predict(np.array([[5]]))
+
+            return list(map(lambda x: round(x,1), y_pred))
+        else:
+            return [self.values[-1][1]] if len(self.values) > 0 else [0]
 
     
 def deep_get(dictionary, keys, default=None):
