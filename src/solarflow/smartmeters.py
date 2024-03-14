@@ -49,6 +49,7 @@ class Smartmeter:
         phase_sum = sum(self.phase_values.values())
         # rapid change detection
         diff = (phase_sum if phase_sum < 1000 else 1000) - self.getPower()
+
         if diff > self.rapid_change_diff:
             log.info("Rapid rise in demand detected, clearing buffer!")
             self.power.clear()
