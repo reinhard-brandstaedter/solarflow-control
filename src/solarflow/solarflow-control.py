@@ -333,6 +333,7 @@ def getOpts(configtype) -> dict:
     return opts
 
 def limit_callback(client: mqtt_client):
+    global lastTriggerTS
     #log.info("Smartmeter Callback!")
     now = datetime.now()
     elapsed = now - lastTriggerTS
