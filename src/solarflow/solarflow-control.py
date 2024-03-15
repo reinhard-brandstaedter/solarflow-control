@@ -289,10 +289,17 @@ def limitHomeInput(client: mqtt_client):
         log.info(f'Checking if Solarflow is willing to contribute {remainder:.1f}W ...')
         sf_contribution = getSFPowerLimit(hub,remainder)
 
-        hub_limit = hub.setOutputLimit(sf_contribution)
-        log.info(f'Solarflow is willing to contribute {hub_limit:.1f}W!')
-        direct_limit = getDirectPanelLimit(inv,hub,smt)
-        log.info(f'Direct connected panel limit is {direct_limit}W.')
+        # if the hub's contribution (per channel) is larger than what the direct panels max is delivering (night, low light)
+        # then we can open the hub to max limit and use the inverter to limit it's output (more precise)
+        if sf_contribution/inv.getNrHubChannels() > max(inv.getDirectDCPowerValues):
+            log.info(f'Hub should contribute more ({sf_contribution:.1f}W) than what we currently get from panels ({direct_panel_power:.1f}W), we will use the inverter for fast/precise limiting!')
+            hub_limit = hub.setOutputLimit(MAX_INVERTER_INPUT)
+            direct_limit = sf_contribution/inv.getNrHubChannels()
+        else:
+            hub_limit = hub.setOutputLimit(sf_contribution)
+            log.info(f'Solarflow is willing to contribute {hub_limit:.1f}W!')
+            direct_limit = getDirectPanelLimit(inv,hub,smt)
+            log.info(f'Direct connected panel limit is {direct_limit}W.')
 
         limit = direct_limit
 
