@@ -12,6 +12,7 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 AC_LEGAL_LIMIT = 1000
+TRIGGER_DIFF = 30
 
 class DTU:
     opts = {"base_topic":str, "sf_inverter_channels":list}
@@ -68,7 +69,7 @@ class DTU:
 
         # TODO: experimental, trigger limit calculation only on significant changes of DC power prediction
         predicted = self.getPredictedDCPower()
-        if abs(predicted - self.last_trigger_value) >= 5:
+        if abs(predicted - self.last_trigger_value) >= TRIGGER_DIFF:
             log.info(f'DTU triggers limit function: {predicted} : {self.last_trigger_value}')
             self.last_trigger_value = predicted
             self.trigger_callback(self.client)
