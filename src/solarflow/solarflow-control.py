@@ -108,6 +108,7 @@ location: LocationInfo
 
 client_id = f'solarflow-ctrl-{random.randint(0, 100)}'
 
+lastTriggerTS = datetime.now()
 
 class MyLocation:
     ip = ""
@@ -333,7 +334,15 @@ def getOpts(configtype) -> dict:
 
 def limit_callback(client: mqtt_client):
     #log.info("Smartmeter Callback!")
-    limitHomeInput(client)
+    now = datetime.now()
+    elapsed = now - lastTriggerTS
+    # ensure the limit function is not called too often (avoid flooding DTUs)
+    if elapsed.total_seconds() >= 10:
+        lastTriggerTS = now
+        limitHomeInput(client)
+    else:
+        log.info(f'Rate limit on trigger function, last call was only {elapsed.total_seconds()}s ago!')
+
 
 def run():
     client = connect_mqtt()
