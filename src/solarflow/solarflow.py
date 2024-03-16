@@ -33,7 +33,7 @@ class Solarflow:
         self.batteriesSoC = {"none":-1}    # state of charge for individual batteries
         self.batteriesVol = {"none":-1}    # voltage for individual batteries
         self.outputLimit = -1           # power limit for home output
-        self.outputLimitBuffer = TimewindowBuffer(minutes=2)
+        self.outputLimitBuffer = TimewindowBuffer(minutes=1)
         self.lastFullTS = None          # keep track of last time the battery pack was full (100%)
         self.lastEmptyTS = None         # keep track of last time the battery pack was empty (0%)
         self.lastSolarInputTS = None    # time of the last received solar input value
@@ -258,15 +258,6 @@ class Solarflow:
     def setOutputLimit(self, limit:int):
         if limit < 0:
             limit = 0
-        # currently the hub doesn't support single steps for limits below 100
-        # to get a fine granular steering at this level we need to fall back to the inverter limit
-        # if controlling the inverter is not possible we should stick to either 0 or 100W
-        if limit <= 100:
-            #limitInverter(client,limit)
-            #log.info(f'The output limit would be below 100W ({limit}W). Would need to limit the inverter to match it precisely')
-            m = divmod(limit,30)[0]
-            r = divmod(limit,30)[1]
-            limit = 30 * m + 30 * (r // 15)
         
         # If battery SoC reaches 0% during night, it has been observed that in the morning with first light, residual energy in the batteries gets released
         # Hub goes then into error and no charging occurs (probably deep discharge assumed by the battery).
@@ -287,7 +278,17 @@ class Solarflow:
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
         self.outputLimitBuffer.add(limit)
-        limit = int(self.outputLimitBuffer.last())
+        limit = int(self.outputLimitBuffer.qwavg())
+
+        # currently the hub doesn't support single steps for limits below 100
+        # to get a fine granular steering at this level we need to fall back to the inverter limit
+        # if controlling the inverter is not possible we should stick to either 0 or 100W
+        if limit <= 100:
+            #limitInverter(client,limit)
+            #log.info(f'The output limit would be below 100W ({limit}W). Would need to limit the inverter to match it precisely')
+            m = divmod(limit,30)[0]
+            r = divmod(limit,30)[1]
+            limit = 30 * m + 30 * (r // 15)
 
         outputlimit = {"properties": { "outputLimit": limit }}
         if self.outputLimit != limit:

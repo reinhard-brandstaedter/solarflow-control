@@ -108,7 +108,7 @@ location: LocationInfo
 
 client_id = f'solarflow-ctrl-{random.randint(0, 100)}'
 
-lastTriggerTS = datetime.now()
+lastTriggerTS:datetime = None
 
 class MyLocation:
     ip = ""
@@ -273,11 +273,11 @@ def limitHomeInput(client: mqtt_client):
     hub_limit = 0
 
     direct_panel_power = inv.getDirectDCPower()
-    if demand <= direct_panel_power:
+    if demand < direct_panel_power:
         # we can conver demand with direct panel power, just use all of it
         inv_limit = inv.setLimit(getDirectPanelLimit(inv,hub,smt))
         hub_limit = hub.setOutputLimit(0)
-    if demand > direct_panel_power:
+    if demand >= direct_panel_power:
         # the remainder should come from SFHub, in case the remainder is greater than direct panels power
         # we need to make sure the inverter limit is set accordingly high
         remainder = demand-direct_panel_power
@@ -291,7 +291,7 @@ def limitHomeInput(client: mqtt_client):
 
         # if the hub's contribution (per channel) is larger than what the direct panels max is delivering (night, low light)
         # then we can open the hub to max limit and use the inverter to limit it's output (more precise)
-        if sf_contribution/inv.getNrHubChannels() > max(inv.getDirectDCPowerValues()):
+        if sf_contribution/inv.getNrHubChannels() >= max(inv.getDirectDCPowerValues()):
             log.info(f'Hub should contribute more ({sf_contribution:.1f}W) than what we currently get from panels ({direct_panel_power:.1f}W), we will use the inverter for fast/precise limiting!')
             hub_limit = hub.setOutputLimit(MAX_INVERTER_INPUT)
             direct_limit = sf_contribution/inv.getNrHubChannels()
@@ -343,13 +343,17 @@ def limit_callback(client: mqtt_client):
     global lastTriggerTS
     #log.info("Smartmeter Callback!")
     now = datetime.now()
-    elapsed = now - lastTriggerTS
-    # ensure the limit function is not called too often (avoid flooding DTUs)
-    if elapsed.total_seconds() >= 10:
+    if lastTriggerTS:
+        elapsed = now - lastTriggerTS
+        # ensure the limit function is not called too often (avoid flooding DTUs)
+        if elapsed.total_seconds() >= 10:
+            lastTriggerTS = now
+            limitHomeInput(client)
+        else:
+            log.info(f'Rate limit on trigger function, last call was only {elapsed.total_seconds()}s ago!')
+    else:
         lastTriggerTS = now
         limitHomeInput(client)
-    else:
-        log.info(f'Rate limit on trigger function, last call was only {elapsed.total_seconds()}s ago!')
 
 
 def run():
