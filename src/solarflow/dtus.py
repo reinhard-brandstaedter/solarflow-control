@@ -33,7 +33,7 @@ class DTU:
         self.limitAbsolute = 0
         self.limitRelative = -1
         self.maxPowerValues = []
-        self.maxPower = 0
+        self.maxPower = -1
         self.limitAbsoluteBuffer = TimewindowBuffer(minutes=1)
         self.producing = True
         self.reachable = True
@@ -181,7 +181,7 @@ class DTU:
         inv_limit = int(math.ceil(self.limitAbsoluteBuffer.last() / 2.) * 2)
 
         # Avoid setting limit higher than 150% of inverter capacity
-        inv_limit = self.maxPower*1.5 if inv_limit > self.maxPower*1.5 else inv_limit
+        inv_limit = self.maxPower*1.5 if (inv_limit > self.maxPower*1.5 and self.maxPower > 0) else inv_limit
 
         # it could be that maxPower has not yet been detected resulting in a zero limit
         inv_limit = 10 if inv_limit < 10 else int(inv_limit)
