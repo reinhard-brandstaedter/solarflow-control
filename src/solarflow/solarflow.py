@@ -33,7 +33,7 @@ class Solarflow:
         self.batteriesSoC = {"none":-1}    # state of charge for individual batteries
         self.batteriesVol = {"none":-1}    # voltage for individual batteries
         self.outputLimit = -1           # power limit for home output
-        self.outputLimitBuffer = TimewindowBuffer(minutes=2)
+        self.outputLimitBuffer = TimewindowBuffer(minutes=1)
         self.lastFullTS = None          # keep track of last time the battery pack was full (100%)
         self.lastEmptyTS = None         # keep track of last time the battery pack was empty (0%)
         self.lastSolarInputTS = None    # time of the last received solar input value
@@ -287,7 +287,7 @@ class Solarflow:
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
         self.outputLimitBuffer.add(limit)
-        limit = int(self.outputLimitBuffer.last())
+        limit = int(self.outputLimitBuffer.qwavg())
 
         outputlimit = {"properties": { "outputLimit": limit }}
         if self.outputLimit != limit:
