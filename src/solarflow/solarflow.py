@@ -264,6 +264,8 @@ class Solarflow:
         # Hence setting the output limit 0 if SoC 0%
         if self.electricLevel == 0:
             limit = 0
+            log.info(f'Battery is empty! Disabling solaraflow output, setting limit to {limit}')
+            
 
         # Charge-Through:
         # If charge-through is enabled the hub will not provide any power if the last full state is to long ago
