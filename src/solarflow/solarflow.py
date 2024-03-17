@@ -46,6 +46,8 @@ class Solarflow:
         self.sunsetSoC = None
         self.nightConsumption = 100
 
+        self.lastLimitTS = None
+
     def __str__(self):
         batteries_soc = "|".join([f'{v:>2}' for v in self.batteriesSoC.values()])
         batteries_vol = "|".join([f'{v:2.1f}' for v in self.batteriesVol.values()])
@@ -256,6 +258,19 @@ class Solarflow:
                     log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
     def setOutputLimit(self, limit:int):
+        # since the hub is slow in adoption we should not try to set the limit too frequently
+        # 30-45s seems ok
+        now = datetime.now()
+        if self.lastLimitTS:
+            elapsed = now - self.lastLimitTS
+            if elapsed.total_seconds() < 45:
+                log.info(f'Hub has just recently adjustet limit, need to wait until it is set again! Current limit: {self.outputLimit}, new limit: {limit}')
+                return self.outputLimit
+            else:
+                self.lastLimitTS = now
+        else:
+            self.lastTriggerTS = now
+
         if limit < 0:
             limit = 0
         

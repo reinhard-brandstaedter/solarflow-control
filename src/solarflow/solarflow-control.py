@@ -51,6 +51,8 @@ mqtt_pwd = config.get('mqtt', 'mqtt_pwd', fallback=None) or os.environ.get('MQTT
 mqtt_host = config.get('mqtt', 'mqtt_host', fallback=None) or os.environ.get('MQTT_HOST',None)
 mqtt_port = config.getint('mqtt', 'mqtt_port', fallback=None) or os.environ.get('MQTT_PORT',1883)
 
+# how frequently we allow triggering the limit function (seconds)
+TRIGGER_RATE_LIMIT = 10
 
 DTU_TYPE =              config.get('global', 'dtu_type', fallback=None) \
                         or os.environ.get('DTU_TYPE',"OpenDTU")
@@ -346,7 +348,7 @@ def limit_callback(client: mqtt_client):
     if lastTriggerTS:
         elapsed = now - lastTriggerTS
         # ensure the limit function is not called too often (avoid flooding DTUs)
-        if elapsed.total_seconds() >= 10:
+        if elapsed.total_seconds() >= TRIGGER_RATE_LIMIT:
             lastTriggerTS = now
             limitHomeInput(client)
         else:
