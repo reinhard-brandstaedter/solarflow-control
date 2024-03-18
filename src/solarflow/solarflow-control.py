@@ -355,7 +355,7 @@ def limit_callback(client: mqtt_client):
             lastTriggerTS = now
             limitHomeInput(client)
         else:
-            log.info(f'Rate limit on trigger function, last call was only {elapsed.total_seconds()}s ago!')
+            log.info(f'Rate limit on trigger function, last call was only {elapsed.total_seconds():.1f}s ago!')
     else:
         lastTriggerTS = now
         limitHomeInput(client)
