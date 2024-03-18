@@ -48,7 +48,20 @@ class TimewindowBuffer:
 
     def add(self,value):
         now = datetime.now()
-        self.values.append((now,value))
+
+        if len(self.values) > 2:
+            last_ts = self.values[-1][0]
+            prev_ts = self.values[-2][0]
+            diff = prev_ts - last_ts
+            if diff.total_seconds() < 10:
+                # a 10s weighted moving average for fast series
+                self.values[-1] = (now,(value*2+self.last())/3)     
+            else:
+                self.values.append((now,value))
+        else:
+            self.values.append((now,value))
+
+        # remove older values
         while True:
             first_ts = self.values[0][0]
             diff = now - first_ts
@@ -59,6 +72,8 @@ class TimewindowBuffer:
 
     # most recent measurement
     def last(self) -> float:
+        n = len(self.values)
+        if n == 0: return 0
         return self.values[-1][1]
     
     # standard moving average
