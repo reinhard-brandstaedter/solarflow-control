@@ -284,6 +284,7 @@ class AhoyDTU(DTU):
                 case "status":
                     self.updProducing(value)
                 case "active_PowerLimit":
+                    self.updLimitRelative(value)
                     self.updLimitAbsolute(self.inverter_max_power*value/100)
                 case "P_DC":
                     channel = int(msg.topic.split('/')[-2][-1])
