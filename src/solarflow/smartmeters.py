@@ -6,7 +6,7 @@ import sys
 from utils import TimewindowBuffer, RepeatedTimer, deep_get
 import requests
 
-TRIGGER_DIFF = 30
+TRIGGER_DIFF = 10
 
 green = "\x1b[33;32m"
 reset = "\x1b[0m"

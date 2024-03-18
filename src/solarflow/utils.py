@@ -52,9 +52,10 @@ class TimewindowBuffer:
         if len(self.values) > 2:
             last_ts = self.values[-1][0]
             prev_ts = self.values[-2][0]
-            diff = prev_ts - last_ts
+            diff = last_ts - prev_ts
             if diff.total_seconds() < 10:
                 # a 10s weighted moving average for fast series
+                log.debug(f'adding value {value} that is less than 10s {diff.total_seconds():.1f} from last value {self.last()}')
                 self.values[-1] = (now,round((value*2+self.last())/3,1))     
             else:
                 self.values.append((now,value))
@@ -108,8 +109,9 @@ class TimewindowBuffer:
 
             model = LinearRegression()
             model.fit(X,y)
-
-            y_pred = model.predict(np.array([[1]]))
+            
+            y_pred = model.predict(np.array([[6]]))
+            log.debug(f'prediction of {self}: {y_pred}')
 
             return list(map(lambda x: round(x,1), y_pred))
         else:
