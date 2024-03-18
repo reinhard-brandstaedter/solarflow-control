@@ -55,7 +55,7 @@ class TimewindowBuffer:
             diff = prev_ts - last_ts
             if diff.total_seconds() < 10:
                 # a 10s weighted moving average for fast series
-                self.values[-1] = (now,(value*2+self.last())/3)     
+                self.values[-1] = (now,round((value*2+self.last())/3,1))     
             else:
                 self.values.append((now,value))
         else:
@@ -109,7 +109,7 @@ class TimewindowBuffer:
             model = LinearRegression()
             model.fit(X,y)
 
-            y_pred = model.predict(np.array([[5]]))
+            y_pred = model.predict(np.array([[1]]))
 
             return list(map(lambda x: round(x,1), y_pred))
         else:
