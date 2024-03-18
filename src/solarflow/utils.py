@@ -109,7 +109,7 @@ class TimewindowBuffer:
 
             model = LinearRegression()
             model.fit(X,y)
-
+            
             y_pred = model.predict(np.array([[6]]))
             log.debug(f'prediction of {self}: {y_pred}')
 
