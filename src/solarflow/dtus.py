@@ -260,7 +260,7 @@ class AhoyDTU(DTU):
         super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels,ac_limit=ac_limit, callback=callback)
         self.base_topic = f'{base_topic}'
         self.inverter_name = inverter_name
-        self.inverter_max_power = inverter_max_power
+        self.inverter_max_power = self.maxPower = inverter_max_power
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}/{inverter_id}'
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}')
 
