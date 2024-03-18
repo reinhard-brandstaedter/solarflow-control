@@ -12,6 +12,7 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 AC_LEGAL_LIMIT = 1000
+TRIGGER_DIFF = 30
 
 class DTU:
     opts = {"base_topic":str, "sf_inverter_channels":list}
@@ -32,7 +33,7 @@ class DTU:
         self.limitAbsolute = 0
         self.limitRelative = -1
         self.maxPowerValues = []
-        self.maxPower = 0
+        self.maxPower = -1
         self.limitAbsoluteBuffer = TimewindowBuffer(minutes=1)
         self.producing = True
         self.reachable = True
@@ -68,7 +69,7 @@ class DTU:
 
         # TODO: experimental, trigger limit calculation only on significant changes of DC power prediction
         predicted = self.getPredictedDCPower()
-        if abs(predicted - self.last_trigger_value) >= 5:
+        if abs(predicted - self.last_trigger_value) >= TRIGGER_DIFF:
             log.info(f'DTU triggers limit function: {predicted} : {self.last_trigger_value}')
             self.last_trigger_value = predicted
             self.trigger_callback(self.client)
@@ -177,10 +178,10 @@ class DTU:
 
         self.limitAbsoluteBuffer.add(inv_limit)
         # OpenDTU and AhoysDTU expect even limits?
-        inv_limit = int(math.ceil(self.limitAbsoluteBuffer.wavg() / 2.) * 2)
+        inv_limit = int(math.ceil(self.limitAbsoluteBuffer.qwavg() / 2.) * 2)
 
         # Avoid setting limit higher than 150% of inverter capacity
-        inv_limit = self.maxPower*1.5 if inv_limit > self.maxPower*1.5 else inv_limit
+        inv_limit = self.maxPower*1.5 if (inv_limit > self.maxPower*1.5 and self.maxPower > 0) else inv_limit
 
         # it could be that maxPower has not yet been detected resulting in a zero limit
         inv_limit = 10 if inv_limit < 10 else int(inv_limit)

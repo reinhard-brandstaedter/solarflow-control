@@ -6,6 +6,8 @@ import sys
 from utils import TimewindowBuffer, RepeatedTimer, deep_get
 import requests
 
+TRIGGER_DIFF = 30
+
 green = "\x1b[33;32m"
 reset = "\x1b[0m"
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
@@ -64,7 +66,7 @@ class Smartmeter:
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
         predicted = self.getPredictedPower()
-        if abs(predicted - self.last_trigger_value) >= 10:
+        if abs(predicted - self.last_trigger_value) >= TRIGGER_DIFF:
             log.info(f'SMT triggers limit function: {predicted} : {self.last_trigger_value}')
             self.last_trigger_value = predicted
             self.trigger_callback(self.client)

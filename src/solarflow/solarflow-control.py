@@ -51,6 +51,8 @@ mqtt_pwd = config.get('mqtt', 'mqtt_pwd', fallback=None) or os.environ.get('MQTT
 mqtt_host = config.get('mqtt', 'mqtt_host', fallback=None) or os.environ.get('MQTT_HOST',None)
 mqtt_port = config.getint('mqtt', 'mqtt_port', fallback=None) or os.environ.get('MQTT_PORT',1883)
 
+# how frequently we allow triggering the limit function (seconds)
+TRIGGER_RATE_LIMIT = 10
 
 DTU_TYPE =              config.get('global', 'dtu_type', fallback=None) \
                         or os.environ.get('DTU_TYPE',"OpenDTU")
@@ -108,6 +110,7 @@ location: LocationInfo
 
 client_id = f'solarflow-ctrl-{random.randint(0, 100)}'
 
+lastTriggerTS:datetime = None
 
 class MyLocation:
     ip = ""
@@ -272,11 +275,14 @@ def limitHomeInput(client: mqtt_client):
     hub_limit = 0
 
     direct_panel_power = inv.getDirectDCPower()
-    if demand <= direct_panel_power:
+    # consider DC power of panels below 10W as 0 to avoid fluctuation in very low light.
+    direct_panel_power = 0 if direct_panel_power < 10 else direct_panel_power
+    
+    if demand < direct_panel_power:
         # we can conver demand with direct panel power, just use all of it
         inv_limit = inv.setLimit(getDirectPanelLimit(inv,hub,smt))
         hub_limit = hub.setOutputLimit(0)
-    if demand > direct_panel_power:
+    if demand >= direct_panel_power:
         # the remainder should come from SFHub, in case the remainder is greater than direct panels power
         # we need to make sure the inverter limit is set accordingly high
         remainder = demand-direct_panel_power
@@ -288,16 +294,23 @@ def limitHomeInput(client: mqtt_client):
         log.info(f'Checking if Solarflow is willing to contribute {remainder:.1f}W ...')
         sf_contribution = getSFPowerLimit(hub,remainder)
 
-        hub_limit = hub.setOutputLimit(sf_contribution)
-        log.info(f'Solarflow is willing to contribute {hub_limit:.1f}W!')
-        direct_limit = getDirectPanelLimit(inv,hub,smt)
-        log.info(f'Direct connected panel limit is {direct_limit}W.')
+        # if the hub's contribution (per channel) is larger than what the direct panels max is delivering (night, low light)
+        # then we can open the hub to max limit and use the inverter to limit it's output (more precise)
+        if sf_contribution/inv.getNrHubChannels() >= max(inv.getDirectDCPowerValues()):
+            log.info(f'Hub should contribute more ({sf_contribution:.1f}W) than what we currently get from panels ({direct_panel_power:.1f}W), we will use the inverter for fast/precise limiting!')
+            hub_limit = hub.setOutputLimit(MAX_INVERTER_LIMIT)
+            direct_limit = sf_contribution/inv.getNrHubChannels()
+        else:
+            hub_limit = hub.setOutputLimit(sf_contribution)
+            log.info(f'Solarflow is willing to contribute {hub_limit:.1f}W!')
+            direct_limit = getDirectPanelLimit(inv,hub,smt)
+            log.info(f'Direct connected panel limit is {direct_limit}W.')
 
         limit = direct_limit
 
         if hub_limit > direct_limit > hub_limit - 10:
             limit = hub_limit - 10
-        if direct_limit < hub_limit - 10:
+        if direct_limit < hub_limit - 10 and hub_limit < MAX_INVERTER_INPUT:
             limit = hub_limit - 10
   
         inv_limit = inv.setLimit(limit)
@@ -332,8 +345,21 @@ def getOpts(configtype) -> dict:
     return opts
 
 def limit_callback(client: mqtt_client):
+    global lastTriggerTS
     #log.info("Smartmeter Callback!")
-    limitHomeInput(client)
+    now = datetime.now()
+    if lastTriggerTS:
+        elapsed = now - lastTriggerTS
+        # ensure the limit function is not called too often (avoid flooding DTUs)
+        if elapsed.total_seconds() >= TRIGGER_RATE_LIMIT:
+            lastTriggerTS = now
+            limitHomeInput(client)
+        else:
+            log.info(f'Rate limit on trigger function, last call was only {elapsed.total_seconds()}s ago!')
+    else:
+        lastTriggerTS = now
+        limitHomeInput(client)
+
 
 def run():
     client = connect_mqtt()
