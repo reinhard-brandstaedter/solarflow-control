@@ -305,7 +305,7 @@ def limitHomeInput(client: mqtt_client):
         # then we can open the hub to max limit and use the inverter to limit it's output (more precise)
         if sf_contribution/inv.getNrHubChannels() >= max(inv.getDirectDCPowerValues()):
             log.info(f'Hub should contribute more ({sf_contribution:.1f}W) than what we currently get from panels ({direct_panel_power:.1f}W), we will use the inverter for fast/precise limiting!')
-            hub_limit = hub.setOutputLimit(MAX_INVERTER_LIMIT)
+            hub_limit = hub.setOutputLimit(MAX_DISCHARGE_POWER)
             direct_limit = sf_contribution/inv.getNrHubChannels()
         else:
             hub_limit = hub.setOutputLimit(sf_contribution)
@@ -317,7 +317,7 @@ def limitHomeInput(client: mqtt_client):
 
         if hub_limit > direct_limit > hub_limit - 10:
             limit = hub_limit - 10
-        if direct_limit < hub_limit - 10 and hub_limit < MAX_INVERTER_INPUT:
+        if direct_limit < hub_limit - 10 and hub_limit < MAX_DISCHARGE_POWER:
             limit = hub_limit - 10
   
         inv_limit = inv.setLimit(limit)
