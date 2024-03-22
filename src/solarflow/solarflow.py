@@ -269,7 +269,7 @@ class Solarflow:
             else:
                 self.lastLimitTS = now
         else:
-            self.lastTriggerTS = now
+            self.lastLimitTS = now
 
         if limit < 0:
             limit = 0
