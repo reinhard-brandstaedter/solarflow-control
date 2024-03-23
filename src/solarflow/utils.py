@@ -71,6 +71,10 @@ class TimewindowBuffer:
             else:
                 break
 
+    # number of entries in buffer
+    def len(self):
+        return len(self.values)
+    
     # most recent measurement
     def last(self) -> float:
         n = len(self.values)
