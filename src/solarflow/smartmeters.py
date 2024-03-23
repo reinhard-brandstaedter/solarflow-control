@@ -72,7 +72,7 @@ class Smartmeter:
             self.trigger_callback(self.client)
 
         # in case of a rapid change detected we only have one value and should trigger the limit function
-        if self.power.len == 1:
+        if self.power.len() == 1:
             self.last_trigger_value = self.power.last()
             self.trigger_callback(self.client)
 
