@@ -71,6 +71,11 @@ class Smartmeter:
             self.last_trigger_value = predicted
             self.trigger_callback(self.client)
 
+        # in case of a rapid change detected we only have one value and should trigger the limit function
+        if len(self.power) == 1:
+            self.last_trigger_value = self.power.last()
+            self.trigger_callback(self.client)
+
     def handleMsg(self, msg):
         if msg.topic.startswith(self.base_topic) and msg.payload:
             payload = json.loads(msg.payload.decode())
