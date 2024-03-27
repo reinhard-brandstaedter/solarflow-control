@@ -234,6 +234,8 @@ def getSFPowerLimit(hub, demand) -> int:
             # slower charging at the end, as it often happens to jump, waiting for bypass
             # Issue #140 as the hubs SoC reporting is somewhat inconsistent at the top end, remove slow charging
             # limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
+    if demand < 0:
+        limit = 0
 
     # if the hub is currently in bypass mode, we do not want to limit the output in any way
     # Note: this seems to have changed with FW 2.0.33 as before in bypass mode the limit was ignored, now it isn't
@@ -296,7 +298,7 @@ def limitHomeInput(client: mqtt_client):
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can\'t cover demand ({demand:.1f}W), trying to get rest from hub.')
         else:
             remainder = demand + inv.getACPower()
-            log.info(f'Grid feed in: {demand:.1f}W from {"battery, lowering limit to avoid it." if direct_panel_power == 0 else "direct panels."}')
+            log.info(f'Grid feed in: {demand:.1f}W from {"battery, lowering limit to avoid it." if direct_panel_power == 0 and inv.getHubDCPower() > 0 else "direct panels or other source."}')
         
         log.info(f'Checking if Solarflow is willing to contribute {remainder:.1f}W ...')
         sf_contribution = getSFPowerLimit(hub,remainder)
