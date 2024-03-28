@@ -189,6 +189,9 @@ class DTU:
         # it could be that maxPower has not yet been detected resulting in a zero limit
         inv_limit = 10 if inv_limit < 10 else int(inv_limit)
 
+        # it could be that maxPower has not yet been detected resulting in a zero limit
+        inv_limit = 10 if inv_limit < 10 else int(inv_limit)
+
         # failsafe: ensure that the inverter's AC output doesn't exceed acceptable legal limits
         # note this could mean that the inverter limit is still higher but it ensures that not too much power is generated
         if self.getACPower() > self.acLimit:

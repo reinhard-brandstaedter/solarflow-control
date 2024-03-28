@@ -234,6 +234,7 @@ def getSFPowerLimit(hub, demand) -> int:
             # slower charging at the end, as it often happens to jump, waiting for bypass
             # Issue #140 as the hubs SoC reporting is somewhat inconsistent at the top end, remove slow charging
             # limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
+
     if demand < 0:
         limit = 0
 
@@ -368,7 +369,6 @@ def limit_callback(client: mqtt_client):
     else:
         lastTriggerTS = now
         limitHomeInput(client)
-
 
 def run():
     client = connect_mqtt()

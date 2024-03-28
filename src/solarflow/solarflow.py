@@ -288,7 +288,6 @@ class Solarflow:
             limit = 0
             log.info(f'Battery is empty! Disabling solaraflow output, setting limit to {limit}')
             
-
         # Charge-Through:
         # If charge-through is enabled the hub will not provide any power if the last full state is to long ago
         # this ensures regular loading to 100% to avoid battery-drift
@@ -302,7 +301,7 @@ class Solarflow:
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
         self.outputLimitBuffer.add(limit)
-        limit = int(self.outputLimitBuffer.qwavg())
+        limit = int(self.outputLimitBuffer.wavg())
 
         # currently the hub doesn't support single steps for limits below 100
         # to get a fine granular steering at this level we need to fall back to the inverter limit
