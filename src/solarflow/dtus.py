@@ -12,6 +12,7 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 AC_LEGAL_LIMIT = 1000
+TRIGGER_DIFF = 30
 
 class DTU:
     opts = {"base_topic":str, "sf_inverter_channels":list}
@@ -32,7 +33,7 @@ class DTU:
         self.limitAbsolute = 0
         self.limitRelative = -1
         self.maxPowerValues = []
-        self.maxPower = 0
+        self.maxPower = -1
         self.limitAbsoluteBuffer = TimewindowBuffer(minutes=1)
         self.producing = True
         self.reachable = True
@@ -68,7 +69,7 @@ class DTU:
 
         # TODO: experimental, trigger limit calculation only on significant changes of DC power prediction
         predicted = self.getPredictedDCPower()
-        if abs(predicted - self.last_trigger_value) >= 5:
+        if abs(predicted - self.last_trigger_value) >= TRIGGER_DIFF:
             log.info(f'DTU triggers limit function: {predicted} : {self.last_trigger_value}')
             self.last_trigger_value = predicted
             self.trigger_callback(self.client)
@@ -166,6 +167,9 @@ class DTU:
             self.dryrun = bool(value)
         log.info(f'{self.__class__.__name__} set DryRun: {self.dryrun}')
 
+    def isWithin(self,a,b,range:int):
+        return b-range < a < b+range
+
     def setLimit(self, limit:int):
         # failsafe, never set the inverter limit to 0, keep a minimum
         # see: https://github.com/lumapu/ahoy/issues/1079
@@ -177,10 +181,13 @@ class DTU:
 
         self.limitAbsoluteBuffer.add(inv_limit)
         # OpenDTU and AhoysDTU expect even limits?
-        inv_limit = int(math.ceil(self.limitAbsoluteBuffer.wavg() / 2.) * 2)
+        #### inv_limit = int(math.ceil(self.limitAbsoluteBuffer.qwavg() / 2.) * 2)
 
         # Avoid setting limit higher than 150% of inverter capacity
-        inv_limit = self.maxPower*1.5 if inv_limit > self.maxPower*1.5 else inv_limit
+        inv_limit = self.maxPower*1.5 if (inv_limit > self.maxPower*1.5 and self.maxPower > 0) else inv_limit
+
+        # it could be that maxPower has not yet been detected resulting in a zero limit
+        inv_limit = 10 if inv_limit < 10 else int(inv_limit)
 
         # it could be that maxPower has not yet been detected resulting in a zero limit
         inv_limit = 10 if inv_limit < 10 else int(inv_limit)
@@ -193,7 +200,8 @@ class DTU:
             log.info("Current inverter AC output is higher than configured output limit (ac_limit), reducing limit to {inv_limit}")
             
         
-        if self.limitAbsolute != inv_limit and self.reachable:
+        #if self.limitAbsolute != inv_limit and self.reachable:
+        if not self.isWithin(inv_limit,self.limitAbsolute,5) and self.reachable:    
             (not self.dryrun) and self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
             #log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
             log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting inverter output limit to {inv_limit}W (1 min moving average of {limit}W x {len(self.channelsDCPower)-1})')
@@ -259,7 +267,7 @@ class AhoyDTU(DTU):
         super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels,ac_limit=ac_limit, callback=callback)
         self.base_topic = f'{base_topic}'
         self.inverter_name = inverter_name
-        self.inverter_max_power = inverter_max_power
+        self.inverter_max_power = self.maxPower = inverter_max_power
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}/{inverter_id}'
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}')
 
@@ -283,6 +291,7 @@ class AhoyDTU(DTU):
                 case "status":
                     self.updProducing(value)
                 case "active_PowerLimit":
+                    self.updLimitRelative(value)
                     self.updLimitAbsolute(self.inverter_max_power*value/100)
                 case "P_DC":
                     channel = int(msg.topic.split('/')[-2][-1])
