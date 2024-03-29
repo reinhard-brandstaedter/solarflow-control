@@ -369,7 +369,6 @@ def limit_callback(client: mqtt_client):
         lastTriggerTS = now
         limitHomeInput(client)
 
-
 def run():
     client = connect_mqtt()
     hub_opts = getOpts(Solarflow)
