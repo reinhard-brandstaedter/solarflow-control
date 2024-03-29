@@ -129,7 +129,7 @@ class MyLocation:
         try:
             result = requests.get(f'http://ip-api.com/json/{self.ip}')
             response = result.json()
-            log.info(response)
+            #log.info(response)
             log.info(f'IP Address: {self.ip}')
             log.info(f'Location: {response["city"]}, {response["regionName"]}, {response["country"]}')
             log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]}')
