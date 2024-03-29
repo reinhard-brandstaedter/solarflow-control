@@ -33,6 +33,7 @@ class Solarflow:
         self.batteriesSoC = {"none":-1}    # state of charge for individual batteries
         self.batteriesVol = {"none":-1}    # voltage for individual batteries
         self.outputLimit = -1           # power limit for home output
+        self.inverseMaxPower = 300      # maximum power sent to inverter from hub (read and updated from hub)
         self.outputLimitBuffer = TimewindowBuffer(minutes=1)
         self.lastFullTS = None          # keep track of last time the battery pack was full (100%)
         self.lastEmptyTS = None         # keep track of last time the battery pack was empty (0%)
@@ -75,6 +76,7 @@ class Solarflow:
             f'solarflow-hub/{self.deviceId}/telemetry/packInputPower',
             f'solarflow-hub/{self.deviceId}/telemetry/outputHomePower',
             f'solarflow-hub/{self.deviceId}/telemetry/outputLimit',
+            f'solarflow-hub/{self.deviceId}/telemetry/inverseMaxPower',
             f'solarflow-hub/{self.deviceId}/telemetry/masterSoftVersion',
             f'solarflow-hub/{self.deviceId}/telemetry/pass',
             f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/socLevel',
@@ -132,6 +134,9 @@ class Solarflow:
     
     def updOutputLimit(self, value:int):
         self.outputLimit = value
+    
+    def updInverseMaxPower(self, value:int):
+        self.inverseMaxPower = value
     
     def updBatterySoC(self, sn:str, value:int):
         self.batteriesSoC.pop("none",None)
@@ -234,6 +239,8 @@ class Solarflow:
                     self.updOutputHome(int(value))
                 case "outputLimit":
                     self.updOutputLimit(int(value))
+                case "inverseMaxPower":
+                    self.updInverseMaxPower(int(value))
                 case "socLevel":
                     sn = msg.topic.split('/')[-2]
                     self.updBatterySoC(sn=sn, value=int(value))
@@ -269,7 +276,7 @@ class Solarflow:
             else:
                 self.lastLimitTS = now
         else:
-            self.lastTriggerTS = now
+            self.lastLimitTS = now
 
         if limit < 0:
             limit = 0
@@ -281,7 +288,6 @@ class Solarflow:
             limit = 0
             log.info(f'Battery is empty! Disabling solaraflow output, setting limit to {limit}')
             
-
         # Charge-Through:
         # If charge-through is enabled the hub will not provide any power if the last full state is to long ago
         # this ensures regular loading to 100% to avoid battery-drift
@@ -295,7 +301,7 @@ class Solarflow:
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
         self.outputLimitBuffer.add(limit)
-        limit = int(self.outputLimitBuffer.qwavg())
+        limit = int(self.outputLimitBuffer.wavg())
 
         # currently the hub doesn't support single steps for limits below 100
         # to get a fine granular steering at this level we need to fall back to the inverter limit
@@ -343,6 +349,9 @@ class Solarflow:
     
     def getElectricLevel(self):
         return self.electricLevel
+    
+    def getInverseMaxPower(self):
+        return self.inverseMaxPower
     
     def getBypass(self):
         return self.bypass
