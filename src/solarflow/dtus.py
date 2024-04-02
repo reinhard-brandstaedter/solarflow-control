@@ -68,9 +68,12 @@ class DTU:
             self.channelsDCPower[channel] = value
 
         # TODO: experimental, trigger limit calculation only on significant changes of DC power prediction
-        predicted = self.getPredictedDCPower()
-        if abs(predicted - self.last_trigger_value) >= TRIGGER_DIFF:
-            log.info(f'DTU triggers limit function: {predicted} : {self.last_trigger_value}')
+        predicted = self.getPredictedACPower()
+        # inverter cannot produce negative values
+        predicted = 0 if predicted < 0 else predicted
+
+        if abs(predicted - self.acPower.last()) >= TRIGGER_DIFF:
+            log.info(f'DTU triggers limit function: {self.acPower.last()} -> {predicted}')
             self.last_trigger_value = predicted
             self.trigger_callback(self.client)
         

@@ -61,7 +61,8 @@ class Smartmeter:
         # by recording smartmeter usage only up to a certain max power we can ensure that
         # demand drops from short high-consumption spikes are faster settled
         self.power.add(phase_sum if phase_sum < 1000 else 1000)
-        self.client.publish("solarflow-hub/smartmeter/homeUsage",phase_sum)
+        self.client.publish("solarflow-hub/smartmeter/homeUsage",int(round(phase_sum)))
+        self.client.publish("solarflow-hub/smartmeter/homeUsageSmoothened", int(round(self.power.last())))
         self.client.publish("solarflow-hub/smartmeter/homeUsagePredicted",int(round(self.getPredictedPower())))
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
