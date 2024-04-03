@@ -277,7 +277,7 @@ def limitHomeInput(client: mqtt_client):
     direct_panel_power = 0 if direct_panel_power < 10 else direct_panel_power
 
     grid_power = smt.getPredictedPower()
-    inv_acpower = inv.getPredictedACPower()
+    inv_acpower = inv.getCurrentACPower()
     # if direct panels are producing more than what is needed we are ok to feed in
     if direct_panel_power > 0:
         demand = grid_power + inv_acpower if (grid_power > 0) else 0 
