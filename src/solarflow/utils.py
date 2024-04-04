@@ -38,73 +38,83 @@ class RepeatedTimer:
         self._timer.cancel()
         self.is_running = False
 
+def isExpired(value, now, maxage):
+    diff = now - value[0]
+    return diff.total_seconds() < maxage
+
+
 class TimewindowBuffer:
     def __init__(self, minutes: int = 2):
-        self.values = []
+        self.aggregated_values = []
         self.minutes = minutes
+        self.values = []
 
     def __str__(self):
-        return "[ " + ",".join([f'{v[1]:>3.1f}' for v in self.values]) + " ]"
+        return "[ " + ",".join([f'{v:>3.1f}' for v in self.aggregated_values]) + " ]"
+
 
     def add(self,value):
         now = datetime.now()
+        self.values.append((now,value))
 
-        if len(self.values) > 2:
-            last_ts = self.values[-1][0]
-            prev_ts = self.values[-2][0]
-            diff = last_ts - prev_ts
-            if diff.total_seconds() < 10:
-                # a 10s weighted moving average for fast series
-                log.debug(f'adding value {value} that is less than 10s {diff.total_seconds():.1f} from last value {self.last()}')
-                #self.values[-1] = (now,round((value*2+self.last())/3,1))
-                self.values[-1] = (now,round((value+self.last())/2,1))    
-            else:
-                self.values.append((now,value))
-        else:
-            self.values.append((now,value))
+        self.values = list(filter(lambda v: isExpired(v, now, self.minutes*60),self.values))
+        #self.aggregated_values = list(filter(lambda v: isExpired(v, now, self.minutes*60),self.aggregated_values))
 
-        # remove older values
+        # create moving averages of 10s back from most recent values
+        self.aggregated_values = []
+        avg = last_avg = 0
+        i = 1
         while True:
-            first_ts = self.values[0][0]
-            diff = now - first_ts
-            if diff.total_seconds()/60 > self.minutes:
-                self.values.pop(0)
-            else:
+            bucket = list(filter(lambda v: isExpired(v, now-timedelta(seconds=i*10), 10),self.values))
+            avg = reduce(lambda a,b: a+b, [v[1] for v in bucket])/len(bucket)
+            self.aggregated_values.insert(0,avg)
+            #log.info(f' Bucket {i}: {[v[1] for v in enumerate(bucket)]}')
+            #log.info(self.aggregated_values)
+            if avg == last_avg or i == 6:
                 break
+            else:
+                last_avg = avg
+                i += 1
 
     # number of entries in buffer
     def len(self):
-        return len(self.values)
+        return len(self.aggregated_values)
     
     # most recent measurement
     def last(self) -> float:
-        n = len(self.values)
+        n = len(self.aggregated_values)
         if n == 0: return 0
-        return self.values[-1][1]
+        return round(self.aggregated_values[-1],1)
+    
+    def previous(self) -> float:
+        n = len(self.aggregated_values)
+        if n < 2: return 0
+        return round(self.aggregated_values[-2],1)
     
     # standard moving average
     def avg(self) -> float:
-        n = len(self.values)
+        n = len(self.aggregated_values)
         if n == 0: return 0
-        return reduce(lambda a,b: a+b, [v[1] for v in self.values])/n
+        return round(reduce(lambda a,b: a+b, [v[1] for v in self.aggregated_values])/n,1)
     
     # weighted moving average
     def wavg(self) -> float:
-        n = len(self.values)
+        n = len(self.aggregated_values)
         if n == 0: return 0
-        return reduce(lambda a,b: a+b, [v[1]*(i+1) for i,v in enumerate(self.values)])/((n*(n+1))/2)
+        return round(reduce(lambda a,b: a+b, self.aggregated_values)/((n*(n+1))/2),1)
 
     # n^2 weighted moving average
     def qwavg(self) -> float:
-        n = len(self.values)
+        n = len(self.aggregated_values)
         if n == 0: return 0
-        return reduce(lambda a,b: a+b, [v[1]*((i+1)*(i+1)) for i,v in enumerate(self.values)])/((n*(n+1)*(2*n+1))/6)
+        return round(reduce(lambda a,b: a+b, self.aggregated_values)/((n*(n+1)*(2*n+1))/6),1)
     
     def clear(self):
-        self.values = []
+        #self.values = []
+        self.aggregated_values = [self.aggregated_values[-1]]
 
     def predict(self) -> []:
-        if len(self.values) >= 5:
+        if len(self.aggregated_values) >= 5:
             data = {'X': [i for i,v in enumerate(self.values)],
                     'y': [v[1] for i,v in enumerate(self.values)]}
             df = pd.DataFrame(data)
@@ -120,7 +130,7 @@ class TimewindowBuffer:
 
             return list(map(lambda x: round(x,1), y_pred))
         else:
-            return [self.values[-1][1]] if len(self.values) > 0 else [0]
+            return [self.aggregated_values[-1]] if len(self.aggregated_values) > 0 else [0]
 
     
 def deep_get(dictionary, keys, default=None):

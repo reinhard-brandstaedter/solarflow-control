@@ -66,14 +66,15 @@ class Smartmeter:
         self.client.publish("solarflow-hub/smartmeter/homeUsagePredicted",int(round(self.getPredictedPower())))
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
-        predicted = self.getPredictedPower()
-        if abs(predicted - self.power.last()) >= TRIGGER_DIFF:
+        #predicted = self.getPredictedPower()
+        predicted = self.getPreviousPower()
+        if abs(predicted - self.getPower()) >= TRIGGER_DIFF:
             log.info(f'SMT triggers limit function: {self.power.last()} -> {predicted}')
             self.last_trigger_value = predicted
             self.trigger_callback(self.client)
 
         # in case of a rapid change detected we only have one value and should trigger the limit function
-        if self.power.len() == 1:
+        if self.power.len() <= 2:
             self.last_trigger_value = self.power.last()
             self.trigger_callback(self.client)
 
@@ -95,10 +96,14 @@ class Smartmeter:
                     self.updPower()
 
     def getPower(self):
-        return self.power.qwavg()
+        return self.power.last()
     
     def getPredictedPower(self):
         return self.power.predict()[0]
+    
+    def getPreviousPower(self):
+        return self.power.previous()
+    
 
 
 class Poweropti(Smartmeter):

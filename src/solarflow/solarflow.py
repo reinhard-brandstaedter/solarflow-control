@@ -15,7 +15,8 @@ log = logging.getLogger("")
 
 class Solarflow:
     opts = {"device_id":str ,"full_charge_interval":int}
-    SF_PRODUCT_ID = "73bkTV"
+    SF_PRODUCT_ID = "73bkTV"  #Hub 1200    
+    #SF_PRODUCT_ID = "A8yh63"  #Hub 2000
 
     def __init__(self, client: mqtt_client, device_id: str, full_charge_interval:int):
         self.client = client
@@ -107,7 +108,7 @@ class Solarflow:
 
     def updSolarInput(self, value:int):
         self.solarInputValues.add(value)
-        self.solarInputPower = self.solarInputValues.wavg()
+        self.solarInputPower = self.solarInputValues.last()
         self.lastSolarInputTS = datetime.now()
     
     def updElectricLevel(self, value:int):
@@ -301,8 +302,8 @@ class Solarflow:
             limit = 0
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
-        self.outputLimitBuffer.add(limit)
-        limit = int(self.outputLimitBuffer.qwavg())
+        #self.outputLimitBuffer.add(limit)
+        #limit = int(self.outputLimitBuffer.last())
 
         # currently the hub doesn't support single steps for limits below 100
         # to get a fine granular steering at this level we need to fall back to the inverter limit

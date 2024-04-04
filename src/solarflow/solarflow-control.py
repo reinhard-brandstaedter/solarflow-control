@@ -12,6 +12,7 @@ import math
 from solarflow import Solarflow
 import dtus
 import smartmeters
+from utils import RepeatedTimer
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -361,11 +362,19 @@ def limit_callback(client: mqtt_client):
         if elapsed.total_seconds() >= steering_interval:
             lastTriggerTS = now
             limitHomeInput(client)
-        else:
-            log.info(f'Rate limit on trigger function, last call was only {elapsed.total_seconds():.1f}s ago!')
+        #else:
+        #    log.info(f'Rate limit on trigger function, last call was only {elapsed.total_seconds():.1f}s ago!')
     else:
         lastTriggerTS = now
         limitHomeInput(client)
+
+def deviceInfo(client:mqtt_client):
+    hub = client._userdata['hub']
+    log.info(f'{hub}')
+    inv = client._userdata['dtu']
+    log.info(f'{inv}')
+    smt = client._userdata['smartmeter']
+    log.info(f'{smt}')
 
 
 def run():
@@ -384,14 +393,10 @@ def run():
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
 
+    infotimer = RepeatedTimer(60, deviceInfo, client)
+
     #client.loop_start()
     client.loop_forever()
-
-    #while True:
-    #    time.sleep(steering_interval)
-    #    limitHomeInput(client)
-        
-    #client.loop_stop()
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
@@ -440,7 +445,6 @@ def main(argv):
     log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
     log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
     log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
-
 
     loc = MyLocation()
     if not LNG and not LAT:
