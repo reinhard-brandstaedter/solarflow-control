@@ -363,11 +363,13 @@ def limit_callback(client: mqtt_client):
         if elapsed.total_seconds() >= steering_interval:
             lastTriggerTS = now
             limitHomeInput(client)
-        #else:
-        #    log.info(f'Rate limit on trigger function, last call was only {elapsed.total_seconds():.1f}s ago!')
+            return True
+        else:
+            return False
     else:
         lastTriggerTS = now
         limitHomeInput(client)
+        return True
 
 def deviceInfo(client:mqtt_client):
     hub = client._userdata['hub']
