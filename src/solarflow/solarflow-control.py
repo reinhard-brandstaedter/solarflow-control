@@ -275,7 +275,8 @@ def limitHomeInput(client: mqtt_client):
     # consider DC power of panels below 10W as 0 to avoid fluctuation in very low light.
     direct_panel_power = 0 if direct_panel_power < 10 else direct_panel_power
 
-    grid_power = smt.getPredictedPower()
+    #grid_power = smt.getPredictedPower()
+    grid_power = smt.getPower()
     inv_acpower = inv.getCurrentACPower()
     # if direct panels are producing more than what is needed we are ok to feed in
     if direct_panel_power > 0:

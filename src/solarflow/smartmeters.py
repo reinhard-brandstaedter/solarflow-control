@@ -50,7 +50,8 @@ class Smartmeter:
     def updPower(self):
         phase_sum = sum(self.phase_values.values())
         # rapid change detection
-        diff = (phase_sum if phase_sum < 1000 else 1000) - self.getPower()
+        #diff = (phase_sum if phase_sum < 1000 else 1000) - self.getPower()
+        diff = phase_sum - self.getPower()
 
         if diff > self.rapid_change_diff:
             log.info("Rapid rise in demand detected, clearing buffer!")
@@ -60,17 +61,18 @@ class Smartmeter:
             self.power.clear()
         # by recording smartmeter usage only up to a certain max power we can ensure that
         # demand drops from short high-consumption spikes are faster settled
-        self.power.add(phase_sum if phase_sum < 1000 else 1000)
+        #self.power.add(phase_sum if phase_sum < 1000 else 1000)
+        self.power.add(phase_sum)
         self.client.publish("solarflow-hub/smartmeter/homeUsage",int(round(phase_sum)))
         self.client.publish("solarflow-hub/smartmeter/homeUsageSmoothened", int(round(self.power.last())))
         self.client.publish("solarflow-hub/smartmeter/homeUsagePredicted",int(round(self.getPredictedPower())))
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
         #predicted = self.getPredictedPower()
-        predicted = self.getPreviousPower()
-        if abs(predicted - self.getPower()) >= TRIGGER_DIFF:
-            log.info(f'SMT triggers limit function: {self.power.last()} -> {predicted}')
-            self.last_trigger_value = predicted
+        previous = self.getPreviousPower()
+        if abs(previous - self.getPower()) >= TRIGGER_DIFF:
+            log.info(f'SMT triggers limit function: {previous} -> {self.getPower()}')
+            self.last_trigger_value = self.getPower()
             self.trigger_callback(self.client)
 
         # in case of a rapid change detected we only have one value and should trigger the limit function
