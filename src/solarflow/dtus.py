@@ -73,7 +73,7 @@ class DTU:
         predicted = 0 if predicted < 0 else predicted
 
         if abs(predicted - self.acPower.last()) >= TRIGGER_DIFF:
-            log.info(f'DTU triggers limit function: {self.acPower.last()} -> {predicted}: {"executed" if self.trigger_callback(self.client) else "skipped"}')')
+            log.info(f'DTU triggers limit function: {self.acPower.last()} -> {predicted}: {"executed" if self.trigger_callback(self.client) else "skipped"}')
             self.last_trigger_value = predicted
     
     def updTotalPowerDC(self, value:float):
