@@ -353,14 +353,14 @@ def getOpts(configtype) -> dict:
         opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
     return opts
 
-def limit_callback(client: mqtt_client):
+def limit_callback(client: mqtt_client,force=False):
     global lastTriggerTS
     #log.info("Smartmeter Callback!")
     now = datetime.now()
     if lastTriggerTS:
         elapsed = now - lastTriggerTS
         # ensure the limit function is not called too often (avoid flooding DTUs)
-        if elapsed.total_seconds() >= steering_interval:
+        if elapsed.total_seconds() >= steering_interval or force:
             lastTriggerTS = now
             limitHomeInput(client)
             return True
