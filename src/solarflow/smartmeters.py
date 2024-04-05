@@ -75,7 +75,7 @@ class Smartmeter:
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
         #predicted = self.getPredictedPower()
         previous = self.getPreviousPower()
-        if abs(previous - self.getPower()) >= TRIGGER_DIFF:
+        if abs(previous - self.getPower()) >= TRIGGER_DIFF or force_trigger:
             log.info(f'SMT triggers limit function: {previous} -> {self.getPower()}: {"executed" if self.trigger_callback(self.client,force=force_trigger) else "skipped"}')
             self.last_trigger_value = self.getPower()
 
