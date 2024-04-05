@@ -14,12 +14,11 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 class Solarflow:
-    opts = {"device_id":str ,"full_charge_interval":int}
-    SF_PRODUCT_ID = "73bkTV"  #Hub 1200    
-    #SF_PRODUCT_ID = "A8yh63"  #Hub 2000
+    opts = {"product_id":str, "device_id":str ,"full_charge_interval":int}
 
-    def __init__(self, client: mqtt_client, device_id: str, full_charge_interval:int):
+    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int):
         self.client = client
+        self.SF_PRODUCT_ID = product_id
         self.deviceId = device_id
         self.fullChargeInterval= full_charge_interval
         self.fwVersion = "unknown"

@@ -61,7 +61,7 @@ SMT_TYPE =              config.get('global', 'smartmeter_type', fallback=None) \
 
 # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
 MIN_CHARGE_POWER =      config.getint('control', 'min_charge_power', fallback=None) \
-                        or int(os.environ.get('MIN_CHARGE_POWER',125))          
+                        or int(os.environ.get('MIN_CHARGE_POWER',0))          
 
 # The maximum discharge level of the packSoc. Even if there is more demand it will not go beyond that
 MAX_DISCHARGE_POWER =   config.getint('control', 'max_discharge_power', fallback=None) \
