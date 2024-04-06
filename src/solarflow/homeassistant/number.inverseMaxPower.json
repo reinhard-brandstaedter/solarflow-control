@@ -1,0 +1,20 @@
+{
+    "name": "Inverter Limit",
+    "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
+    "cmd_tpl": "{\"properties\": {\"inverseMaxPower\": {{ value }} }}",
+    "stat_t": "~inverseMaxPower",
+    "uniq_id": "{{ device_id }}-inverseMaxPower",
+    "unit_of_meas": "W",
+    "max": 2400,
+    "min": 0,
+    "step": 1,
+    "mode": "box",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}
