@@ -1,6 +1,6 @@
 {
     "name": "Output Power Limit",
-    "cmd_t": "iot/73bkTV/{{ device_id }}/properties/write",
+    "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
     "cmd_tpl": "{\"properties\": {\"outputLimit\": {{ value }} }}",
     "stat_t": "~outputLimit",
     "uniq_id": "{{ device_id }}-outputLimit",

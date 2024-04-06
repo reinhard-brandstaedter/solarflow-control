@@ -1,6 +1,6 @@
 {
     "name": "Bypass",
-    "cmd_t": "iot/73bkTV/{{ device_id }}/properties/write",
+    "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
     "stat_t": "~passMode",
     "uniq_id": "{{ device_id }}-passMode",
     "dev_cla": "switch",
