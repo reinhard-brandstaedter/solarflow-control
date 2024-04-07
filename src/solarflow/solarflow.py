@@ -273,10 +273,6 @@ class Solarflow:
             if elapsed.total_seconds() < 45:
                 log.info(f'Hub has just recently adjusted limit, need to wait until it is set again! Current limit: {self.outputLimit}, new limit: {limit}')
                 return self.outputLimit
-            else:
-                self.lastLimitTS = now
-        else:
-            self.lastLimitTS = now
 
         if limit < 0:
             limit = 0
@@ -317,6 +313,7 @@ class Solarflow:
         outputlimit = {"properties": { "outputLimit": limit }}
         if self.outputLimit != limit:
             (not self.dryrun) and self.client.publish(self.property_topic,json.dumps(outputlimit))
+            self.lastLimitTS = now
             log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting solarflow output limit to {limit:.1f}W')
         else:
             log.info(f'{"[DRYRUN] " if self.dryrun else ""}Not setting solarflow output limit to {limit:.1f}W as it is identical to current limit!')
