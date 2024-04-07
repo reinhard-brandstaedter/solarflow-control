@@ -353,5 +353,10 @@ class Solarflow:
     
     def getBypass(self):
         return self.bypass
+    
+    def getCanDischarge(self):
+        fullage = self.getLastFullBattery()
+        can_discharge = (self.batteryTarget == "discharging") or (self.batteryTarget == "charging" and fullage < self.fullChargeInterval)
+        return not(self.chargeThrough and (not can_discharge or fullage < 0))
 
 
