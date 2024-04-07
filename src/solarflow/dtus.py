@@ -195,7 +195,7 @@ class DTU:
         if self.getACPower() > self.acLimit:
             # decrease inverter limit slowly
             inv_limit = self.limitAbsolute - 2
-            log.info("Current inverter AC output is higher than configured output limit (ac_limit), reducing limit to {inv_limit}")
+            log.info(f'Current inverter AC output is higher than configured output limit (ac_limit), reducing limit to {inv_limit}')
             
         
         #if self.limitAbsolute != inv_limit and self.reachable:

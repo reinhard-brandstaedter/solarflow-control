@@ -188,7 +188,7 @@ def subscribe(client: mqtt_client):
         log.info(f'SFControl subscribing: {t}')
 
 def limitedRise(x) -> int:
-    rise = MAX_INVERTER_LIMIT-(MAX_INVERTER_LIMIT-INVERTER_START_LIMIT)*math.exp(-0.0025*x)
+    rise = MAX_INVERTER_LIMIT-(MAX_INVERTER_LIMIT-INVERTER_START_LIMIT)*math.exp(-MAX_INVERTER_LIMIT/100000*x)
     log.info(f'Adjusting inverter limit from {x:.1f}W to {rise:.1f}W')
     return int(rise)
 
