@@ -114,6 +114,9 @@ class DTU:
                 case "dryRun":
                     self.setDryRun(value)
 
+    def getLimit(self):
+        return self.limitAbsolute
+    
     def getACPower(self):
         return self.acPower.qwavg()
     

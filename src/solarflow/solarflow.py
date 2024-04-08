@@ -354,6 +354,9 @@ class Solarflow:
     def getInverseMaxPower(self):
         return self.inverseMaxPower
     
+    def getLimit(self):
+        return self.outputLimit
+    
     def getBypass(self):
         return self.bypass
     

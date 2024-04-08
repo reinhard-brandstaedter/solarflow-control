@@ -268,8 +268,8 @@ def limitHomeInput(client: mqtt_client):
     if not(hub.ready() and inv.ready() and smt.ready()):
         return
 
-    inv_limit = 0
-    hub_limit = 0
+    inv_limit = inv.getLimit()
+    hub_limit = hub.getLimit()
 
     direct_panel_power = inv.getDirectDCPower()
     # consider DC power of panels below 10W as 0 to avoid fluctuation in very low light.
@@ -324,6 +324,7 @@ def limitHomeInput(client: mqtt_client):
                 limit = hub_limit - 10
     
             inv_limit = inv.setLimit(limit)
+
 
         #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
         #inv_limit = inv.setLimit(lmt)
