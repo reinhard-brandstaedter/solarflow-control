@@ -372,12 +372,15 @@ def limit_callback(client: mqtt_client,force=False):
         return True
 
 def deviceInfo(client:mqtt_client):
+    limitHomeInput(client)
+    '''
     hub = client._userdata['hub']
     log.info(f'{hub}')
     inv = client._userdata['dtu']
     log.info(f'{inv}')
     smt = client._userdata['smartmeter']
     log.info(f'{smt}')
+    '''
 
 
 def run():
@@ -396,7 +399,7 @@ def run():
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
 
-    infotimer = RepeatedTimer(60, deviceInfo, client)
+    infotimer = RepeatedTimer(120, deviceInfo, client)
 
     #client.loop_start()
     client.loop_forever()
