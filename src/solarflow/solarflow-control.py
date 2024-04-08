@@ -298,7 +298,7 @@ def limitHomeInput(client: mqtt_client):
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can\'t cover demand ({demand:.1f}W), trying to get rest from hub.')
         else:
             remainder = demand + inv.getACPower()
-            log.info(f'Grid feed in: {demand:.1f}W from {"battery, lowering limit to avoid it." if direct_panel_power == 0 and inv.getHubDCPower() > 0 else "direct panels or other source."}')
+            log.info(f'Grid feed in: {demand:.1f}W from {"battery, lowering limit to avoid it." if direct_panel_power == 0 and inv.getHubDCPower() > 0 and hub.getDischargePower() > 0 else "direct panels or other source."}')
         
         log.info(f'Checking if Solarflow is willing to contribute {remainder:.1f}W ...')
         sf_contribution = getSFPowerLimit(hub,remainder)

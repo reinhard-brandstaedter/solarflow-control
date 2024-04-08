@@ -342,6 +342,9 @@ class Solarflow:
     def getOutputHomePower(self):
         return self.outputHomePower
     
+    def getDischargePower(self):
+        return self.outputPackPower
+    
     def getSolarInputPower(self):
         return self.solarInputPower
     
