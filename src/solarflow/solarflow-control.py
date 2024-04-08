@@ -188,7 +188,7 @@ def subscribe(client: mqtt_client):
         log.info(f'SFControl subscribing: {t}')
 
 def limitedRise(x) -> int:
-    rise = MAX_INVERTER_LIMIT-(MAX_INVERTER_LIMIT-INVERTER_START_LIMIT)*math.exp(-0.0025*x)
+    rise = MAX_INVERTER_LIMIT-(MAX_INVERTER_LIMIT-INVERTER_START_LIMIT)*math.exp(-MAX_INVERTER_LIMIT/100000*x)
     log.info(f'Adjusting inverter limit from {x:.1f}W to {rise:.1f}W')
     return int(rise)
 
@@ -372,12 +372,15 @@ def limit_callback(client: mqtt_client,force=False):
         return True
 
 def deviceInfo(client:mqtt_client):
+    limitHomeInput(client)
+    '''
     hub = client._userdata['hub']
     log.info(f'{hub}')
     inv = client._userdata['dtu']
     log.info(f'{inv}')
     smt = client._userdata['smartmeter']
     log.info(f'{smt}')
+    '''
 
 
 def run():
@@ -396,7 +399,7 @@ def run():
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
 
-    infotimer = RepeatedTimer(60, deviceInfo, client)
+    infotimer = RepeatedTimer(120, deviceInfo, client)
 
     #client.loop_start()
     client.loop_forever()

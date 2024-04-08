@@ -78,7 +78,7 @@ class Smartmeter:
             log.info(f'SMT triggers limit function: {previous} -> {self.getPower()}: {"executed" if self.trigger_callback(self.client,force=force_trigger) else "skipped"}')
             self.last_trigger_value = self.getPower()
 
-        # agressively try to avoid feed in
+        # agressively try to avoid larger feed-in (below 0 W)
         if self.getPower() < 0 and self.getPreviousPower() < 0:
             self.trigger_callback(self.client)
 
