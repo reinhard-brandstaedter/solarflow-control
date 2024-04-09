@@ -49,6 +49,8 @@ class Solarflow:
 
         self.lastLimitTS = None
 
+        updater = RepeatedTimer(60, self.update)
+
     def __str__(self):
         batteries_soc = "|".join([f'{v:>2}' for v in self.batteriesSoC.values()])
         batteries_vol = "|".join([f'{v:2.1f}' for v in self.batteriesVol.values()])
@@ -86,9 +88,6 @@ class Solarflow:
         for t in topics:
             self.client.subscribe(t)
             log.info(f'Hub subscribing: {t}')
-        
-        updater = RepeatedTimer(60, self.update)
-
 
     def ready(self):
         return (self.electricLevel > -1 and self.solarInputPower > -1)
