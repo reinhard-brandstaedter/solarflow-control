@@ -1,0 +1,15 @@
+{
+    "name": "Bypass State",
+    "stat_t": "~pass",
+    "pl_on": "1",
+    "pl_off": "0",
+    "uniq_id": "{{ device_id }}-pass",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}
