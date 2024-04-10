@@ -47,7 +47,7 @@ docker pull rbrandstaedter/solarflow-control:latest
 The configuration is done via the ```config.ini``` file which must be mounted into the container (read-only).
 Example ```config.ini```
 
-A good starting point is the [templace config.ini](./src/config.ini)
+A good starting point is the [template config.ini](./src/config.ini)
 
 Run the container with this command, mounting the ```config.ini```:
 
@@ -179,4 +179,5 @@ It is completely up to you how frequently you want to ensure a full charge. Duri
 To switch this behavior on the fly (e.g. if you want to enforce or stop a discharge manually) you can post a retained topic to your MQTT broker:
 
 | topic | content | 
+| ----- | ------- |
 | solarflow-hub/5ak8yGU7/control/chargeThrough | ON/OFF |
