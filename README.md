@@ -1,7 +1,7 @@
 ## What is Solarflow Control
 
 Solarflow Control originally was meant to automatically control Zendure's Solarflow hub with more flexibility to match home power demand and without the official mobile app.
-Since its first use case it has now evolved into a more sophisticated solution to also control micro-inverters (mainly via OpenDTU and AhoyDTU), read current household demand from various smartmeter readers (Hichi, Tasmota, Shelly 3EM, PowerOpti, ...) to realize optimal charging/discharging and zero-feed-in solar generation.
+Since its first use case it has now evolved into a more sophisticated solution to also control micro-inverters (mainly via OpenDTU and AhoyDTU), read current household demand from various smartmeter readers (Hichi, Tasmota, Shelly 3EM, PowerOpti, ...) to realize optimal charging/discharging and auto-adaptive limitation based on current demand..
 
 It's main features are:
 - Support power generation from solarpanels connected to Solarflow Hub AND directly to the inverter. Control the SF Hub and the inverter so that direct power generation takes precedence for feed in and panels connected to the HUB are used for charging the battery
@@ -47,89 +47,7 @@ docker pull rbrandstaedter/solarflow-control:latest
 The configuration is done via the ```config.ini``` file which must be mounted into the container (read-only).
 Example ```config.ini```
 
-```
-[global]
-# DTY Type: either OpenDTU or AhoyDTU
-dtu_type = OpenDTU
-# Smartmeter Type: either Smartmeter (generic, Tasmota, Hichi, ...), PowerOpti, Shelly3EM
-smartmeter_type = Smartmeter
-
-# Geolocation LAT/LNG (e.g. latitude = 48.234, longitude = 12.534)
-# if not set we will try to get it via geo-ip lookup, might be inacurate
-#latitude = 
-#longitude = 
-
-# Offset in minutes after sunrise/before sunset. Can be used to set the duration of what is considered "night"
-#sunrise_offset = 
-#sunset_offset = 
-
-[solarflow]
-# The device ID of your Solarflow Hub (typically 8 characters), you can get these either with solarflow-bt-manager or the solarflow-statuspage
-device_id = 5ak8yGU7
-
-# The time interval in hours that solarflow-control will try to ensure a full battery
-# (i.e. no discharging if battry hasn't been at 100% for this long)
-full_charge_interval = 32
-
-[mqtt]
-# Your local MQTT host configuration
-mqtt_host = 192.168.1.245
-#mqtt_port = 
-#mqtt_user =
-#mqtt_pwd =
-
-[opendtu]
-# The MQTT base topic your OpenDTU reports to (as configured in OpenDTU UI)
-base_topic = solar
-# your Inverters serial number
-inverter_serial = 116491132532
-
-# List of indices of the inverter channels/ports (as reported in the DTU) that the Solarflow Hub is connected to
-# typically the index starts at 1 as 0 is the output channel of the inverter
-# e.g. 1,3 or 3 or [1,3]
-sf_inverter_channels = [3]
-
-[ahoydtu]
-# The MQTT base topic your AhoyDTU reports to (as configured in AhoyDTU UI)
-base_topic = solar
-# The inverter ID in AhoyDTU: typically 1 for the first inverter
-inverter_id = 1
-# List of indices of the inverter channels/ports (as reported in the DTU) that the Solarflow Hub is connected to
-# typically the index starts at 1 as 0 is the output channel of the inverter
-# e.g. 1,3 or 3 or [1,3]
-sf_inverter_channels = [3]
-
-# the max output power of your inverter, used to calculate correct absolute values
-#inverter_max_power = 2000
-
-# The name of the inverter in AhoyDTU
-#inverter_name = AhoyDTU
-
-[smartmeter]
-# The MQTT base topic your Hichi, Tasmota, generic smartmeter reader reports to
-base_topic = tele/E220/SENSOR
-# if the published value at the base_topic is a JSON type then these accessors are used to get the power values
-# e.g. if Smartmeter reader posts { "Power": {"Power_curr": 120, "Total_in": 12345.6} }
-cur_accessor = Power.Power_curr
-total_accessor = Power.Total_in
-
-[poweropti]
-# Username and password for you Powerfox API to get readings (internet connection required)
-poweropti_user = <PowerFox API user>
-poweropti_password = <Powerfox API password>
-
-[shellyem3]
-# The MQTT base topic your Shelly 3EM (Pro) is posting it's telemetry data to
-# Note: you have to configure your Shelly to use MQTT
-base_topic = shellies/shellyem3/
-
-[control]
-min_charge_power = 125
-max_discharge_power = 150
-max_inverter_limit = 800                                                
-limit_inverter = true
-inverter_min_limit = 10
-```
+A good starting point is the [templace config.ini](./src/config.ini)
 
 Run the container with this command, mounting the ```config.ini```:
 
@@ -138,41 +56,54 @@ Run the container with this command, mounting the ```config.ini```:
 The initial startup will prompt all the settings applied and also the MQTT topics that are used. Note the lines with "... subscribing:" are the topics that should be present in your MQTT broker. Those are relevant for the tool to work properly. 
 
 ```
-2023-11-07 12:04:41,610:INFO: MQTT Host: 192.168.1.245:1883
-2023-11-07 12:04:41,610:INFO: MQTT User is not set, assuming authentication not needed
-2023-11-07 12:04:41,610:INFO: Solarflow Hub: 73bkTV/5ak8yGU7
-2023-11-07 12:04:41,610:INFO: Limit via inverter: True
-2023-11-07 12:04:41,610:INFO: Control Parameters:
-2023-11-07 12:04:41,610:INFO:   MIN_CHARGE_POWER = 125
-2023-11-07 12:04:41,610:INFO:   MAX_DISCHARGE_LEVEL = 150
-2023-11-07 12:04:41,610:INFO:   MAX_INVERTER_LIMIT = 800
-2023-11-07 12:04:41,610:INFO:   MAX_INVERTER_INPUT = 675
-2023-11-07 12:04:41,610:INFO:   SUNRISE_OFFSET = 120
-2023-11-07 12:04:41,610:INFO:   SUNSET_OFFSET = 120
-2023-11-07 12:04:42,388:INFO: Requested https://nominatim.openstreetmap.org/search?q=Munich+%28Moosach%29%2C+Bavaria+DE&format=jsonv2&addressdetails=1&limit=1
-2023-11-07 12:04:42,391:INFO: IP Address: 93.104.xxx.xxx
-2023-11-07 12:04:42,391:INFO: Location: Munich (Moosach), Bavaria, DE
-2023-11-07 12:04:42,391:INFO: Coordinates: (Lat: 48.174002200000004, Lng: 11.534082703428721)
-2023-11-07 12:04:42,392:INFO: Using OpenDTU: Base topic: solar/116491132532, Limit topic: solar/116491132532/cmd/limit_nonpersistent_absolute, SF Channels: [3]
-2023-11-07 12:04:42,392:INFO: Using Smartmeter: Base topic: tele/E220/SENSOR, Current power accessor: Power.Power_curr, Total power accessor: Power.Total_in
-2023-11-07 12:04:42,393:INFO: Connected to MQTT Broker!
-2023-11-07 12:04:42,393:INFO: Hub subscribing: /73bkTV/5ak8yGU7/properties/report
-2023-11-07 12:04:42,393:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/solarInputPower
-2023-11-07 12:04:42,393:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/electricLevel
-2023-11-07 12:04:42,393:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/outputPackPower
-2023-11-07 12:04:42,393:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/packInputPower
-2023-11-07 12:04:42,393:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/outputHomePower
-2023-11-07 12:04:42,393:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/outputLimit
-2023-11-07 12:04:42,393:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/masterSoftVersion
-2023-11-07 12:04:42,393:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/batteries/+/socLevel
-2023-11-07 12:04:42,393:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/control/#
-2023-11-07 12:04:42,394:INFO: DTU subscribing: solar/116491132532/0/powerdc
-2023-11-07 12:04:42,394:INFO: DTU subscribing: solar/116491132532/+/power
-2023-11-07 12:04:42,394:INFO: DTU subscribing: solar/116491132532/status/producing
-2023-11-07 12:04:42,394:INFO: DTU subscribing: solar/116491132532/status/reachable
-2023-11-07 12:04:42,394:INFO: DTU subscribing: solar/116491132532/status/limit_absolute
-2023-11-07 12:04:42,394:INFO: DTU subscribing: solarflow-hub/+/control/dryRun
-2023-11-07 12:04:42,394:INFO: Smartmeter subscribing: tele/E220/SENSOR
+2024-04-09 22:39:01,600:INFO: MQTT Host: 192.168.1.245:1883
+2024-04-09 22:39:01,600:INFO: MQTT User is not set, assuming authentication not needed
+2024-04-09 22:39:01,600:INFO: Solarflow Hub: 73bkTV/5ak8yGU7
+2024-04-09 22:39:01,600:INFO: Limit via inverter: True
+2024-04-09 22:39:01,600:INFO: Control Parameters:
+2024-04-09 22:39:01,600:INFO:   MIN_CHARGE_POWER = 225
+2024-04-09 22:39:01,600:INFO:   MAX_DISCHARGE_LEVEL = 350
+2024-04-09 22:39:01,600:INFO:   MAX_INVERTER_LIMIT = 800
+2024-04-09 22:39:01,600:INFO:   MAX_INVERTER_INPUT = 575
+2024-04-09 22:39:01,600:INFO:   SUNRISE_OFFSET = 120
+2024-04-09 22:39:01,600:INFO:   SUNSET_OFFSET = 120
+2024-04-09 22:39:01,921:INFO: IP Address: xxx.xxx.xxx.xxx
+2024-04-09 22:39:01,921:INFO: Location: Munich, Bavaria, Germany
+2024-04-09 22:39:01,922:INFO: Coordinates: (Lat: xx.xx, Lng: xx.xx)
+2024-04-09 22:39:01,923:INFO: Using OpenDTU: Base topic: solar/116491132532, Limit topic: solar/116491132532/cmd/limit_nonpersistent_absolute, SF Channels: [3], AC Limit: 800
+2024-04-09 22:39:01,923:INFO: Using Smartmeter: Base topic: tele/E220/SENSOR, Current power accessor: Power.Power_curr, Total power accessor: Power.Total_in
+2024-04-09 22:39:01,923:INFO: Connected to MQTT Broker!
+2024-04-09 22:39:01,924:INFO: Hub subscribing: /73bkTV/5ak8yGU7/properties/report
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/solarInputPower
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/electricLevel
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/outputPackPower
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/packInputPower
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/outputHomePower
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/outputLimit
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/inverseMaxPower
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/masterSoftVersion
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/pass
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/batteries/+/socLevel
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/telemetry/batteries/+/totalVol
+2024-04-09 22:39:01,924:INFO: Hub subscribing: solarflow-hub/5ak8yGU7/control/#
+2024-04-09 22:39:01,924:INFO: DTU subscribing: solar/116491132532/0/powerdc
+2024-04-09 22:39:01,925:INFO: DTU subscribing: solar/116491132532/+/power
+2024-04-09 22:39:01,925:INFO: DTU subscribing: solar/116491132532/status/producing
+2024-04-09 22:39:01,925:INFO: DTU subscribing: solar/116491132532/status/reachable
+2024-04-09 22:39:01,925:INFO: DTU subscribing: solar/116491132532/status/limit_absolute
+2024-04-09 22:39:01,925:INFO: DTU subscribing: solar/116491132532/status/limit_relative
+2024-04-09 22:39:01,925:INFO: DTU subscribing: solarflow-hub/+/control/dryRun
+2024-04-09 22:39:01,925:INFO: Smartmeter subscribing: tele/E220/SENSOR
+2024-04-09 22:39:01,966:INFO: Set ChargeThrough: False
+2024-04-09 22:39:01,966:INFO: Reading last full time: 2024-04-08 18:41:38
+2024-04-09 22:39:01,966:INFO: Reading last empty time: 2024-04-09 22:29:59
+2024-04-09 22:39:01,966:INFO: Reading battery target mode: charging
+2024-04-09 22:39:02,091:INFO: Rapid rise in demand detected, clearing buffer!
+2024-04-09 22:39:02,092:INFO: HUB: S:-1.0W [ ], B: -1% (-1), V:-1.0V (-1.0), C: 0W, P:False, F:28.0h, E:0.2h, H: -1W, L: -1W
+2024-04-09 22:39:02,092:INFO: INV: AC:359.5W, AC_Prediction: 359.5W, DC:378.4W, DC_prediction: 378.4W (0.0|0.0|378.4|0.0), L:1400.0W [ -1W]
+2024-04-09 22:39:02,092:INFO: SMT: T:Smartmeter P:2194.0W [ 2194.0,2194.0 ] Predict: 2194.0W
+2024-04-09 22:39:02,092:INFO: SMT triggers limit function: 2194.0 -> 2194.0: executed
+2024-04-09 22:39:17,396:INFO: Determined inverter's max capacity: 2000.0
 ...
 ```
 
@@ -181,15 +112,18 @@ If either of them doesn't update data you likely have a issue with the MQTT subs
 
 ```
 ...
-2023-11-07 12:04:57,402:INFO: HUB: S:-1.0W [ ], B: -1% (-1), C: 0W, F:20.1h, E:194.8h, H: -1W, L: -1W
-2023-11-07 12:04:57,402:INFO: INV: AC:27.7W, DC:29.2W (29.2|0.0|0.0|0.0), L:138.0W
-2023-11-07 12:04:57,402:INFO: SMT: T:Smartmeter P:246.0W [ 246.0 ]
-2023-11-07 12:05:12,414:INFO: HUB: S:-1.0W [ ], B: 8% (-1), C: 0W, F:20.1h, E:194.8h, H: -1W, L: -1W
-2023-11-07 12:05:12,414:INFO: INV: AC:27.8W, DC:29.4W (29.4|0.0|0.0|0.0), L:140.0W
-2023-11-07 12:05:12,414:INFO: SMT: T:Smartmeter P:247.1W [ 246.0,243.0,249.0 ]
-2023-11-07 12:05:27,424:INFO: HUB: S:-1.0W [ ], B: 8% (-1), C: 0W, F:20.1h, E:194.8h, H: -1W, L: -1W
-2023-11-07 12:05:27,424:INFO: INV: AC:28.0W, DC:29.7W (29.7|0.0|0.0|0.0), L:140.0W
-2023-11-07 12:05:27,424:INFO: SMT: T:Smartmeter P:247.6W [ 246.0,243.0,249.0,248.0 ]
+2024-04-10 09:22:02,203:INFO: Triggering telemetry update: iot/73bkTV/5ak8yGU7/properties/read
+2024-04-10 09:22:20,593:INFO: HUB: S:63.3W [ 65.6,65.6,63.3 ], B: 1% ( 2| 1| 1), V:46.8V (46.7|46.9|46.8), C: 52W, P:False, F:38.7h, E:0.6h, H: 8W, L:700W
+2024-04-10 09:22:20,595:INFO: INV: AC:11.4W, AC_Prediction: 11.0W, DC:12.0W, DC_prediction: 11.6W (0.0|0.0|12.1|0.0), L:40.0W [2000.0W]
+2024-04-10 09:22:20,597:INFO: SMT: T:Smartmeter P:203.0W [ 196.7,196.7,201.0,198.8,198.2,208.5 ] Predict: 188.3W
+2024-04-10 09:22:20,597:INFO: Direct connected panels (0.0W) can't cover demand (219.9W), trying to get rest from hub.
+2024-04-10 09:22:20,597:INFO: Checking if Solarflow is willing to contribute 219.9W ...
+2024-04-10 09:22:20,597:INFO: Based on time, solarpower (63.3W) minimum charge power (225W) and bypass state (False), hub could contribute  0.0W - Decision path: 2.2.
+2024-04-10 09:22:20,597:INFO: Hub should contribute more (0.0W) than what we currently get from panels (0.0W), we will use the inverter for fast/precise limiting!
+2024-04-10 09:22:20,597:INFO: Not setting solarflow output limit to 700.0W as it is identical to current limit!
+2024-04-10 09:22:20,597:INFO: Not setting inverter output limit as it is identical to current limit!
+2024-04-10 09:22:20,597:INFO: Sun: 06:33 - 19:57 Demand: 219.9W, Panel DC: (0.0|0.0|0.0), Hub DC: (12.1), Inverter Limit: 40.0W, Hub Limit: 700.0W
+2024-04-10 09:22:20,597:INFO: SMT triggers limit function: 198.2 -> 208.5: executed
 ...
 ```
 
@@ -222,3 +156,27 @@ See the [examples](/examples/) for in-detail setup instructions and templates to
 
 If you read this far you probably are really interested or maybe a happy user. If you like it and would like to buy me a coffee:
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=RUZP3LCKH56CU)
+
+
+## Q&A
+#### How can I enable/disable the charge-thorough feature
+By default solarflow-control has a charge-through feature which ensures that the batteries of the hub are fully charged once in a while. This interval can be set via the configuration setting:
+
+```
+[solarflow]
+# The time interval in hours that solarflow-control will try to ensure a full battery
+# (i.e. no discharging if battry hasn't been at 100% for this long)
+full_charge_interval = 120
+```
+
+This is mostly intended for periods of low-light (winter) when otherwise the battery would barely reach a full cycle (ensure battry health). In case the charge through mode is active you would then see a log message like this, and the hub will not be discharged untill it reaches 100% state of charge again.
+
+```
+2024-04-05 10:09:08,159:INFO: Battery hasn't fully charged for 137.2 hours! To ensure it is fully charged at least every 120hrs not discharging now!
+```
+
+It is completely up to you how frequently you want to ensure a full charge. During Summer times you likely will never run into charge through mode anyway. I'm currently using 120 hours for the interval.
+To switch this behavior on the fly (e.g. if you want to enforce or stop a discharge manually) you can post a retained topic to your MQTT broker:
+
+| topic | content | 
+| solarflow-hub/5ak8yGU7/control/chargeThrough | ON/OFF |
