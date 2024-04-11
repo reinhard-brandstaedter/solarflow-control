@@ -12,6 +12,7 @@ import math
 from solarflow import Solarflow
 import dtus
 import smartmeters
+from utils import RepeatedTimer
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -51,8 +52,6 @@ mqtt_pwd = config.get('mqtt', 'mqtt_pwd', fallback=None) or os.environ.get('MQTT
 mqtt_host = config.get('mqtt', 'mqtt_host', fallback=None) or os.environ.get('MQTT_HOST',None)
 mqtt_port = config.getint('mqtt', 'mqtt_port', fallback=None) or os.environ.get('MQTT_PORT',1883)
 
-# how frequently we allow triggering the limit function (seconds)
-TRIGGER_RATE_LIMIT = 10
 
 DTU_TYPE =              config.get('global', 'dtu_type', fallback=None) \
                         or os.environ.get('DTU_TYPE',"OpenDTU")
@@ -62,7 +61,7 @@ SMT_TYPE =              config.get('global', 'smartmeter_type', fallback=None) \
 
 # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
 MIN_CHARGE_POWER =      config.getint('control', 'min_charge_power', fallback=None) \
-                        or int(os.environ.get('MIN_CHARGE_POWER',125))          
+                        or int(os.environ.get('MIN_CHARGE_POWER',0))          
 
 # The maximum discharge level of the packSoc. Even if there is more demand it will not go beyond that
 MAX_DISCHARGE_POWER =   config.getint('control', 'max_discharge_power', fallback=None) \
@@ -129,7 +128,7 @@ class MyLocation:
         try:
             result = requests.get(f'http://ip-api.com/json/{self.ip}')
             response = result.json()
-            log.info(response)
+            #log.info(response)
             log.info(f'IP Address: {self.ip}')
             log.info(f'Location: {response["city"]}, {response["regionName"]}, {response["country"]}')
             log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]}')
@@ -189,7 +188,7 @@ def subscribe(client: mqtt_client):
         log.info(f'SFControl subscribing: {t}')
 
 def limitedRise(x) -> int:
-    rise = MAX_INVERTER_LIMIT-(MAX_INVERTER_LIMIT-INVERTER_START_LIMIT)*math.exp(-0.0025*x)
+    rise = MAX_INVERTER_LIMIT-(MAX_INVERTER_LIMIT-INVERTER_START_LIMIT)*math.exp(-MAX_INVERTER_LIMIT/100000*x)
     log.info(f'Adjusting inverter limit from {x:.1f}W to {rise:.1f}W')
     return int(rise)
 
@@ -269,15 +268,16 @@ def limitHomeInput(client: mqtt_client):
     if not(hub.ready() and inv.ready() and smt.ready()):
         return
 
-    inv_limit = 0
-    hub_limit = 0
+    inv_limit = inv.getLimit()
+    hub_limit = hub.getLimit()
 
     direct_panel_power = inv.getDirectDCPower()
     # consider DC power of panels below 10W as 0 to avoid fluctuation in very low light.
     direct_panel_power = 0 if direct_panel_power < 10 else direct_panel_power
 
-    grid_power = smt.getPredictedPower()
-    inv_acpower = inv.getPredictedACPower()
+    #grid_power = smt.getPredictedPower()
+    grid_power = smt.getPower()
+    inv_acpower = inv.getCurrentACPower()
     # if direct panels are producing more than what is needed we are ok to feed in
     if direct_panel_power > 0:
         demand = grid_power + inv_acpower if (grid_power > 0) else 0 
@@ -298,31 +298,33 @@ def limitHomeInput(client: mqtt_client):
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can\'t cover demand ({demand:.1f}W), trying to get rest from hub.')
         else:
             remainder = demand + inv.getACPower()
-            log.info(f'Grid feed in: {demand:.1f}W from {"battery, lowering limit to avoid it." if direct_panel_power == 0 and inv.getHubDCPower() > 0 else "direct panels or other source."}')
+            log.info(f'Grid feed in: {demand:.1f}W from {"battery, lowering limit to avoid it." if direct_panel_power == 0 and inv.getHubDCPower() > 0 and hub.getDischargePower() > 0 else "direct panels or other source."}')
         
-        log.info(f'Checking if Solarflow is willing to contribute {remainder:.1f}W ...')
-        sf_contribution = getSFPowerLimit(hub,remainder)
+        if remainder > 0:
+            log.info(f'Checking if Solarflow is willing to contribute {remainder:.1f}W ...')
+            sf_contribution = getSFPowerLimit(hub,remainder)
 
-        # if the hub's contribution (per channel) is larger than what the direct panels max is delivering (night, low light)
-        # then we can open the hub to max limit and use the inverter to limit it's output (more precise)
-        if sf_contribution/inv.getNrHubChannels() >= max(inv.getDirectDCPowerValues()):
-            log.info(f'Hub should contribute more ({sf_contribution:.1f}W) than what we currently get from panels ({direct_panel_power:.1f}W), we will use the inverter for fast/precise limiting!')
-            hub_limit = hub.setOutputLimit(hub.getInverseMaxPower())
-            direct_limit = sf_contribution/inv.getNrHubChannels()
-        else:
-            hub_limit = hub.setOutputLimit(sf_contribution)
-            log.info(f'Solarflow is willing to contribute {hub_limit:.1f}W!')
-            direct_limit = getDirectPanelLimit(inv,hub,smt)
-            log.info(f'Direct connected panel limit is {direct_limit}W.')
+            # if the hub's contribution (per channel) is larger than what the direct panels max is delivering (night, low light)
+            # then we can open the hub to max limit and use the inverter to limit it's output (more precise)
+            if sf_contribution/inv.getNrHubChannels() >= max(inv.getDirectDCPowerValues()):
+                log.info(f'Hub should contribute more ({sf_contribution:.1f}W) than what we currently get from panels ({direct_panel_power:.1f}W), we will use the inverter for fast/precise limiting!')
+                hub_limit = hub.setOutputLimit(hub.getInverseMaxPower())
+                direct_limit = sf_contribution/inv.getNrHubChannels()
+            else:
+                hub_limit = hub.setOutputLimit(sf_contribution)
+                log.info(f'Solarflow is willing to contribute {hub_limit:.1f}W!')
+                direct_limit = getDirectPanelLimit(inv,hub,smt)
+                log.info(f'Direct connected panel limit is {direct_limit}W.')
 
-        limit = direct_limit
+            limit = direct_limit
 
-        if hub_limit > direct_limit > hub_limit - 10:
-            limit = hub_limit - 10
-        if direct_limit < hub_limit - 10 and hub_limit < hub.getInverseMaxPower():
-            limit = hub_limit - 10
-  
-        inv_limit = inv.setLimit(limit)
+            if hub_limit > direct_limit > hub_limit - 10:
+                limit = hub_limit - 10
+            if direct_limit < hub_limit - 10 and hub_limit < hub.getInverseMaxPower():
+                limit = hub_limit - 10
+    
+            inv_limit = inv.setLimit(limit)
+
 
         #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
         #inv_limit = inv.setLimit(lmt)
@@ -353,21 +355,34 @@ def getOpts(configtype) -> dict:
         opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
     return opts
 
-def limit_callback(client: mqtt_client):
+def limit_callback(client: mqtt_client,force=False):
     global lastTriggerTS
     #log.info("Smartmeter Callback!")
     now = datetime.now()
     if lastTriggerTS:
         elapsed = now - lastTriggerTS
         # ensure the limit function is not called too often (avoid flooding DTUs)
-        if elapsed.total_seconds() >= TRIGGER_RATE_LIMIT:
+        if elapsed.total_seconds() >= steering_interval or force:
             lastTriggerTS = now
             limitHomeInput(client)
+            return True
         else:
-            log.info(f'Rate limit on trigger function, last call was only {elapsed.total_seconds():.1f}s ago!')
+            return False
     else:
         lastTriggerTS = now
         limitHomeInput(client)
+        return True
+
+def deviceInfo(client:mqtt_client):
+    limitHomeInput(client)
+    '''
+    hub = client._userdata['hub']
+    log.info(f'{hub}')
+    inv = client._userdata['dtu']
+    log.info(f'{inv}')
+    smt = client._userdata['smartmeter']
+    log.info(f'{smt}')
+    '''
 
 
 def run():
@@ -386,14 +401,10 @@ def run():
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
 
+    infotimer = RepeatedTimer(120, deviceInfo, client)
+
     #client.loop_start()
     client.loop_forever()
-
-    #while True:
-    #    time.sleep(steering_interval)
-    #    limitHomeInput(client)
-        
-    #client.loop_stop()
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
@@ -442,7 +453,6 @@ def main(argv):
     log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
     log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
     log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
-
 
     loc = MyLocation()
     if not LNG and not LAT:

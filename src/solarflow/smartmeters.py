@@ -5,6 +5,7 @@ import json
 import sys
 from utils import TimewindowBuffer, RepeatedTimer, deep_get
 import requests
+from solarflow import Solarflow
 
 TRIGGER_DIFF = 10
 
@@ -48,33 +49,42 @@ class Smartmeter:
         return len(self.phase_values) > 0
 
     def updPower(self):
+        force_trigger = False
         phase_sum = sum(self.phase_values.values())
         # rapid change detection
-        diff = (phase_sum if phase_sum < 1000 else 1000) - self.getPower()
+        #diff = (phase_sum if phase_sum < 1000 else 1000) - self.getPower()
+        diff = phase_sum - self.getPower()
 
+         # by populating the readings we ensure that the moving average is reset and calcluted high enough for fast adoption
         if diff > self.rapid_change_diff:
             log.info("Rapid rise in demand detected, clearing buffer!")
-            self.power.clear()
+            self.power.populate(20,phase_sum)
+            force_trigger = True
         if diff < 0 and abs(diff) > self.rapid_change_diff:
             log.info("Rapid drop in demand detected, clearing buffer!")
-            self.power.clear()
+            self.power.populate(20,phase_sum)
+            force_trigger = True
+
         # by recording smartmeter usage only up to a certain max power we can ensure that
         # demand drops from short high-consumption spikes are faster settled
-        self.power.add(phase_sum if phase_sum < 1000 else 1000)
-        self.client.publish("solarflow-hub/smartmeter/homeUsage",phase_sum)
+        #self.power.add(phase_sum if phase_sum < 1000 else 1000)
+        self.power.add(phase_sum)
+        self.client.publish("solarflow-hub/smartmeter/homeUsage",int(round(phase_sum)))
+        self.client.publish("solarflow-hub/smartmeter/homeUsageSmoothened", int(round(self.power.last())))
         self.client.publish("solarflow-hub/smartmeter/homeUsagePredicted",int(round(self.getPredictedPower())))
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
-        predicted = self.getPredictedPower()
-        if abs(predicted - self.power.last()) >= TRIGGER_DIFF:
-            log.info(f'SMT triggers limit function: {self.power.last()} -> {predicted}')
-            self.last_trigger_value = predicted
-            self.trigger_callback(self.client)
+        previous = self.getPreviousPower()
+        if abs(previous - self.getPower()) >= TRIGGER_DIFF or force_trigger:
+            log.info(f'SMT triggers limit function: {previous} -> {self.getPower()}: {"executed" if self.trigger_callback(self.client,force=force_trigger) else "skipped"}')
+            self.last_trigger_value = self.getPower()
 
-        # in case of a rapid change detected we only have one value and should trigger the limit function
-        if self.power.len() == 1:
-            self.last_trigger_value = self.power.last()
-            self.trigger_callback(self.client)
+        # agressively try to avoid feed-in (below 0 W) if it comes from hub
+        if self.getPower() < 0 and self.getPreviousPower() < 0:
+            hub = self.client._userdata['hub']
+            if hub.getDischargePower() > 0:
+                self.trigger_callback(self.client)
+
 
     def handleMsg(self, msg):
         if msg.topic.startswith(self.base_topic) and msg.payload:
@@ -94,10 +104,14 @@ class Smartmeter:
                     self.updPower()
 
     def getPower(self):
-        return self.power.qwavg()
+        return self.power.last()
     
     def getPredictedPower(self):
         return self.power.predict()[0]
+    
+    def getPreviousPower(self):
+        return self.power.previous()
+    
 
 
 class Poweropti(Smartmeter):

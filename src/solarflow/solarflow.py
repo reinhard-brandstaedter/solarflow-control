@@ -14,17 +14,17 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 class Solarflow:
-    opts = {"device_id":str ,"full_charge_interval":int}
-    SF_PRODUCT_ID = "73bkTV"
+    opts = {"product_id":str, "device_id":str ,"full_charge_interval":int}
 
-    def __init__(self, client: mqtt_client, device_id: str, full_charge_interval:int):
+    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int):
         self.client = client
+        self.SF_PRODUCT_ID = product_id
         self.deviceId = device_id
         self.fullChargeInterval= full_charge_interval
         self.fwVersion = "unknown"
         self.solarInputValues = TimewindowBuffer(minutes=1)
         self.solarInputPower = -1       # solar input power of connected panels
-        self.outputPackPower = 0        # charging power of battery pack 
+        self.outputPackPower = 0        # charging power of battery pack
         self.packInputPower = 0         # discharging power of battery pack
         self.outputHomePower = -1       # power sent to home
         self.bypass = False             # Power Bypass Active/Inactive
@@ -49,6 +49,8 @@ class Solarflow:
 
         self.lastLimitTS = None
 
+        updater = RepeatedTimer(60, self.update)
+
     def __str__(self):
         batteries_soc = "|".join([f'{v:>2}' for v in self.batteriesSoC.values()])
         batteries_vol = "|".join([f'{v:2.1f}' for v in self.batteriesVol.values()])
@@ -63,7 +65,7 @@ class Solarflow:
                         H:{self.outputHomePower:>3}W, \
                         L:{self.outputLimit:>3}W{reset}'.split())
 
-    def update(self): 
+    def update(self):
         log.info(f'Triggering telemetry update: iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/read')
         self.client.publish(f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/read','{"properties": ["getAll"]}')
 
@@ -86,9 +88,6 @@ class Solarflow:
         for t in topics:
             self.client.subscribe(t)
             log.info(f'Hub subscribing: {t}')
-        
-        updater = RepeatedTimer(60, self.update)
-
 
     def ready(self):
         return (self.electricLevel > -1 and self.solarInputPower > -1)
@@ -99,7 +98,7 @@ class Solarflow:
 
         for hatemplate in hatemplates:
             template = environment.get_template(hatemplate.name)
-            hacfg = template.render(device_id=self.deviceId, fw_version=self.fwVersion)
+            hacfg = template.render(product_id=self.SF_PRODUCT_ID, device_id=self.deviceId, fw_version=self.fwVersion)
             cfg_type = hatemplate.name.split(".")[0]
             cfg_name = hatemplate.name.split(".")[1]
             self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{cfg_name}/config',hacfg)
@@ -107,9 +106,9 @@ class Solarflow:
 
     def updSolarInput(self, value:int):
         self.solarInputValues.add(value)
-        self.solarInputPower = self.solarInputValues.wavg()
+        self.solarInputPower = self.solarInputValues.last()
         self.lastSolarInputTS = datetime.now()
-    
+
     def updElectricLevel(self, value:int):
         if value == 100:
             log.info(f'Battery is full: {self.electricLevel}')
@@ -122,7 +121,7 @@ class Solarflow:
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastEmptyTimestamp',int(datetime.timestamp(self.lastEmptyTS)),retain=True)
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',"charging",retain=True)
         self.electricLevel = value
-    
+
     def updOutputPack(self, value:int):
         self.outputPackPower = value
 
@@ -131,13 +130,13 @@ class Solarflow:
 
     def updOutputHome(self, value:int):
         self.outputHomePower = value
-    
+
     def updOutputLimit(self, value:int):
         self.outputLimit = value
-    
+
     def updInverseMaxPower(self, value:int):
         self.inverseMaxPower = value
-    
+
     def updBatterySoC(self, sn:str, value:int):
         self.batteriesSoC.pop("none",None)
         self.batteriesSoC.update({sn:value})
@@ -145,7 +144,7 @@ class Solarflow:
     def updBatteryVol(self, sn:str, value:int):
         self.batteriesVol.pop("none",None)
         self.batteriesVol.update({sn:value/100})
-    
+
     def updMasterSoftVersion(self, value:int):
         major = (value & 0xf000) >> 12
         minor = (value & 0x0f00) >> 8
@@ -153,7 +152,7 @@ class Solarflow:
         self.fwVersion = f'{major}.{minor}.{build}'
 
         self.pushHomeassistantConfig()
-    
+
     def updByPass(self, value:int):
         self.bypass = bool(value)
 
@@ -204,7 +203,7 @@ class Solarflow:
                 props = payload["properties"]
                 for prop, val in props.items():
                     self.client.publish(f'solarflow-hub/{device_id}/telemetry/{prop}',val)
-            
+
             if "packData" in payload:
                 packdata = payload["packData"]
                 if len(packdata) > 0:
@@ -273,21 +272,17 @@ class Solarflow:
             if elapsed.total_seconds() < 45:
                 log.info(f'Hub has just recently adjusted limit, need to wait until it is set again! Current limit: {self.outputLimit}, new limit: {limit}')
                 return self.outputLimit
-            else:
-                self.lastLimitTS = now
-        else:
-            self.lastLimitTS = now
 
         if limit < 0:
             limit = 0
-        
+
         # If battery SoC reaches 0% during night, it has been observed that in the morning with first light, residual energy in the batteries gets released
         # Hub goes then into error and no charging occurs (probably deep discharge assumed by the battery).
         # Hence setting the output limit 0 if SoC 0%
         if self.electricLevel == 0:
             limit = 0
             log.info(f'Battery is empty! Disabling solaraflow output, setting limit to {limit}')
-            
+
 
         # Charge-Through:
         # If charge-through is enabled the hub will not provide any power if the last full state is to long ago
@@ -301,8 +296,8 @@ class Solarflow:
             limit = 0
 
         # SF takes ~1 minute to apply the limit to actual output, so better smoothen the limit to avoid output spikes on short demand spikes
-        self.outputLimitBuffer.add(limit)
-        limit = int(self.outputLimitBuffer.qwavg())
+        #self.outputLimitBuffer.add(limit)
+        #limit = int(self.outputLimitBuffer.last())
 
         # currently the hub doesn't support single steps for limits below 100
         # to get a fine granular steering at this level we need to fall back to the inverter limit
@@ -317,6 +312,7 @@ class Solarflow:
         outputlimit = {"properties": { "outputLimit": limit }}
         if self.outputLimit != limit:
             (not self.dryrun) and self.client.publish(self.property_topic,json.dumps(outputlimit))
+            self.lastLimitTS = now
             log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting solarflow output limit to {limit:.1f}W')
         else:
             log.info(f'{"[DRYRUN] " if self.dryrun else ""}Not setting solarflow output limit to {limit:.1f}W as it is identical to current limit!')
@@ -341,20 +337,31 @@ class Solarflow:
             return diff.total_seconds()/3600
         else:
             return -1
-        
+
     def getOutputHomePower(self):
         return self.outputHomePower
     
+    def getDischargePower(self):
+        return self.packInputPower
+
     def getSolarInputPower(self):
         return self.solarInputPower
-    
+
     def getElectricLevel(self):
         return self.electricLevel
-    
+
     def getInverseMaxPower(self):
         return self.inverseMaxPower
-    
+
+    def getLimit(self):
+        return self.outputLimit
+
     def getBypass(self):
         return self.bypass
+    
+    def getCanDischarge(self):
+        fullage = self.getLastFullBattery()
+        can_discharge = (self.batteryTarget == "discharging") or (self.batteryTarget == "charging" and fullage < self.fullChargeInterval)
+        return not(self.chargeThrough and (not can_discharge or fullage < 0))
 
 
