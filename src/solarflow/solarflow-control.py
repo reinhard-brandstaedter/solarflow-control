@@ -278,18 +278,24 @@ def limitHomeInput(client: mqtt_client):
     #grid_power = smt.getPredictedPower()
     grid_power = smt.getPower()
     inv_acpower = inv.getCurrentACPower()
+    '''
+    Issue #199
+
     # if direct panels are producing more than what is needed we are ok to feed in
     if direct_panel_power > 0:
         demand = grid_power + inv_acpower if (grid_power > 0) else 0 
     # if direct panels are not producing (night), we ensure not to feed into the grid from battery
     else:
         demand = grid_power + inv_acpower
-    
+    '''
+
+    demand = grid_power + inv_acpower
+
     if demand < direct_panel_power and direct_panel_power > 0:
         # we can conver demand with direct panel power, just use all of it
         inv_limit = inv.setLimit(getDirectPanelLimit(inv,hub,smt))
         hub_limit = hub.setOutputLimit(0)
-    if demand >= direct_panel_power or demand < 0:
+    if demand >= direct_panel_power or demand <= 0:
         # the remainder should come from SFHub, in case the remainder is greater than direct panels power
         # we need to make sure the inverter limit is set accordingly high
         
