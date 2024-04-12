@@ -307,12 +307,13 @@ def limitHomeInput(client: mqtt_client):
             source = "unknown"
             if direct_panel_power == 0 and hub.getOutputHomePower() > 0 and hub.getDischargePower() > 0:
                 source = "battery"
-            if direct_panel_power == 0 and hub.getOutputHomePower() > 0 and hub.getDischargePower() == 0:
+            # since we usually set the inverter limit not to zero there is always a little bit drawn from the hub (10-15W)
+            if direct_panel_power == 0 and hub.getOutputHomePower() > 15 and hub.getDischargePower() == 0:
                 source = "hub solarpower"
             if direct_panel_power > 0:
                 source = "panels connected directly to inverter"
 
-            log.info(f'Grid feed in: {demand:.1f}W from {source}. Remainder: {remainder}W')
+            log.info(f'Grid feed in: {demand:.1f}W from {source}. Remainder: {remainder:.1f}W')
         
         # if there is need to take action (remaining demand > 5 W - do not compensate anything below that)
         if remainder > 5:
