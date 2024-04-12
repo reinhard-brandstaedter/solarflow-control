@@ -312,8 +312,6 @@ def limitHomeInput(client: mqtt_client):
                 source = "hub solarpower"
             if direct_panel_power > 0:
                 source = "panels connected directly to inverter"
-
-            log.info(f'Grid feed in: {demand:.1f}W from {source}. Remainder: {remainder:.1f}W')
         
         # if there is need to take action (remaining demand > 5 W - do not compensate anything below that)
         if remainder > 5:
@@ -343,21 +341,15 @@ def limitHomeInput(client: mqtt_client):
         
         # if remainder is negative we are feeding in too much
         if remainder < 0:
-            log.info(f'Feeding in! Remainder is {remainder:.1f}')
+            log.info(f'Grid feed in from {source}! Remainder is {remainder:.1f}')
             if source == "hub solarpower":
                 # reduce the inverter limit
-                log.info(f'We should reduce input from {source}, so that the hub can use it to charge!')
+                log.info(f'Will reduce input from {source}, so that the hub can use it to charge!')
                 limit = inv.getChannelLimit()
                 inv.setLimit(limit+remainder*inv.getNrHubChannels())
             if source == "panels connected directly to inverter" or source == "unknown":
                 # generally feeding in from direct solar power is ok
                 log.info("You are actively contributing to the green energy initiative!")
-
-
-        #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
-        #inv_limit = inv.setLimit(lmt)
-        #log.info(f'Setting hub limit ({remainder}W) bigger than inverter (channel) limit ({direct_limit}W) to avoid MPPT challenges.')
-        #hub_limit = hub.setOutputLimit(lmt+10)        # set SF limit higher than inverter limit to avoid MPPT challenges
 
     panels_dc = "|".join([f'{v:>2}' for v in inv.getDirectDCPowerValues()])
     hub_dc = "|".join([f'{v:>2}' for v in inv.getHubDCPowerValues()])
