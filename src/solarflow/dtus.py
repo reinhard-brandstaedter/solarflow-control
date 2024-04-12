@@ -117,6 +117,9 @@ class DTU:
     def getLimit(self):
         return self.limitAbsolute
     
+    def getChannelLimit(self):
+        return self.getLimit()/(len(self.channelsDCPower)-1)
+    
     def getACPower(self):
         return self.acPower.qwavg()
     

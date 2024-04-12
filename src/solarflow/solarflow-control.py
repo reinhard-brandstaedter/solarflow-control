@@ -345,7 +345,7 @@ def limitHomeInput(client: mqtt_client):
             log.info(f'Feeding in! Remainder is {remainder:.1f}, we should reduce input from {source}!')
             if source == "hub solarpower":
                 # reduce the inverter limit by 
-                limit = inv.getLimit()
+                limit = inv.getChannelLimit()
                 inv.setLimit(limit+remainder*inv.getNrHubChannels())
 
 
