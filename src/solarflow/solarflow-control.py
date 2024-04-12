@@ -301,12 +301,16 @@ def limitHomeInput(client: mqtt_client):
         
         if demand > 0:
             remainder = demand-direct_panel_power
-            log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can\'t cover demand ({demand:.1f}W), trying to get {remainder}W from hub.')
+            log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can\'t cover demand ({demand:.1f}W), trying to get {remainder:.1f}W from hub.')
         else:
             remainder = demand + inv.getACPower()
-            log.info(f'Grid feed in: {demand:.1f}W from {"battery, lowering limit to avoid it." if direct_panel_power == 0 and inv.getHubDCPower() > 0 and hub.getDischargePower() > 0 else "direct panels or other source."}. Remainder: {remainder}W')
+            source = "battery" if direct_panel_power == 0 and hub.getOutputHomePower() > 0 and hub.getDischargePower() > 0 else "other"
+            source = "hub solarpower" if direct_panel_power == 0 and hub.getOutputHomePower() > 0 and hub.getDischargePower() == 0 else "other"
+            source = "panels connected directly to inverter" if direct_panel_power > 0 else "other"
+            log.info(f'Grid feed in: {demand:.1f}W from {source}. Remainder: {remainder}W')
         
-        if remainder > 0:
+        # if there is need to take action (remaining demand > 5 W - do not compensate anything below that)
+        if remainder > 5:
             log.info(f'Checking if Solarflow is willing to contribute {remainder:.1f}W ...')
             sf_contribution = getSFPowerLimit(hub,remainder)
 
@@ -330,6 +334,10 @@ def limitHomeInput(client: mqtt_client):
                 limit = hub_limit - 10
     
             inv_limit = inv.setLimit(limit)
+        
+        # if remainder is negative we are feeding in too much
+        if remainder < 0:
+            log.info("Feeding in! Remainder is {remainder}, we should reduce input from {source}!")
 
 
         #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
