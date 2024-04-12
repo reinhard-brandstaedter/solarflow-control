@@ -308,7 +308,7 @@ def limitHomeInput(client: mqtt_client):
             if direct_panel_power == 0 and hub.getOutputHomePower() > 0 and hub.getDischargePower() > 0:
                 source = "battery"
             # since we usually set the inverter limit not to zero there is always a little bit drawn from the hub (10-15W)
-            if direct_panel_power == 0 and hub.getOutputHomePower() > 15 and hub.getDischargePower() == 0:
+            if direct_panel_power == 0 and hub.getOutputHomePower() > 15 and hub.getDischargePower() == 0 and not hub.getBypass():
                 source = "hub solarpower"
             if direct_panel_power > 0:
                 source = "panels connected directly to inverter"
@@ -343,11 +343,15 @@ def limitHomeInput(client: mqtt_client):
         
         # if remainder is negative we are feeding in too much
         if remainder < 0:
-            log.info(f'Feeding in! Remainder is {remainder:.1f}, we should reduce input from {source}!')
+            log.info(f'Feeding in! Remainder is {remainder:.1f}')
             if source == "hub solarpower":
-                # reduce the inverter limit by 
+                # reduce the inverter limit
+                log.info(f'We should reduce input from {source}, so that the hub can use it to charge!')
                 limit = inv.getChannelLimit()
                 inv.setLimit(limit+remainder*inv.getNrHubChannels())
+            if source == "panels connected directly to inverter" or source == "unknown":
+                # generally feeding in from direct solar power is ok
+                log.info("You are actively contributing to the green energy initiative!")
 
 
         #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
