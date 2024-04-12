@@ -304,9 +304,14 @@ def limitHomeInput(client: mqtt_client):
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can\'t cover demand ({demand:.1f}W), trying to get {remainder:.1f}W from hub.')
         else:
             remainder = demand + inv.getACPower()
-            source = "battery" if direct_panel_power == 0 and hub.getOutputHomePower() > 0 and hub.getDischargePower() > 0 else "other"
-            source = "hub solarpower" if direct_panel_power == 0 and hub.getOutputHomePower() > 0 and hub.getDischargePower() == 0 else "other"
-            source = "panels connected directly to inverter" if direct_panel_power > 0 else "other"
+            source = "unknown"
+            if direct_panel_power == 0 and hub.getOutputHomePower() > 0 and hub.getDischargePower() > 0:
+                source = "battery"
+            if direct_panel_power == 0 and hub.getOutputHomePower() > 0 and hub.getDischargePower() == 0:
+                source = "hub solarpower"
+            if direct_panel_power > 0:
+                source = "panels connected directly to inverter"
+
             log.info(f'Grid feed in: {demand:.1f}W from {source}. Remainder: {remainder}W')
         
         # if there is need to take action (remaining demand > 5 W - do not compensate anything below that)
@@ -337,7 +342,7 @@ def limitHomeInput(client: mqtt_client):
         
         # if remainder is negative we are feeding in too much
         if remainder < 0:
-            log.info("Feeding in! Remainder is {remainder}, we should reduce input from {source}!")
+            log.info(f'Feeding in! Remainder is {remainder:.1f}, we should reduce input from {source}!')
 
 
         #lmt = max(remainder,getDirectPanelLimit(inv,hub,smt))
