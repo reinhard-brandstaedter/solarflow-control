@@ -284,7 +284,7 @@ def limitHomeInput(client: mqtt_client):
 
     demand = grid_power + direct_panel_power + hub_power
 
-    remainder = demand - direct_panel_power
+    remainder = demand - direct_panel_power - hub_power        # eq grid_power
     hub_contribution_ask = hub_power-(hub_power-remainder)     # the power we need from hub
     hub_contribution_ask = 0 if hub_contribution_ask < 0 else hub_contribution_ask
 
