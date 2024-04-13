@@ -50,6 +50,9 @@ class Solarflow:
         self.lastLimitTS = None
 
         updater = RepeatedTimer(60, self.update)
+        haconfig = RepeatedTimer(600, self.pushHomeassistantConfig)
+        self.pushHomeassistantConfig()
+        self.update()
 
     def __str__(self):
         batteries_soc = "|".join([f'{v:>2}' for v in self.batteriesSoC.values()])
@@ -93,6 +96,7 @@ class Solarflow:
         return (self.electricLevel > -1 and self.solarInputPower > -1)
 
     def pushHomeassistantConfig(self):
+        log.info("Publishing Homeassistant templates...")
         hatemplates = [f for f in pathlib.Path().glob("homeassistant/*.json")]
         environment = Environment(loader=FileSystemLoader("homeassistant/"), undefined=DebugUndefined)
 
@@ -103,6 +107,7 @@ class Solarflow:
             cfg_name = hatemplate.name.split(".")[1]
             self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{cfg_name}/config',hacfg)
             #log.info(hacfg)
+        log.info(f"Published {len(hatemplates)} Homeassistant templates.")
 
     def updSolarInput(self, value:int):
         self.solarInputValues.add(value)
@@ -151,7 +156,8 @@ class Solarflow:
         build = (value & 0x00ff)
         self.fwVersion = f'{major}.{minor}.{build}'
 
-        self.pushHomeassistantConfig()
+        # put into own timer in init
+        # self.pushHomeassistantConfig() # why here? this is not needed every minute
 
     def updByPass(self, value:int):
         self.bypass = bool(value)
