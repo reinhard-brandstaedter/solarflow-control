@@ -281,18 +281,12 @@ def limitHomeInput(client: mqtt_client):
     #grid_power = smt.getPredictedPower()
     grid_power = smt.getPower()
     inv_acpower = inv.getCurrentACPower()
-    '''
-    Issue #199
-
-    # if direct panels are producing more than what is needed we are ok to feed in
-    if direct_panel_power > 0:
-        demand = grid_power + inv_acpower if (grid_power > 0) else 0 
-    # if direct panels are not producing (night), we ensure not to feed into the grid from battery
-    else:
-        demand = grid_power + inv_acpower
-    '''
 
     demand = grid_power + direct_panel_power + hub_power
+
+    remainder = demand - direct_panel_power
+    hub_contribution_ask = hub_power-(hub_power-remainder)     # the power we need from hub
+    hub_contribution_ask = 0 if hub_contribution_ask < 0 else hub_contribution_ask
 
     if demand < direct_panel_power and direct_panel_power > 0:
         # we can conver demand with direct panel power, just use all of it
@@ -303,23 +297,24 @@ def limitHomeInput(client: mqtt_client):
         # we need to make sure the inverter limit is set accordingly high
         
         if demand > 0:
-            remainder = demand-direct_panel_power
-            log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can\'t cover demand ({demand:.1f}W), trying to get {remainder:.1f}W from hub.')
+            #remainder = demand-direct_panel_power
+            log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can\'t cover demand ({demand:.1f}W), trying to get {hub_contribution_ask:.1f}W from hub.')
         else:
-            remainder = demand + inv.getACPower()
+            #remainder = demand + inv.getACPower()
             source = "unknown"
-            if direct_panel_power == 0 and hub.getOutputHomePower() > 0 and hub.getDischargePower() > 0:
+            if direct_panel_power == 0 and hub_power > 0 and hub.getDischargePower() > 0:
                 source = "battery"
             # since we usually set the inverter limit not to zero there is always a little bit drawn from the hub (10-15W)
-            if direct_panel_power == 0 and hub.getOutputHomePower() > 15 and hub.getDischargePower() == 0 and not hub.getBypass():
+            if direct_panel_power == 0 and hub_power > 15 and hub.getDischargePower() == 0 and not hub.getBypass():
                 source = "hub solarpower"
             if direct_panel_power > 0:
                 source = "panels connected directly to inverter"
         
         # if there is need to take action (remaining demand > 5 W - do not compensate anything below that)
         if remainder > 5:
-            log.info(f'Checking if Solarflow is willing to contribute {remainder:.1f}W ...')
-            sf_contribution = getSFPowerLimit(hub,remainder)
+            log.info(f'Checking if Solarflow is willing to contribute {hub_contribution_ask:.1f}W ...')
+            #sf_contribution = getSFPowerLimit(hub,remainder)
+            sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
 
             # if the hub's contribution (per channel) is larger than what the direct panels max is delivering (night, low light)
             # then we can open the hub to max limit and use the inverter to limit it's output (more precise)
