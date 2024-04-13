@@ -142,82 +142,17 @@ class MyLocation:
     def getCoordinates(self) -> tuple:
         lat = lon = 0.0
         try:
-            result = requests.get(
-                "http://ip-api.com/json/"
-            )  # call without IP uses my IP
+            result = requests.get('http://ip-api.com/json/') # call without IP uses my IP
             response = result.json()
-            log.info(f"IP Address: {response['query']}")
-            log.info(
-                f"Location: {response['city']}, {response['regionName']}, {response['country']}"
-            )
-            log.info(f"Coordinates: (Lat: {response['lat']}, Lng: {response['lon']}")
+            log.info(f'IP Address: {response["query"]}')
+            log.info(f'Location: {response["city"]}, {response["regionName"]}, {response["country"]}')
+            log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]}')
             lat = response["lat"]
             lon = response["lon"]
         except Exception as e:
-            log.error(
-                f"Can't determine location from my IP. Location detection failed, no accurate sunrise/sunset detection possible",
-                e.args,
-            )
+            log.error(f'Can\'t determine location from my IP. Location detection failed, no accurate sunrise/sunset detection possible',e.args)
 
-        return (lat, lon)
-
-
-def on_config_message(client, userdata, msg):
-    """The MQTT client callback function for intial connects - mainly retained messages, where we are not yet fully up and running but still read potential config parameters from MQTT"""
-
-    global \
-        SUNRISE_OFFSET, \
-        SUNSET_OFFSET, \
-        MIN_CHARGE_POWER, \
-        MAX_DISCHARGE_POWER, \
-        DISCHARGE_DURING_DAYTIME, \
-        BATTERY_LOW, \
-        BATTERY_HIGH
-    # handle own messages (control parameters)
-    if (
-        msg.topic.startswith("solarflow-hub")
-        and "/control/" in msg.topic
-        and msg.payload
-    ):
-        parameter = msg.topic.split("/")[-1]
-        value = msg.payload.decode()
-        match parameter:
-            case "sunriseOffset":
-                SUNRISE_OFFSET = int(value)
-                log.info(
-                    f"Found control/sunriseOffset, set SUNRISE_OFFSET to {SUNRISE_OFFSET} minutes"
-                )
-            case "sunsetOffset":
-                SUNSET_OFFSET = int(value)
-                log.info(
-                    f"Found control/sunsetOffset, set SUNSET_OFFSET to {SUNSET_OFFSET} minutes"
-                )
-            case "minChargePower":
-                MIN_CHARGE_POWER = int(value)
-                log.info(
-                    f"Found control/minChargePower, set MIN_CHARGE_POWER to {MIN_CHARGE_POWER}W"
-                )
-            case "maxDischargePower":
-                MAX_DISCHARGE_POWER = int(value)
-                log.info(
-                    f"Found control/maxDischargePower, set MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER}W"
-                )
-            case "dischargeDuringDaytime":
-                DISCHARGE_DURING_DAYTIME = str2bool(value)
-                log.info(
-                    f"Found control/dischargeDuringDaytime, set DISCHARGE_DURING_DAYTIME to {DISCHARGE_DURING_DAYTIME}"
-                )
-            case "batteryTargetSoCMin":
-                BATTERY_LOW = int(value)
-                log.info(
-                    f"Found control/batteryTargetSoCMin, set BATTERY_LOW to {BATTERY_LOW}%"
-                )
-            case "batteryTargetSoCMax":
-                BATTERY_HIGH = int(value)
-                log.info(
-                    f"Found control/batteryTargetSoCMax, set BATTERY_HIGH to {BATTERY_HIGH}%"
-                )
-
+        return (lat,lon)
 
 def on_message(client, userdata, msg):
     """The MQTT client callback function for continous oepration, messages are delegated to hub, dtu and smartmeter handlers as well as own control parameter updates"""
