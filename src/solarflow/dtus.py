@@ -41,6 +41,7 @@ class DTU:
         self.limit_nonpersistent_absolute = f'{base_topic}/{self.limit_topic}'
         self.trigger_callback = callback
         self.last_trigger_value = 0
+        self.efficiency = 95.0
     
     def __str__(self):
         chPower = "|".join([f'{v:>3.1f}' for v in self.channelsDCPower][1:])
@@ -79,6 +80,9 @@ class DTU:
     def updTotalPowerDC(self, value:float):
         self.dcPower.add(value)
         #self.dcPower = value
+
+    def updEfficiency(self, value:float):
+        self.efficiency = value
 
     def updLimitAbsolute(self, value:float):
         self.limitAbsolute = value
@@ -119,6 +123,9 @@ class DTU:
     
     def getChannelLimit(self):
         return self.getLimit()/(len(self.channelsDCPower)-1)
+    
+    def getEfficiency(self):
+        return self.efficiency
     
     def getACPower(self):
         return self.acPower.qwavg()
@@ -235,6 +242,7 @@ class OpenDTU(DTU):
     def subscribe(self):
         topics = [
             f'{self.base_topic}/0/powerdc',
+            f'{self.base_topic}/0/efficiency',
             f'{self.base_topic}/+/power',
             f'{self.base_topic}/status/producing',
             f'{self.base_topic}/status/reachable',
@@ -251,6 +259,8 @@ class OpenDTU(DTU):
             match metric:
                 case "powerdc":
                     self.updTotalPowerDC(value)
+                case "efficiency":
+                    self.updEfficiency(value)
                 case "limit_absolute":
                     self.updLimitAbsolute(value)
                 case "limit_relative":
@@ -285,6 +295,7 @@ class AhoyDTU(DTU):
             f'{self.base_topic}/{self.inverter_name}/+/P_DC',
             f'{self.base_topic}/{self.inverter_name}/ch0/P_AC',
             f'{self.base_topic}/{self.inverter_name}/ch0/active_PowerLimit',
+            f'{self.base_topic}/{self.inverter_name}/ch0/Efficiency',
             f'{self.base_topic}/status'
         ]
         super().subscribe(topics)
@@ -297,6 +308,8 @@ class AhoyDTU(DTU):
             match metric:
                 case "P_AC":
                     self.updChannelPowerDC(0, value)
+                case "Efficiency":
+                    self.updEfficiency(value)
                 case "status":
                     self.updProducing(value)
                 case "active_PowerLimit":

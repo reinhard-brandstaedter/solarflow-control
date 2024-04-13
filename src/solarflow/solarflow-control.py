@@ -271,9 +271,12 @@ def limitHomeInput(client: mqtt_client):
     inv_limit = inv.getLimit()
     hub_limit = hub.getLimit()
 
-    direct_panel_power = inv.getDirectDCPower()
+    # convert DC Power into AC power by applying current efficiency for more precise calculations
+    direct_panel_power = inv.getDirectDCPower() * (inv.getEfficiency()/100)
     # consider DC power of panels below 10W as 0 to avoid fluctuation in very low light.
     direct_panel_power = 0 if direct_panel_power < 10 else direct_panel_power
+
+    hub_power = inv.getHubDCPower() * (inv.getEfficiency()/100)
 
     #grid_power = smt.getPredictedPower()
     grid_power = smt.getPower()
@@ -289,7 +292,7 @@ def limitHomeInput(client: mqtt_client):
         demand = grid_power + inv_acpower
     '''
 
-    demand = grid_power + inv_acpower
+    demand = grid_power + direct_panel_power + hub_power
 
     if demand < direct_panel_power and direct_panel_power > 0:
         # we can conver demand with direct panel power, just use all of it
