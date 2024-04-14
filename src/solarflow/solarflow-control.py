@@ -294,7 +294,7 @@ def limitHomeInput(client: mqtt_client):
         if demand < direct_panel_power:
             # we can conver demand with direct panel power, just use all of it
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can cover demand ({demand:.1f}W)')
-            inv_limit = inv.setLimit(getDirectPanelLimit(inv,hub,smt))
+            direct_limit = getDirectPanelLimit(inv,hub,smt)
             hub_limit = hub.setOutputLimit(0)
         else:
             # we need contribution from hub, if possible
