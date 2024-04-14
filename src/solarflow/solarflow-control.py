@@ -311,7 +311,7 @@ def limitHomeInput(client: mqtt_client):
                     direct_limit = sf_contribution/inv.getNrHubChannels()
                 else:
                     hub_limit = hub.setOutputLimit(sf_contribution)
-                    log.info(f'Solarflow is willing to contribute {hub_limit:.1f}W of the requested {hub_contribution_ask:.1f}!')
+                    log.info(f'Solarflow is willing to contribute {min(hub_limit,hub_contribution_ask):.1f}W of the requested {hub_contribution_ask:.1f}!')
                     direct_limit = getDirectPanelLimit(inv,hub,smt)
                     log.info(f'Direct connected panel limit is {direct_limit}W.')
 
@@ -320,9 +320,10 @@ def limitHomeInput(client: mqtt_client):
         log.info(f'Direct connected panel are producing {direct_panel_power:.1f}W, trying to get {hub_contribution_ask:.1f}W from hub.')
         # check what hub is currently  willing to contribute
         sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
-        log.info(f'Solarflow is willing to contribute {hub_limit:.1f}W of the requested {hub_contribution_ask:.1f}!')
         hub_limit = hub.setOutputLimit(hub.getInverseMaxPower())
         direct_limit = sf_contribution/inv.getNrHubChannels()
+        log.info(f'Solarflow is willing to contribute {direct_limit:.1f}W of the requested {hub_contribution_ask:.1f}!')
+
 
     limit = direct_limit
 
@@ -336,10 +337,10 @@ def limitHomeInput(client: mqtt_client):
     if remainder < 0:
         source = f'unknown: {-remainder:.1f}'
         if direct_panel_power == 0 and hub_power > 0 and hub.getDischargePower() > 0:
-            source = f'battery: {hub_power:.1f}W'
+            source = f'battery: {grid_power:.1f}W'
         # since we usually set the inverter limit not to zero there is always a little bit drawn from the hub (10-15W)
         if direct_panel_power == 0 and hub_power > 15 and hub.getDischargePower() == 0 and not hub.getBypass():
-            source = f'hub solarpower: {hub_power:.1f}W'
+            source = f'hub solarpower: {grid_power:.1f}W'
         if direct_panel_power > 0 and hub_power < 15:
             source = f'panels connected directly to inverter: {-remainder:.1f}'
 
@@ -420,8 +421,8 @@ def limitHomeInput(client: mqtt_client):
 
     log.info(' '.join(f'Sun: {sunrise.strftime("%H:%M")} - {sunset.strftime("%H:%M")} \
              Demand: {demand:.1f}W, \
-             Panel DC: ({direct_panel_power}), \
-             Hub DC: ({hub_power}), \
+             Panel DC: ({direct_panel_power:.1f}W), \
+             Hub DC: ({hub_power:.1f}W), \
              Inverter Limit: {inv_limit:.1f}W, \
              Hub Limit: {hub_limit:.1f}W'.split()))
 
