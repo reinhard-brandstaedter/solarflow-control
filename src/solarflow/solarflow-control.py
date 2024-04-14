@@ -279,7 +279,7 @@ def limitHomeInput(client: mqtt_client):
     hub_power = inv.getHubDCPower() * (inv.getEfficiency()/100)
 
     #grid_power = smt.getPredictedPower()
-    grid_power = smt.getPower()
+    grid_power = smt.getPower() - smt.zero_offset
     inv_acpower = inv.getCurrentACPower()
 
     demand = grid_power + direct_panel_power + hub_power
@@ -431,8 +431,11 @@ def getOpts(configtype) -> dict:
     opts = {}
     for opt,opt_type in configtype.opts.items():
         t = opt_type.__name__
-        converter = getattr(config,f'get{t}')
-        opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
+        try: 
+            converter = getattr(config,f'get{t}')
+            opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
+        except configparser.NoOptionError:
+            log.info(f'No config setting found for option "{opt}" in section {configtype.__name__.lower()}!')
     return opts
 
 def limit_callback(client: mqtt_client,force=False):
