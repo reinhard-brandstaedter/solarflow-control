@@ -211,7 +211,7 @@ class DTU:
 
         # failsafe: ensure that the inverter's AC output doesn't exceed acceptable legal limits
         # note this could mean that the inverter limit is still higher but it ensures that not too much power is generated
-        if self.getCurrentACPower() > self.acLimit:
+        if self.getCurrentACPower() > self.acLimit and inv_limit > self.acLimit:
             # decrease inverter limit slowly
             inv_limit = self.limitAbsolute - 4
             log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is higher than configured output limit ({self.acLimit}), reducing limit to {inv_limit}')
