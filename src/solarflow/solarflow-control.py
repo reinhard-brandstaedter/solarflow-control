@@ -325,14 +325,15 @@ def limitHomeInput(client: mqtt_client):
         log.info(f'Solarflow is willing to contribute {direct_limit:.1f}W of the requested {hub_contribution_ask:.1f}!')
 
 
-    limit = direct_limit
+    if direct_limit:
+        limit = direct_limit
 
-    if hub_limit > direct_limit > hub_limit - 10:
-        limit = hub_limit - 10
-    if direct_limit < hub_limit - 10 and hub_limit < hub.getInverseMaxPower():
-        limit = hub_limit - 10
+        if hub_limit > direct_limit > hub_limit - 10:
+            limit = hub_limit - 10
+        if direct_limit < hub_limit - 10 and hub_limit < hub.getInverseMaxPower():
+            limit = hub_limit - 10
 
-    inv_limit = inv.setLimit(limit)
+        inv_limit = inv.setLimit(limit)
 
     if remainder < 0:
         source = f'unknown: {-remainder:.1f}'
