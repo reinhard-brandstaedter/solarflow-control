@@ -16,12 +16,12 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 class Smartmeter:
-    opts = {"base_topic":str, "cur_accessor":str, "total_accessor":str, "rapid_change_diff":int}
+    opts = {"base_topic":str, "cur_accessor":str, "total_accessor":str, "rapid_change_diff":int, "zero_offset": int}
 
     def default_calllback(self):
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500, callback = default_calllback):
+    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500, zero_offset:int = 0, callback = default_calllback):
         self.client = client
         self.base_topic = base_topic
         self.power = TimewindowBuffer(minutes=1)
@@ -29,6 +29,7 @@ class Smartmeter:
         self.cur_accessor = cur_accessor
         self.total_accessor = total_accessor
         self.rapid_change_diff = rapid_change_diff
+        self.zero_offset = zero_offset
         self.last_trigger_value = 0
         self.trigger_callback = callback
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Current power accessor: {self.cur_accessor}, Total power accessor: {self.total_accessor}')
@@ -116,15 +117,16 @@ class Smartmeter:
 
 class Poweropti(Smartmeter):
     POWEROPTI_API = "https://backend.powerfox.energy/api/2.0/my/main/current"
-    opts = {"poweropti_user":str, "poweropti_password":str, "rapid_change_diff":int}
+    opts = {"poweropti_user":str, "poweropti_password":str, "rapid_change_diff":int, "zero_offset": int}
 
-    def __init__(self, client: mqtt_client, poweropti_user:str, poweropti_password:str, rapid_change_diff:int = 500, callback = Smartmeter.default_calllback):
+    def __init__(self, client: mqtt_client, poweropti_user:str, poweropti_password:str, rapid_change_diff:int = 500, zero_offset:int = 0, callback = Smartmeter.default_calllback):
         self.client = client
         self.user = poweropti_user
         self.password = poweropti_password
         self.power = TimewindowBuffer(minutes=1)
         self.phase_values = {}
         self.rapid_change_diff = rapid_change_diff
+        self.zero_offset = zero_offset
         self.last_trigger_value = 0
         self.trigger_callback = callback
         self.session = None
@@ -153,14 +155,15 @@ class Poweropti(Smartmeter):
         pass
 
 class ShellyEM3(Smartmeter):
-    opts = {"base_topic":str, "rapid_change_diff":int}
+    opts = {"base_topic":str, "rapid_change_diff":int, "zero_offset": int}
 
-    def __init__(self, client: mqtt_client, base_topic:str, rapid_change_diff:int = 500, callback = Smartmeter.default_calllback):
+    def __init__(self, client: mqtt_client, base_topic:str, rapid_change_diff:int = 500, zero_offset:int = 0, callback = Smartmeter.default_calllback):
         self.client = client
         self.base_topic = base_topic
         self.power = TimewindowBuffer(minutes=1)
         self.phase_values = {}
         self.rapid_change_diff = rapid_change_diff
+        self.zero_offset = zero_offset
         self.last_trigger_value = 0
         self.trigger_callback = callback
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}')
@@ -175,14 +178,15 @@ class ShellyEM3(Smartmeter):
             log.info(f'Shelly3EM subscribing: {t}')
 
 class VZLogger(Smartmeter):
-    opts = {"cur_usage_topic":str, "rapid_change_diff":int}
+    opts = {"cur_usage_topic":str, "rapid_change_diff":int, "zero_offset": int}
 
-    def __init__(self, client: mqtt_client, cur_usage_topic:str, rapid_change_diff:int = 500, callback = Smartmeter.default_calllback):
+    def __init__(self, client: mqtt_client, cur_usage_topic:str, rapid_change_diff:int = 500, zero_offset:int = 0, callback = Smartmeter.default_calllback):
         self.client = client
         self.base_topic = cur_usage_topic
         self.power = TimewindowBuffer(minutes=1)
         self.phase_values = {}
         self.rapid_change_diff = rapid_change_diff
+        self.zero_offset = zero_offset
         self.last_trigger_value = 0
         self.trigger_callback = callback
         log.info(f'Using {type(self).__name__}: Current Usage Topic: {self.base_topic}')
