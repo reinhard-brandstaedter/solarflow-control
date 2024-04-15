@@ -112,30 +112,18 @@ client_id = f'solarflow-ctrl-{random.randint(0, 100)}'
 lastTriggerTS:datetime = None
 
 class MyLocation:
-    ip = ""
-
-    def __init__(self) -> None:
-        try:
-            result = requests.get("https://ifconfig.me")
-            self.ip = result.text
-        except:
-            log.error(f'Can\'t determine my IP. Auto-location detection failed')
-            return None
-        
-        
     def getCoordinates(self) -> tuple:
         lat = lon = 0.0
         try:
-            result = requests.get(f'http://ip-api.com/json/{self.ip}')
+            result = requests.get('http://ip-api.com/json/') # call without IP uses my IP
             response = result.json()
-            #log.info(response)
-            log.info(f'IP Address: {self.ip}')
+            log.info(f'IP Address: {response["query"]}')
             log.info(f'Location: {response["city"]}, {response["regionName"]}, {response["country"]}')
             log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]}')
             lat = response["lat"]
             lon = response["lon"]
-        except:
-            log.error(f'Can\'t determine location from my IP {self.ip}. Location detection failed, no accurate sunrise/sunset detection possible')
+        except Exception as e:
+            log.error(f'Can\'t determine location from my IP. Location detection failed, no accurate sunrise/sunset detection possible',e.args)
 
         return (lat,lon)
 
