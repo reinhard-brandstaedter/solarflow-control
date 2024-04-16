@@ -22,7 +22,7 @@ class DTU:
     def default_calllback(self):
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:[]=[], ac_limit:int=800, callback = default_calllback ):
+    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:[]=[], ac_limit:int=800, callback = default_calllback):
         self.client = client
         self.base_topic = base_topic
         self.acPower = TimewindowBuffer(minutes=1)
@@ -69,13 +69,11 @@ class DTU:
             self.channelsDCPower[channel] = value
 
         # TODO: experimental, trigger limit calculation only on significant changes of DC power prediction
-        predicted = self.getPredictedACPower()
-        # inverter cannot produce negative values
-        predicted = 0 if predicted < 0 else predicted
+        previous = self.getPreviousACPower()
 
-        if abs(predicted - self.acPower.last()) >= TRIGGER_DIFF:
-            log.info(f'DTU triggers limit function: {self.acPower.last()} -> {predicted}: {"executed" if self.trigger_callback(self.client) else "skipped"}')
-            self.last_trigger_value = predicted
+        if abs(previous - self.getCurrentACPower) >= TRIGGER_DIFF:
+            log.info(f'DTU triggers limit function: {previous} -> {self.getCurrentACPower()}: {"executed" if self.trigger_callback(self.client) else "skipped"}')
+            self.last_trigger_value = self.getCurrentACPower()
     
     def updTotalPowerDC(self, value:float):
         self.dcPower.add(value)
@@ -132,6 +130,9 @@ class DTU:
     
     def getCurrentACPower(self):
         return self.acPower.last()
+    
+    def getPreviousACPower(self):
+        return self.acPower.previous()
 
     def getCurrentDCPower(self):
         return self.dcPower.last()

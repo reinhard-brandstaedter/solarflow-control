@@ -472,7 +472,7 @@ def deviceInfo(client:mqtt_client):
 def run():
     client = connect_mqtt()
     hub_opts = getOpts(Solarflow)
-    hub = Solarflow(client=client,**hub_opts)
+    hub = Solarflow(client=client,callback=limit_callback,**hub_opts)
 
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
