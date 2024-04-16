@@ -397,8 +397,7 @@ def limitHomeInput(client: mqtt_client):
                 limit = hub_limit - 10
     
             inv_limit = inv.setLimit(limit)
-        
-    
+
         # if remainder is negative we are feeding in too much
         if remainder < 0:
             log.info(f'Grid feed in from {source}! Remainder is {remainder:.1f}')
