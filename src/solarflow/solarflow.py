@@ -117,13 +117,13 @@ class Solarflow:
 
     def updSolarInput(self, value:int):
         self.solarInputValues.add(value)
-        self.solarInputPower = self.solarInputValues.last()
+        self.solarInputPower = self.getSolarInputPower()
         self.lastSolarInputTS = datetime.now()
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
-        previous = self.getPreviousSolarInputPower()
+        previous = self.solarInputValues.previous()
         if abs(previous - self.getSolarInputPower()) >= TRIGGER_DIFF:
-            log.info(f'HUB triggers limit function: {previous} -> {self.getSolarInputPower()}: {"executed" if self.trigger_callback(self.client,force=force_trigger) else "skipped"}')
+            log.info(f'HUB triggers limit function: {previous} -> {self.getSolarInputPower()}: {"executed" if self.trigger_callback(self.client) else "skipped"}')
             self.last_trigger_value = self.getSolarInputPower()
 
     def updElectricLevel(self, value:int):
@@ -362,8 +362,11 @@ class Solarflow:
     def getDischargePower(self):
         return self.packInputPower
 
+    def getPreviousSolarInputPower(self):
+        return self.solarInputValues.previous()
+
     def getSolarInputPower(self):
-        return self.solarInputPower
+        return self.solarInputValues.last()
 
     def getElectricLevel(self):
         return self.electricLevel
