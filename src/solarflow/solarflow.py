@@ -13,10 +13,15 @@ FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
+TRIGGER_DIFF = 30
+
 class Solarflow:
     opts = {"product_id":str, "device_id":str ,"full_charge_interval":int}
 
-    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int):
+    def default_calllback(self):
+        log.info("default callback")
+
+    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, callback = default_calllback):
         self.client = client
         self.SF_PRODUCT_ID = product_id
         self.deviceId = device_id
@@ -46,6 +51,7 @@ class Solarflow:
         self.sunriseSoC = None
         self.sunsetSoC = None
         self.nightConsumption = 100
+        self.trigger_callback = callback
 
         self.lastLimitTS = None
 
@@ -111,8 +117,14 @@ class Solarflow:
 
     def updSolarInput(self, value:int):
         self.solarInputValues.add(value)
-        self.solarInputPower = self.solarInputValues.last()
+        self.solarInputPower = self.getSolarInputPower()
         self.lastSolarInputTS = datetime.now()
+
+        # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
+        previous = self.solarInputValues.previous()
+        if abs(previous - self.getSolarInputPower()) >= TRIGGER_DIFF:
+            log.info(f'HUB triggers limit function: {previous} -> {self.getSolarInputPower()}: {"executed" if self.trigger_callback(self.client) else "skipped"}')
+            self.last_trigger_value = self.getSolarInputPower()
 
     def updElectricLevel(self, value:int):
         if value == 100:
@@ -350,8 +362,11 @@ class Solarflow:
     def getDischargePower(self):
         return self.packInputPower
 
+    def getPreviousSolarInputPower(self):
+        return self.solarInputValues.previous()
+
     def getSolarInputPower(self):
-        return self.solarInputPower
+        return self.solarInputValues.last()
 
     def getElectricLevel(self):
         return self.electricLevel

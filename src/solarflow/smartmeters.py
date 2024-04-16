@@ -32,7 +32,7 @@ class Smartmeter:
         self.zero_offset = zero_offset
         self.last_trigger_value = 0
         self.trigger_callback = callback
-        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Current power accessor: {self.cur_accessor}, Total power accessor: {self.total_accessor}')
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Current power accessor: {self.cur_accessor}, Total power accessor: {self.total_accessor}, Rapid change diff {self.rapid_change_diff}W, Zero offset: {self.zero_offset}W')
 
     
     def __str__(self):
