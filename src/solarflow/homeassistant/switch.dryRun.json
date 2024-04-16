@@ -1,0 +1,20 @@
+{
+    "name": "DryRun",
+    "cmd_t": "~control/dryRun",
+    "stat_t": "~control/dryRun",
+    "uniq_id": "{{ device_id }}-dryrun",
+    "dev_cla": "switch",
+    "payload_on": "ON",
+    "payload_off": "OFF",
+    "state_on": "ON",
+    "state_off": "OFF",
+    "retain": true,
+    "dev": {
+      "identifiers": ["solarflow-control"],
+      "manufacturer": "Reinhard Weber",
+      "model": "Solarflow Control",
+      "name": "Solarflow Control",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/"
+}
