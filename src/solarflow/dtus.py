@@ -71,7 +71,7 @@ class DTU:
         # TODO: experimental, trigger limit calculation only on significant changes of DC power prediction
         previous = self.getPreviousACPower()
 
-        if abs(previous - self.getCurrentACPower) >= TRIGGER_DIFF:
+        if abs(previous - self.getCurrentACPower()) >= TRIGGER_DIFF:
             log.info(f'DTU triggers limit function: {previous} -> {self.getCurrentACPower()}: {"executed" if self.trigger_callback(self.client) else "skipped"}')
             self.last_trigger_value = self.getCurrentACPower()
     
