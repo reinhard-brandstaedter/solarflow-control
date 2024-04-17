@@ -16,12 +16,12 @@ log = logging.getLogger("")
 TRIGGER_DIFF = 30
 
 class Solarflow:
-    opts = {"product_id":str, "device_id":str ,"full_charge_interval":int}
+    opts = {"product_id":str, "device_id":str ,"full_charge_interval":int, "control_bypass":bool}
 
     def default_calllback(self):
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, callback = default_calllback):
+    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, control_bypass:bool = False, callback = default_calllback):
         self.client = client
         self.SF_PRODUCT_ID = product_id
         self.deviceId = device_id
@@ -33,7 +33,8 @@ class Solarflow:
         self.packInputPower = 0         # discharging power of battery pack
         self.outputHomePower = -1       # power sent to home
         self.bypass = False             # Power Bypass Active/Inactive
-
+        self.control_bypass = control_bypass    # wether we control the bypass switch or the hubs firmware
+        self.bypass_mode = -1           # bypassmode the hub is operating in 0=auto, 1=off, 2=manual
         self.electricLevel = -1         # state of charge of battery pack
         self.batteriesSoC = {"none":-1}    # state of charge for individual batteries
         self.batteriesVol = {"none":-1}    # voltage for individual batteries
@@ -68,7 +69,7 @@ class Solarflow:
                         B:{self.electricLevel:>3}% ({batteries_soc}), \
                         V:{(sum(self.batteriesVol.values()) / len(self.batteriesVol)):2.1f}V ({batteries_vol}), \
                         C:{self.outputPackPower-self.packInputPower:>4}W, \
-                        P:{self.bypass}, \
+                        P:{self.bypass} ({"auto" if self.bypass_mode == 0 else "manual"}), \
                         F:{self.getLastFullBattery():3.1f}h, \
                         E:{self.getLastEmptyBattery():3.1f}h, \
                         H:{self.outputHomePower:>3}W, \
@@ -90,6 +91,7 @@ class Solarflow:
             f'solarflow-hub/{self.deviceId}/telemetry/inverseMaxPower',
             f'solarflow-hub/{self.deviceId}/telemetry/masterSoftVersion',
             f'solarflow-hub/{self.deviceId}/telemetry/pass',
+            f'solarflow-hub/{self.deviceId}/telemetry/passMode',
             f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/socLevel',
             f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/totalVol',
             f'solarflow-hub/{self.deviceId}/control/#'
@@ -130,6 +132,9 @@ class Solarflow:
         if value == 100:
             log.info(f'Battery is full: {self.electricLevel}')
             self.lastFullTS = datetime.now()
+            if self.control_bypass:
+                log.info(f'Bypass control, turning on bypass!')
+                self.setBypass(True)
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',"discharging",retain=True)
         if value == 0:
@@ -173,6 +178,9 @@ class Solarflow:
 
     def updByPass(self, value:int):
         self.bypass = bool(value)
+
+    def updByPassMode(self, value: int):
+        self.bypass_mode = value
 
     def setChargeThrough(self, value):
         if type(value) == str:
@@ -278,6 +286,8 @@ class Solarflow:
                     self.setBatteryTarget(value)
                 case "pass":
                     self.updByPass(int(value))
+                case "passMode":
+                    self.updByPassMode(int(value))
                 case _:
                     log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
@@ -338,6 +348,10 @@ class Solarflow:
 
     def setBuzzer(self, state: bool):
         buzzer = {"properties": { "buzzerSwitch": 0 if not state else 1 }}
+        self.client.publish(self.property_topic,json.dumps(buzzer))
+
+    def setBypass(self, state: bool):
+        buzzer = {"properties": { "passMode": 2 if state else 1 }}
         self.client.publish(self.property_topic,json.dumps(buzzer))
 
     # return how much time has passed since last full charge (in hours)

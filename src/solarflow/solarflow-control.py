@@ -200,6 +200,9 @@ def getSFPowerLimit(hub, demand) -> int:
     sunset = s['sunset']
     path = ""
 
+    sunrise_off = timedelta(minutes = SUNRISE_OFFSET)
+    sunset_off = timedelta(minutes = SUNSET_OFFSET)
+
     if hub_solarpower - demand > MIN_CHARGE_POWER:
         path += "1." 
         if hub_solarpower - MIN_CHARGE_POWER < MAX_DISCHARGE_POWER:
@@ -210,25 +213,24 @@ def getSFPowerLimit(hub, demand) -> int:
             limit = min(demand,hub_solarpower - MIN_CHARGE_POWER)
     if hub_solarpower - demand <= MIN_CHARGE_POWER:  
         path += "2."
-        sunrise_off = timedelta(minutes = SUNRISE_OFFSET)
-        sunset_off = timedelta(minutes = SUNSET_OFFSET)
         if (now < (sunrise + sunrise_off) or now > sunset - sunset_off): 
             path += "1."                
             limit = min(demand,MAX_DISCHARGE_POWER)
         else:
             path += "2."                                     
             limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 else hub_solarpower - MIN_CHARGE_POWER
-            # slower charging at the end, as it often happens to jump, waiting for bypass
-            # Issue #140 as the hubs SoC reporting is somewhat inconsistent at the top end, remove slow charging
-            # limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
     if demand < 0:
         limit = 0
 
     # if the hub is currently in bypass mode, we do not want to limit the output in any way
     # Note: this seems to have changed with FW 2.0.33 as before in bypass mode the limit was ignored, now it isn't
     if hub.bypass:
-        #limit = MAX_INVERTER_LIMIT
-        limit = limitedRise(hub.getSolarInputPower())
+        if demand > hub_solarpower:
+            # we are in bypass and would like to get more than what is currently passed through, should we start discharging?
+            if (now < (sunrise + sunrise_off) or now > sunset - sunset_off):
+                hub.setBypass(False) if hub.getLastFullBattery() > 0.5 else log.info(f'Not leaving bypass to cover additional demand of {demand - hub_solarpower:.1f}W!')
+        else:
+            limit = limitedRise(hub.getSolarInputPower())
 
     # get battery Soc at sunset/sunrise
     td = timedelta(minutes = 1)
@@ -258,6 +260,7 @@ def limitHomeInput(client: mqtt_client):
 
     inv_limit = inv.getLimit()
     hub_limit = hub.getLimit()
+    direct_limit = None
 
     # convert DC Power into AC power by applying current efficiency for more precise calculations
     direct_panel_power = inv.getDirectDCPower() * (inv.getEfficiency()/100)
@@ -310,10 +313,11 @@ def limitHomeInput(client: mqtt_client):
         sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
         hub_limit = hub.setOutputLimit(hub.getInverseMaxPower())
         direct_limit = sf_contribution/inv.getNrHubChannels()
-        log.info(f'Solarflow is willing to contribute {direct_limit:.1f}W of the requested {hub_contribution_ask:.1f}!')
+        log.info(f'Solarflow is willing to contribute {direct_limit:.1f}W (per channel) of the requested {hub_contribution_ask:.1f}!')
 
 
-    if direct_limit:
+    if direct_limit != None:
+
         limit = direct_limit
 
         if hub_limit > direct_limit > hub_limit - 10:
@@ -420,6 +424,7 @@ def getOpts(configtype) -> dict:
     for opt,opt_type in configtype.opts.items():
         t = opt_type.__name__
         try: 
+            if t == "bool": t = "boolean"
             converter = getattr(config,f'get{t}')
             opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
         except configparser.NoOptionError:
