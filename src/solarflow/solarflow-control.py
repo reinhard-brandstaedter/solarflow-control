@@ -421,6 +421,7 @@ def getOpts(configtype) -> dict:
     for opt,opt_type in configtype.opts.items():
         t = opt_type.__name__
         try: 
+            if t == "bool": t = "boolean"
             converter = getattr(config,f'get{t}')
             opts.update({opt:opt_type(converter(configtype.__name__.lower(),opt))})
         except configparser.NoOptionError:
