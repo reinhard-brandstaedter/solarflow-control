@@ -200,6 +200,9 @@ def getSFPowerLimit(hub, demand) -> int:
     sunset = s['sunset']
     path = ""
 
+    sunrise_off = timedelta(minutes = SUNRISE_OFFSET)
+    sunset_off = timedelta(minutes = SUNSET_OFFSET)
+
     if hub_solarpower - demand > MIN_CHARGE_POWER:
         path += "1." 
         if hub_solarpower - MIN_CHARGE_POWER < MAX_DISCHARGE_POWER:
@@ -210,25 +213,24 @@ def getSFPowerLimit(hub, demand) -> int:
             limit = min(demand,hub_solarpower - MIN_CHARGE_POWER)
     if hub_solarpower - demand <= MIN_CHARGE_POWER:  
         path += "2."
-        sunrise_off = timedelta(minutes = SUNRISE_OFFSET)
-        sunset_off = timedelta(minutes = SUNSET_OFFSET)
         if (now < (sunrise + sunrise_off) or now > sunset - sunset_off): 
             path += "1."                
             limit = min(demand,MAX_DISCHARGE_POWER)
         else:
             path += "2."                                     
             limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 else hub_solarpower - MIN_CHARGE_POWER
-            # slower charging at the end, as it often happens to jump, waiting for bypass
-            # Issue #140 as the hubs SoC reporting is somewhat inconsistent at the top end, remove slow charging
-            # limit = int(hub_solarpower/2) if hub_electricLevel > 95 else limit
     if demand < 0:
         limit = 0
 
     # if the hub is currently in bypass mode, we do not want to limit the output in any way
     # Note: this seems to have changed with FW 2.0.33 as before in bypass mode the limit was ignored, now it isn't
     if hub.bypass:
-        #limit = MAX_INVERTER_LIMIT
-        limit = limitedRise(hub.getSolarInputPower())
+        if demand > hub_solarpower:
+            # we are in bypass and would like to get more than what is currently passed through, should we start discharging?
+            if (now < (sunrise + sunrise_off) or now > sunset - sunset_off):
+                hub.setBypass(False) if hub.getLastFullBattery() > 0.5 else log.info(f'Not leaving bypass to cover additional demand of {demand - hub_solarpower:.1f}W!')
+        else:
+            limit = limitedRise(hub.getSolarInputPower())
 
     # get battery Soc at sunset/sunrise
     td = timedelta(minutes = 1)
