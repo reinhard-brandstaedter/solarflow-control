@@ -258,6 +258,7 @@ def limitHomeInput(client: mqtt_client):
 
     inv_limit = inv.getLimit()
     hub_limit = hub.getLimit()
+    direct_limit = None
 
     # convert DC Power into AC power by applying current efficiency for more precise calculations
     direct_panel_power = inv.getDirectDCPower() * (inv.getEfficiency()/100)
@@ -310,10 +311,10 @@ def limitHomeInput(client: mqtt_client):
         sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
         hub_limit = hub.setOutputLimit(hub.getInverseMaxPower())
         direct_limit = sf_contribution/inv.getNrHubChannels()
-        log.info(f'Solarflow is willing to contribute {direct_limit:.1f}W of the requested {hub_contribution_ask:.1f}!')
+        log.info(f'Solarflow is willing to contribute {direct_limit:.1f}W (per channel) of the requested {hub_contribution_ask:.1f}!')
 
 
-    if direct_limit:
+    if direct_limit != None:
         limit = direct_limit
 
         if hub_limit > direct_limit > hub_limit - 10:
