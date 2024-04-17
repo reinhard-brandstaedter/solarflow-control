@@ -187,7 +187,7 @@ def getDirectPanelLimit(inv, hub, smt) -> int:
     direct_panel_power = inv.getDirectACPower() + inv.getHubACPower() if hub.getBypass() else 0
     if direct_panel_power < MAX_INVERTER_LIMIT:
         dc_values = inv.getDirectDCPowerValues() + inv.getHubDCPowerValues() if hub.getBypass() else inv.getDirectDCPowerValues()
-        return math.ceil(max(dc_values) * (inv.getEfficiency()/100)) if smt.getPower() < 0 else limitedRise(max(dc_values) * (inv.getEfficiency()/100))
+        return math.ceil(max(dc_values) * (inv.getEfficiency()/100)) if smt.getPower()- smt.zero_offset < 0 else limitedRise(max(dc_values) * (inv.getEfficiency()/100))
     else:
         return int(MAX_INVERTER_LIMIT*(inv.getNrHubChannels()/inv.getNrTotalChannels()))
 
