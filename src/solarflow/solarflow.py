@@ -130,7 +130,14 @@ class Solarflow:
 
     def updElectricLevel(self, value:int):
         if value == 100:
-            log.info(f'Battery is full: {self.electricLevel}')
+            if self.batteryTarget == "charging":
+                log.info(f'Battery is full: {self.electricLevel}')
+            
+            # only enable bypass on first report of 100%, otherwise it would get enabled againa and again
+            if self.control_bypass and self.batteryTarget == "charging":
+                log.info(f'Bypass control, turning on bypass!')
+                self.setBypass(True)
+
             self.lastFullTS = datetime.now()
             if self.control_bypass:
                 log.info(f'Bypass control, turning on bypass!')
@@ -138,7 +145,9 @@ class Solarflow:
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',"discharging",retain=True)
         if value == 0:
-            log.info(f'Battery is empty: {self.electricLevel}')
+            if self.batteryTarget == "discharging":
+                log.info(f'Battery is empty: {self.electricLevel}')
+                
             self.lastEmptyTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastEmptyTimestamp',int(datetime.timestamp(self.lastEmptyTS)),retain=True)
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',"charging",retain=True)
@@ -353,6 +362,8 @@ class Solarflow:
     def setBypass(self, state: bool):
         buzzer = {"properties": { "passMode": 2 if state else 1 }}
         self.client.publish(self.property_topic,json.dumps(buzzer))
+        if not state:
+            self.bypass = state         # required for cases where we can't wait on confirmation on turning bypass off
 
     # return how much time has passed since last full charge (in hours)
     def getLastFullBattery(self) -> int:
