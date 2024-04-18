@@ -353,6 +353,8 @@ class Solarflow:
     def setBypass(self, state: bool):
         buzzer = {"properties": { "passMode": 2 if state else 1 }}
         self.client.publish(self.property_topic,json.dumps(buzzer))
+        if not state:
+            self.bypass = state         # required for cases where we can't wait on confirmation on turning bypass off
 
     # return how much time has passed since last full charge (in hours)
     def getLastFullBattery(self) -> int:
