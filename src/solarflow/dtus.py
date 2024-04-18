@@ -160,7 +160,7 @@ class DTU:
         return sum(self.getDirectDCPowerValues())
     
     def getDirectACPower(self) -> float:
-        return self.getDirectDCPower * (self.getEfficiency()/100)
+        return self.getDirectDCPower() * (self.getEfficiency()/100)
 
     def getNrTotalChannels(self) -> int:
         return len(self.channelsDCPower)-1
@@ -176,7 +176,7 @@ class DTU:
         return sum(self.getHubDCPowerValues())
     
     def getHubACPower(self) -> float:
-        return self.getHubDCPower * (self.getEfficiency()/100)
+        return self.getHubDCPower() * (self.getEfficiency()/100)
 
     def getNrHubChannels(self) -> int:
         return len(self.sf_inverter_channels)
