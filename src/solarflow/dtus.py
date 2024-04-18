@@ -191,6 +191,9 @@ class DTU:
     def isWithin(self,a,b,range:int):
         return b-range < a < b+range
 
+    def getChannelLimit(self) ->int:
+        return self.getLimit()/(len(self.channelsDCPower)-1)
+    
     def setLimit(self, limit:int):
         # failsafe, never set the inverter limit to 0, keep a minimum
         # see: https://github.com/lumapu/ahoy/issues/1079

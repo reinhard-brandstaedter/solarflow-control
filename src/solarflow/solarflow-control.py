@@ -187,7 +187,7 @@ def getDirectPanelLimit(inv, hub, smt) -> int:
     direct_panel_power = inv.getDirectACPower() + inv.getHubACPower() if hub.getBypass() else 0
     if direct_panel_power < MAX_INVERTER_LIMIT:
         dc_values = inv.getDirectDCPowerValues() + inv.getHubDCPowerValues() if hub.getBypass() else inv.getDirectDCPowerValues()
-        return math.ceil(max(dc_values) * (inv.getEfficiency()/100)) if smt.getPower()- smt.zero_offset < 0 else limitedRise(max(dc_values) * (inv.getEfficiency()/100))
+        return math.ceil(max(dc_values) * (inv.getEfficiency()/100)) if smt.getPower() - smt.zero_offset < 0 else limitedRise(max(dc_values) * (inv.getEfficiency()/100))
     else:
         return int(MAX_INVERTER_LIMIT*(inv.getNrHubChannels()/inv.getNrTotalChannels()))
 
@@ -288,12 +288,23 @@ def limitHomeInput(client: mqtt_client):
         if demand < direct_panel_power:
             # we can conver demand with direct panel power, just use all of it
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can cover demand ({demand:.1f}W)')
-            direct_limit = getDirectPanelLimit(inv,hub,smt)
+            #direct_limit = getDirectPanelLimit(inv,hub,smt)
+            # keep inverter limit where it is, no need to change
+            direct_limit = inv.getChannelLimit()
             hub_limit = hub.setOutputLimit(0)
         else:
-            # we need contribution from hub, if possible
+            # we need contribution from hub, if possible and/or try to get more from direct panels
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can\'t cover demand ({demand:.1f}W), trying to get {hub_contribution_ask:.1f}W from hub.')
             if hub_contribution_ask > 5:
+                # is there potentially more to get from direct panels?
+                # if the direct channel power is below what is theoretically possible, it is worth trying to increase the limit
+
+                # if the max of direct channel power is close to the channel limit we should increase the limit first to get pot more from direct panels 
+                if inv.isWithin(max(inv.getDirectDCPowerValues()),inv.getChannelLimit(),10):
+                    log.info(f'The current max direct channel power {max(inv.getDirectDCPowerValues()):.1f}W is close to the current channel limit {inv.getChannelLimit():.1f}, trying to get more from direct panels.')
+                    hub_limit = hub.getLimit()
+                    direct_limit = getDirectPanelLimit(inv,hub,smt)
+
                 # check what hub is currently  willing to contribute
                 sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
 
