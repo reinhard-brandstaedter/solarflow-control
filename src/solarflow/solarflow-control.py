@@ -203,7 +203,6 @@ def getSFPowerLimit(hub, demand) -> int:
     sunrise_off = timedelta(minutes = SUNRISE_OFFSET)
     sunset_off = timedelta(minutes = SUNSET_OFFSET)
 
-
     # if the hub is currently in bypass mode we don't really worry about any limit
     if hub.bypass:
         path += "0."

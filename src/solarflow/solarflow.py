@@ -139,6 +139,9 @@ class Solarflow:
                 self.setBypass(True)
 
             self.lastFullTS = datetime.now()
+            if self.control_bypass:
+                log.info(f'Bypass control, turning on bypass!')
+                self.setBypass(True)
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',"discharging",retain=True)
         if value == 0:
