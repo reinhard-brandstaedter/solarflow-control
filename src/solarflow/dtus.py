@@ -22,7 +22,7 @@ class DTU:
     def default_calllback(self):
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:t[]=[], ac_limit:int=800, callback = default_calllback):
+    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:[]=[], ac_limit:int=800, callback = default_calllback):
         self.client = client
         self.base_topic = base_topic
         self.acPower = TimewindowBuffer(minutes=1)
