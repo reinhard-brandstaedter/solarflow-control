@@ -22,7 +22,7 @@ class DTU:
     def default_calllback(self):
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:[]=[], ac_limit:int=800, callback = default_calllback):
+    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:t[]=[], ac_limit:int=800, callback = default_calllback):
         self.client = client
         self.base_topic = base_topic
         self.acPower = TimewindowBuffer(minutes=1)
@@ -48,7 +48,7 @@ class DTU:
         return ' '.join(f'{yellow}INV: \
                         AC:{self.getCurrentACPower():>3.1f}W, AC_Prediction: {self.getPredictedACPower():>3.1f}W, \
                         DC:{self.getCurrentDCPower():>3.1f}W, DC_prediction: {self.getPredictedDCPower():>3.1f}W ({chPower}), \
-                        L:{self.limitAbsolute:>3}W [{self.maxPower:>3}W]{reset}'.split())
+                        L:{self.limitAbsolute:>3.0f}W ({self.getChannelLimit():.1f}W/channel) [{self.maxPower:>3.0f}W]{reset}'.split())
 
     def subscribe(self, topics):
         topics.append(f'solarflow-hub/+/control/dryRun')
