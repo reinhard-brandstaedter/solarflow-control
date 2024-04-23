@@ -213,22 +213,25 @@ class DTU:
         # it could be that maxPower has not yet been detected resulting in a zero limit
         inv_limit = 10 if inv_limit < 10 else int(inv_limit)
 
+        withinRange = 6
         # failsafe: ensure that the inverter's AC output doesn't exceed acceptable legal limits
         # note this could mean that the inverter limit is still higher but it ensures that not too much power is generated
 
         if self.getCurrentACPower() > self.acLimit and inv_limit > self.acLimit:
             # decrease inverter limit slowly
             inv_limit = self.limitAbsolute - 8
+            withinRange = 0
             log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is higher than configured output limit ({self.acLimit}), reducing limit to {inv_limit}')
 
         # failsafe: if the current AC output is close to the AC limit do not increase the invert limit too much
         if self.getCurrentACPower() < self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 6):
             # only increase inverter limit a little bit
             inv_limit = self.limitAbsolute + 2
+            withinRange = 0
             log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is close to the configured AC output limit ({self.acLimit}), slow limit increase to {inv_limit}') 
         
         #if self.limitAbsolute != inv_limit and self.reachable:
-        if not self.isWithin(inv_limit,self.limitAbsolute,6) and self.reachable:
+        if not self.isWithin(inv_limit,self.limitAbsolute,withinRange) and self.reachable:
             (not self.dryrun) and self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
             #log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
             log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting inverter output limit to {inv_limit}W (1 min moving average of {limit}W x {len(self.channelsDCPower)-1})')
