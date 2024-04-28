@@ -212,7 +212,7 @@ def getSFPowerLimit(hub, demand) -> int:
             path += "1."
         else:
             path += "2."
-            limit = demand
+            limit = hub.getInverseMaxPower()
 
     if not hub.bypass:
         if hub_solarpower - demand > MIN_CHARGE_POWER:
