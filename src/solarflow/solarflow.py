@@ -66,7 +66,7 @@ class Solarflow:
         batteries_vol = "|".join([f'{v:2.1f}' for v in self.batteriesVol.values()])
         return ' '.join(f'{red}HUB: \
                         S:{self.solarInputPower:>3.1f}W {self.solarInputValues}, \
-                        B:{self.electricLevel:>3}% ({batteries_soc}), \
+                        B:{self.electricLevel:>3}% ({batteries_soc}) [{self.batteryTarget}], \
                         V:{(sum(self.batteriesVol.values()) / len(self.batteriesVol)):2.1f}V ({batteries_vol}), \
                         C:{self.outputPackPower-self.packInputPower:>4}W, \
                         P:{self.bypass} ({"auto" if self.bypass_mode == 0 else "manual"}), \
@@ -359,6 +359,7 @@ class Solarflow:
     def setBypass(self, state: bool):
         passmode = {"properties": { "passMode": 2 if state else 1 }}
         self.client.publish(self.property_topic,json.dumps(passmode))
+        log.info(f'Turning hub bypass {"ON" if state else "OFF"}')
         if not state:
             self.bypass = state         # required for cases where we can't wait on confirmation on turning bypass off
 
