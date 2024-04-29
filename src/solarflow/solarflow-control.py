@@ -144,6 +144,8 @@ def on_connect(client, userdata, flags, rc):
         hub = client._userdata['hub']
         hub.subscribe()
         hub.setBuzzer(False)
+        if hub.control_bypass:
+            hub.setBypass(False)
         inv = client._userdata['dtu']
         inv.subscribe()
         smt = client._userdata['smartmeter']
@@ -187,7 +189,7 @@ def getDirectPanelLimit(inv, hub, smt) -> int:
     direct_panel_power = inv.getDirectACPower() + inv.getHubACPower() if hub.getBypass() else 0
     if direct_panel_power < MAX_INVERTER_LIMIT:
         dc_values = inv.getDirectDCPowerValues() + inv.getHubDCPowerValues() if hub.getBypass() else inv.getDirectDCPowerValues()
-        return math.ceil(max(dc_values) * (inv.getEfficiency()/100)) if smt.getPower()- smt.zero_offset < 0 else limitedRise(max(dc_values) * (inv.getEfficiency()/100))
+        return math.ceil(max(dc_values) * (inv.getEfficiency()/100)) if smt.getPower() - smt.zero_offset < 0 else limitedRise(max(dc_values) * (inv.getEfficiency()/100))
     else:
         return int(MAX_INVERTER_LIMIT*(inv.getNrHubChannels()/inv.getNrTotalChannels()))
 
@@ -207,12 +209,12 @@ def getSFPowerLimit(hub, demand) -> int:
     if hub.bypass:
         path += "0."
         # leave bypass after sunset/offset
-        if (now < (sunrise + sunrise_off) or now > sunset - sunset_off):
+        if (now < (sunrise + sunrise_off) or now > sunset - sunset_off) and hub.control_bypass:
             hub.setBypass(False)
             path += "1."
         else:
             path += "2."
-            limit = demand
+            limit = hub.getInverseMaxPower()
 
     if not hub.bypass:
         if hub_solarpower - demand > MIN_CHARGE_POWER:
@@ -241,6 +243,9 @@ def getSFPowerLimit(hub, demand) -> int:
     if now > sunrise and now < sunrise + td:
         hub.setSunriseSoC(hub_electricLevel)
         log.info(f'Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!')
+        # sometimes bypass resets to default (auto)
+        if hub.control_bypass:
+            hub.setBypass(False)
 
     log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.bypass}), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
@@ -287,26 +292,37 @@ def limitHomeInput(client: mqtt_client):
         if demand < direct_panel_power:
             # we can conver demand with direct panel power, just use all of it
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can cover demand ({demand:.1f}W)')
+            #direct_limit = getDirectPanelLimit(inv,hub,smt)
+            # keep inverter limit where it is, no need to change
             direct_limit = getDirectPanelLimit(inv,hub,smt)
             hub_limit = hub.setOutputLimit(0)
         else:
-            # we need contribution from hub, if possible
+            # we need contribution from hub, if possible and/or try to get more from direct panels
             log.info(f'Direct connected panels ({direct_panel_power:.1f}W) can\'t cover demand ({demand:.1f}W), trying to get {hub_contribution_ask:.1f}W from hub.')
             if hub_contribution_ask > 5:
-                # check what hub is currently  willing to contribute
-                sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
+                # is there potentially more to get from direct panels?
+                # if the direct channel power is below what is theoretically possible, it is worth trying to increase the limit
 
-                # if the hub's contribution (per channel) is larger than what the direct panels max is delivering (night, low light)
-                # then we can open the hub to max limit and use the inverter to limit it's output (more precise)
-                if sf_contribution/inv.getNrHubChannels() >= max(inv.getDirectDCPowerValues()) * (inv.getEfficiency()/100):
-                    log.info(f'Hub should contribute more ({sf_contribution:.1f}W) than what we currently get from panels ({direct_panel_power:.1f}W), we will use the inverter for fast/precise limiting!')
-                    hub_limit = hub.setOutputLimit(hub.getInverseMaxPower())
-                    direct_limit = sf_contribution/inv.getNrHubChannels()
-                else:
-                    hub_limit = hub.setOutputLimit(sf_contribution)
-                    log.info(f'Solarflow is willing to contribute {min(hub_limit,hub_contribution_ask):.1f}W of the requested {hub_contribution_ask:.1f}!')
+                # if the max of direct channel power is close to the channel limit we should increase the limit first to get pot more from direct panels 
+                if inv.isWithin(max(inv.getDirectDCPowerValues()),inv.getChannelLimit(),10):
+                    log.info(f'The current max direct channel power {max(inv.getDirectDCPowerValues()):.1f}W is close to the current channel limit {inv.getChannelLimit():.1f}, trying to get more from direct panels.')
+                    hub_limit = hub.getLimit()
                     direct_limit = getDirectPanelLimit(inv,hub,smt)
-                    log.info(f'Direct connected panel limit is {direct_limit}W.')
+                else:
+                    # check what hub is currently  willing to contribute
+                    sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
+
+                    # if the hub's contribution (per channel) is larger than what the direct panels max is delivering (night, low light)
+                    # then we can open the hub to max limit and use the inverter to limit it's output (more precise)
+                    if sf_contribution/inv.getNrHubChannels() >= max(inv.getDirectDCPowerValues()) * (inv.getEfficiency()/100):
+                        log.info(f'Hub should contribute more ({sf_contribution:.1f}W) than what we currently get from panels ({direct_panel_power:.1f}W), we will use the inverter for fast/precise limiting!')
+                        hub_limit = hub.setOutputLimit(hub.getInverseMaxPower())
+                        direct_limit = sf_contribution/inv.getNrHubChannels()
+                    else:
+                        hub_limit = hub.setOutputLimit(sf_contribution)
+                        log.info(f'Solarflow is willing to contribute {min(hub_limit,hub_contribution_ask):.1f}W of the requested {hub_contribution_ask:.1f}!')
+                        direct_limit = getDirectPanelLimit(inv,hub,smt)
+                        log.info(f'Direct connected panel limit is {direct_limit}W.')
 
     # likely no sun, not producing, eveything comes from hub
     else:
