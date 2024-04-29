@@ -144,6 +144,8 @@ def on_connect(client, userdata, flags, rc):
         hub = client._userdata['hub']
         hub.subscribe()
         hub.setBuzzer(False)
+        if hub.control_bypass:
+            hub.setBypass(False)
         inv = client._userdata['dtu']
         inv.subscribe()
         smt = client._userdata['smartmeter']
