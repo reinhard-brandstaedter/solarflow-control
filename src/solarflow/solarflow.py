@@ -357,8 +357,8 @@ class Solarflow:
         self.client.publish(self.property_topic,json.dumps(buzzer))
 
     def setBypass(self, state: bool):
-        buzzer = {"properties": { "passMode": 2 if state else 1 }}
-        self.client.publish(self.property_topic,json.dumps(buzzer))
+        passmode = {"properties": { "passMode": 2 if state else 1 }}
+        self.client.publish(self.property_topic,json.dumps(passmode))
         if not state:
             self.bypass = state         # required for cases where we can't wait on confirmation on turning bypass off
 
