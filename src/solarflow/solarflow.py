@@ -135,9 +135,10 @@ class Solarflow:
                 log.info(f'Battery is full: {self.electricLevel}')
             
             # only enable bypass on first report of 100%, otherwise it would get enabled again and again
-            if self.control_bypass and (self.allow_bypass or not self.getBypass()):
+            if self.control_bypass and self.allow_bypass:
                 log.info(f'Bypass control, turning on bypass!')
                 self.setBypass(True)
+                self.allow_bypass = False
 
             self.lastFullTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
