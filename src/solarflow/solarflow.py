@@ -35,6 +35,7 @@ class Solarflow:
         self.bypass = False             # Power Bypass Active/Inactive
         self.control_bypass = control_bypass    # wether we control the bypass switch or the hubs firmware
         self.bypass_mode = -1           # bypassmode the hub is operating in 0=auto, 1=off, 2=manual
+        self.allow_bypass = True        # if bypass can be currently enabled or not
         self.electricLevel = -1         # state of charge of battery pack
         self.batteriesSoC = {"none":-1}    # state of charge for individual batteries
         self.batteriesVol = {"none":-1}    # voltage for individual batteries
@@ -134,7 +135,7 @@ class Solarflow:
                 log.info(f'Battery is full: {self.electricLevel}')
             
             # only enable bypass on first report of 100%, otherwise it would get enabled again and again
-            if self.control_bypass and (self.batteryTarget == "charging" or not self.getBypass()):
+            if self.control_bypass and (self.allow_bypass or not self.getBypass()):
                 log.info(f'Bypass control, turning on bypass!')
                 self.setBypass(True)
 
@@ -187,6 +188,9 @@ class Solarflow:
 
     def updByPassMode(self, value: int):
         self.bypass_mode = value
+
+    def allowBypass(self, allow):
+        self.allow_bypass = allow
 
     def setChargeThrough(self, value):
         if type(value) == str:

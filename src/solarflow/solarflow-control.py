@@ -210,6 +210,7 @@ def getSFPowerLimit(hub, demand) -> int:
         path += "0."
         # leave bypass after sunset/offset
         if (now < (sunrise) or now > sunset or hub_solarpower < 10) and hub.control_bypass:
+            hub.allowBypass(False)
             hub.setBypass(False)
             path += "1."
         else:
@@ -245,6 +246,7 @@ def getSFPowerLimit(hub, demand) -> int:
         log.info(f'Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!')
         # sometimes bypass resets to default (auto)
         if hub.control_bypass:
+            hub.allowBypass(True)
             hub.setBypass(False)
 
     log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.bypass}), hub could contribute {limit:4.1f}W - Decision path: {path}')
