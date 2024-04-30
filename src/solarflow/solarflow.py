@@ -133,8 +133,8 @@ class Solarflow:
             if self.batteryTarget == "charging":
                 log.info(f'Battery is full: {self.electricLevel}')
             
-            # only enable bypass on first report of 100%, otherwise it would get enabled againa and again
-            if self.control_bypass and self.batteryTarget == "charging":
+            # only enable bypass on first report of 100%, otherwise it would get enabled again and again
+            if self.control_bypass and (self.batteryTarget == "charging" or not self.getBypass()):
                 log.info(f'Bypass control, turning on bypass!')
                 self.setBypass(True)
 
