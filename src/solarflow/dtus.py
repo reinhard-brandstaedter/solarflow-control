@@ -119,9 +119,6 @@ class DTU:
     def getLimit(self):
         return self.limitAbsolute
     
-    def getChannelLimit(self):
-        return self.getLimit()/(len(self.channelsDCPower)-1)
-    
     def getEfficiency(self):
         return self.efficiency
     
@@ -192,7 +189,10 @@ class DTU:
         return b-range < a < b+range
 
     def getChannelLimit(self) ->int:
-        return self.getLimit()/(len(self.channelsDCPower)-1)
+        if len(self.channelsDCPower) > 1:
+            return self.getLimit()/(len(self.channelsDCPower)-1)
+        else:
+            return 0
     
     def setLimit(self, limit:int):
         # failsafe, never set the inverter limit to 0, keep a minimum

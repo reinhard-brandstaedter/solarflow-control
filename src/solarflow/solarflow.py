@@ -35,6 +35,7 @@ class Solarflow:
         self.bypass = False             # Power Bypass Active/Inactive
         self.control_bypass = control_bypass    # wether we control the bypass switch or the hubs firmware
         self.bypass_mode = -1           # bypassmode the hub is operating in 0=auto, 1=off, 2=manual
+        self.allow_bypass = True        # if bypass can be currently enabled or not
         self.electricLevel = -1         # state of charge of battery pack
         self.batteriesSoC = {"none":-1}    # state of charge for individual batteries
         self.batteriesVol = {"none":-1}    # voltage for individual batteries
@@ -69,7 +70,7 @@ class Solarflow:
                         B:{self.electricLevel:>3}% ({batteries_soc}), \
                         V:{(sum(self.batteriesVol.values()) / len(self.batteriesVol)):2.1f}V ({batteries_vol}), \
                         C:{self.outputPackPower-self.packInputPower:>4}W, \
-                        P:{self.bypass} ({"auto" if self.bypass_mode == 0 else "manual"}), \
+                        P:{self.bypass} ({"auto" if self.bypass_mode == 0 else "manual"}, {"possible" if self.allow_bypass else "not possible"}), \
                         F:{self.getLastFullBattery():3.1f}h, \
                         E:{self.getLastEmptyBattery():3.1f}h, \
                         H:{self.outputHomePower:>3}W, \
@@ -133,10 +134,11 @@ class Solarflow:
             if self.batteryTarget == "charging":
                 log.info(f'Battery is full: {self.electricLevel}')
             
-            # only enable bypass on first report of 100%, otherwise it would get enabled againa and again
-            if self.control_bypass and self.batteryTarget == "charging":
+            # only enable bypass on first report of 100%, otherwise it would get enabled again and again
+            if self.control_bypass and self.allow_bypass:
                 log.info(f'Bypass control, turning on bypass!')
                 self.setBypass(True)
+                self.allow_bypass = False
 
             self.lastFullTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
@@ -187,6 +189,9 @@ class Solarflow:
 
     def updByPassMode(self, value: int):
         self.bypass_mode = value
+
+    def allowBypass(self, allow):
+        self.allow_bypass = allow
 
     def setChargeThrough(self, value):
         if type(value) == str:
@@ -359,6 +364,7 @@ class Solarflow:
     def setBypass(self, state: bool):
         passmode = {"properties": { "passMode": 2 if state else 1 }}
         self.client.publish(self.property_topic,json.dumps(passmode))
+        log.info(f'Turning hub bypass {"ON" if state else "OFF"}')
         if not state:
             self.bypass = state         # required for cases where we can't wait on confirmation on turning bypass off
 
