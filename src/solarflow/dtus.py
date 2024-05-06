@@ -237,7 +237,7 @@ class DTU:
             log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is higher than configured output limit ({self.acLimit}), reducing limit to {inv_limit}')
 
         # failsafe: if the current AC output is close to the AC limit do not increase the invert limit too much
-        if self.getCurrentACPower() < self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
+        if self.getCurrentACPower() < self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 10):
             # only increase inverter limit a little bit
             inv_limit = self.limitAbsolute + 2
             withinRange = 0

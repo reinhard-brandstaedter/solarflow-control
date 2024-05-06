@@ -1,8 +1,11 @@
 pipeline {
-    agent { label 'docker-builder' }
+    //agent { label 'docker-builder' }
+    agent {
+        label 'docker-buildx'
+    }
     
     environment {
-        DOCKER_HOST = "tcp://docker.local:2375"
+        //DOCKER_HOST = "tcp://docker.local:2375"
         DOCKER_REGISTRY = "rbrandstaedter"
         LOG_LEVEL = "INFO"
         BUILD_NUMBER = "${BUILD_NUMBER}"
