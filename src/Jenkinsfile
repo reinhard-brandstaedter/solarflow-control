@@ -16,7 +16,17 @@ pipeline {
         BRANCH_NAME = git_branch.substring(git_branch.lastIndexOf('/') + 1, git_branch.length())
     }
 
+    options {
+        skipDefaultCheckout true
+    }
+
     stages {
+        stage('clean_workspace_and_checkout_source') {
+            steps {
+                sh label: 'get id', script: 'id'
+                checkout scm
+            }
+        }
         stage('Build Docker Images') {
             steps {
                 sh 'printenv'
