@@ -23,7 +23,7 @@ pipeline {
     stages {
         stage('clean_workspace_and_checkout_source') {
             steps {
-                sh label: 'get id', script: 'mkdir ~.ssh && ssh-keyscan -H github.com >> ~/.ssh/known_hosts'
+                sh label: 'get id', script: 'mkdir ~/.ssh && ssh-keyscan -H github.com >> ~/.ssh/known_hosts'
                 checkout scm
             }
         }
