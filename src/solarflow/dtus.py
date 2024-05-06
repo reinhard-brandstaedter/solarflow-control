@@ -194,6 +194,13 @@ class DTU:
         else:
             return 0
     
+    def getACLimit(self) -> int:
+        # if hub is not contributing to AC output, we can calculate the AC limit based on the max direct channels
+        if self.getHubACPower() == 0:
+            return int((self.acLimit/self.getNrDirectChannels()) * self.getNrTotalChannels())
+        else:
+            return int((self.acLimit/(self.getNrDirectChannels()+self.getNrHubChannels())) * self.getNrTotalChannels())
+
     def setLimit(self, limit:int):
         # failsafe, never set the inverter limit to 0, keep a minimum
         # see: https://github.com/lumapu/ahoy/issues/1079
@@ -219,7 +226,8 @@ class DTU:
 
         if self.getCurrentACPower() > self.acLimit and inv_limit > self.acLimit:
             # decrease inverter limit slowly
-            inv_limit = self.limitAbsolute - 8
+            #inv_limit = self.limitAbsolute - 8
+            inv_limit = self.getACLimit()
             withinRange = 0
             log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is higher than configured output limit ({self.acLimit}), reducing limit to {inv_limit}')
 
