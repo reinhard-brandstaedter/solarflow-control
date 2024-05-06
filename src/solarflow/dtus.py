@@ -196,6 +196,7 @@ class DTU:
     
     def getACLimit(self) -> int:
         # if hub is not contributing to AC output, we can calculate the AC limit based on the max direct channels
+        log.info(f'Over limit: {self.getHubACPower()}W, {self.getNrDirectChannels()} direct channels: {self.getDirectACPower():.0f}W, {self.getNrHubChannels()} hub channels: {self.getHubACPower():.0f}')
         if self.getHubACPower() == 0:
             return int((self.acLimit/self.getNrDirectChannels()) * self.getNrTotalChannels())
         else:
@@ -232,9 +233,10 @@ class DTU:
             log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is higher than configured output limit ({self.acLimit}), reducing limit to {inv_limit}')
 
         # failsafe: if the current AC output is close to the AC limit do not increase the invert limit too much
-        if self.getCurrentACPower() < self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 6):
+        if self.getCurrentACPower() < self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
             # only increase inverter limit a little bit
-            inv_limit = self.limitAbsolute + 2
+            #inv_limit = self.limitAbsolute + 2
+            inv_limit = self.getACLimit() + 2
             withinRange = 0
             log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is close to the configured AC output limit ({self.acLimit}), slow limit increase to {inv_limit}') 
         
