@@ -163,7 +163,7 @@ class DTU:
         return len(self.channelsDCPower)-1
     
     def getNrProducingChannels(self) -> int:
-        return len(list(filter(lambda x: x > 0, self.channelsDCPower)))
+        return len(list(filter(lambda x: x > 0, self.channelsDCPower)))-1
     
     def getHubDCPowerValues(self) -> []:
         hub = []
