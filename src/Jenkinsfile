@@ -18,8 +18,8 @@ pipeline {
             steps {
                 sh 'printenv'
                 dir("${env.WORKSPACE}/src"){
-                    sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,,linux/arm64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
-                    sh label: 'Build solarflow-control', script: 'docker -H ${DOCKER_HOST} buildx build --platform linux/amd64,,linux/arm64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
+                    sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,linux/arm64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
+                    sh label: 'Build solarflow-control', script: 'docker -H ${DOCKER_HOST} buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
                 }
                 script {
                     if (env.BRANCH_NAME == 'master') {
@@ -41,7 +41,7 @@ pipeline {
             steps {
                 sh label: 'Docker Login', script: 'docker login -u ${DOCKERHUB_LOGIN_USR} -p ${DOCKERHUB_LOGIN_PSW}'
                 dir("${env.WORKSPACE}/src") {
-                    sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,,linux/arm64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
+                    sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
                 }
                 script {
                     if (env.BRANCH_NAME == 'master') {
