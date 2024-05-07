@@ -188,6 +188,11 @@ class Solarflow:
         self.bypass = bool(value)
 
     def updByPassMode(self, value: int):
+        # it seems when the battery is completely depleted SF resets the bypass to auto, so we enforce it manual off when this happens
+        if self.control_bypass and value == 0 and not self.bypass:
+            self.setBypass(False)
+            value = 1
+
         self.bypass_mode = value
 
     def allowBypass(self, allow):

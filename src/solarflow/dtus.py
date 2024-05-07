@@ -162,6 +162,9 @@ class DTU:
     def getNrTotalChannels(self) -> int:
         return len(self.channelsDCPower)-1
     
+    def getNrProducingChannels(self) -> int:
+        return len(list(filter(lambda x: x > 0, self.channelsDCPower)))-1
+    
     def getHubDCPowerValues(self) -> []:
         hub = []
         for idx,v in enumerate(self.channelsDCPower):
@@ -194,6 +197,15 @@ class DTU:
         else:
             return 0
     
+    def getACLimit(self) -> int:
+        # if hub is not contributing to AC output, we can calculate the AC limit based on the max direct channels
+        log.info(f'Over limit: {self.getCurrentACPower():.0f}W, {self.getNrProducingChannels()} producing channels: {self.getDirectACPower():.0f}W, from hub channels: {self.getHubACPower():.0f}')
+        #Over limit: 265.20082W, 3 direct channels: 530W, 1 hub channels: 265
+        if self.getHubACPower() == 0:
+            return int((self.acLimit/self.getNrDirectChannels()) * self.getNrTotalChannels())
+        else:
+            return int((self.acLimit/self.getNrProducingChannels()) * self.getNrTotalChannels())
+
     def setLimit(self, limit:int):
         # failsafe, never set the inverter limit to 0, keep a minimum
         # see: https://github.com/lumapu/ahoy/issues/1079
@@ -219,12 +231,13 @@ class DTU:
 
         if self.getCurrentACPower() > self.acLimit and inv_limit > self.acLimit:
             # decrease inverter limit slowly
-            inv_limit = self.limitAbsolute - 8
+            #inv_limit = self.limitAbsolute - 8
+            inv_limit = self.getACLimit()
             withinRange = 0
             log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is higher than configured output limit ({self.acLimit}), reducing limit to {inv_limit}')
 
         # failsafe: if the current AC output is close to the AC limit do not increase the invert limit too much
-        if self.getCurrentACPower() < self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 6):
+        if self.getCurrentACPower() < self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 10):
             # only increase inverter limit a little bit
             inv_limit = self.limitAbsolute + 2
             withinRange = 0

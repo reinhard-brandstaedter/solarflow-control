@@ -232,7 +232,8 @@ def getSFPowerLimit(hub, demand) -> int:
                 path += "1."                
                 limit = min(demand,MAX_DISCHARGE_POWER)
             else:
-                path += "2."                                     
+                path += "2."  
+                #limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 and hub.getElectricLevel() < 100 else hub_solarpower - MIN_CHARGE_POWER                                   
                 limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 else hub_solarpower - MIN_CHARGE_POWER
         if demand < 0:
             limit = 0
