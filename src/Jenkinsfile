@@ -16,9 +16,9 @@ pipeline {
         BRANCH_NAME = git_branch.substring(git_branch.lastIndexOf('/') + 1, git_branch.length())
     }
 
-    options {
-        skipDefaultCheckout true
-    }
+    //options {
+    //    skipDefaultCheckout true
+    //}
 
     stages {
         stage('Checkout') {
@@ -27,7 +27,7 @@ pipeline {
                 sh label: 'env', script: 'echo $GITHUB_AUTH_TOKEN > ~/.ssh/id.rsa'
                 //sh label: 'setup ssh', script: 'echo "Host github\n\tHostname github.com\n\tIdentityFile ~/.ssh/id.rsa\n\tIdentitiesOnly yes\n\tAddKeysToAgent yes" > ~/.ssh/config'
                 //sh label: 'check ssh', script: 'cat ~/.ssh/config'
-                checkout scm
+                //checkout scm
             }
         }
         stage('Build Docker Images') {
