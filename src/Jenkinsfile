@@ -49,6 +49,7 @@ pipeline {
                                 sh label: 'Github CLI install', script: 'apk add github-cli'
                                 sh label: 'GitHub CLI login', script: 'echo ${GITHUB_AUTH_TOKEN} | gh auth login --with-token'
                                 sh label: 'GitHub CLI status', script: 'gh auth status'
+                                sh label: 'git config', script: 'git config --global --add safe.directory /home/jenkins/agent/workspace/solarflow-control-master'
                                 //sh label: 'Save docker images', script: 'docker save -o solarflow-control-${TAG}.tar ${DOCKER_REGISTRY}/solarflow-control:${TAG}'
                                 sh label: 'Create Release', script: 'gh release create ${TAG} --generate-notes -t "Release ${TAG}"'
                             }
