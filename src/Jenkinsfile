@@ -23,7 +23,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                sh label: 'get id', script: 'mkdir ~/.ssh && ssh-keyscan -H github.com >> ~/.ssh/known_hosts'
+                sh label: 'get id', script: 'rm -rf ~/.ssh && mkdir ~/.ssh && ssh-keyscan -H github.com >> ~/.ssh/known_hosts'
                 sh label: 'env', script: 'echo $GITHUB_AUTH_TOKEN > ~/.ssh/id.rsa'
                 //sh label: 'setup ssh', script: 'echo "Host github\n\tHostname github.com\n\tIdentityFile ~/.ssh/id.rsa\n\tIdentitiesOnly yes\n\tAddKeysToAgent yes" > ~/.ssh/config'
                 //sh label: 'check ssh', script: 'cat ~/.ssh/config'
