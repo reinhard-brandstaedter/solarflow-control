@@ -16,18 +16,16 @@ pipeline {
         BRANCH_NAME = git_branch.substring(git_branch.lastIndexOf('/') + 1, git_branch.length())
     }
 
-    //options {
-    //    skipDefaultCheckout true
-    //}
+    options {
+        skipDefaultCheckout true
+    }
 
     stages {
         stage('Checkout') {
             steps {
                 sh label: 'get id', script: 'rm -rf ~/.ssh && mkdir ~/.ssh && ssh-keyscan -H github.com >> ~/.ssh/known_hosts'
                 sh label: 'env', script: 'echo $GITHUB_AUTH_TOKEN > ~/.ssh/id.rsa'
-                //sh label: 'setup ssh', script: 'echo "Host github\n\tHostname github.com\n\tIdentityFile ~/.ssh/id.rsa\n\tIdentitiesOnly yes\n\tAddKeysToAgent yes" > ~/.ssh/config'
-                //sh label: 'check ssh', script: 'cat ~/.ssh/config'
-                //checkout scm
+                checkout scm
             }
         }
         stage('Build Docker Images') {
@@ -37,7 +35,6 @@ pipeline {
             }
             steps {
                 container('docker-buildx') {
-                    sh 'printenv'
                     dir("${env.WORKSPACE}/src"){
                         sh label: 'Set up X-Builder', script: 'docker buildx create --name crossbuilder --platform linux/amd64,linux/arm64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
                         sh label: 'Build solarflow-control', script: 'docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
