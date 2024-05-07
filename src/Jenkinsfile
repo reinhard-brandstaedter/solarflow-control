@@ -33,22 +33,24 @@ pipeline {
         }
         stage('Build Docker Images') {
             steps {
-                sh 'printenv'
-                dir("${env.WORKSPACE}/src"){
-                    sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,linux/arm64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
-                    sh label: 'Build solarflow-control', script: 'docker -H ${DOCKER_HOST} buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
-                }
-                script {
-                    if (env.BRANCH_NAME == 'master') {
-                        dir("${env.WORKSPACE}/src"){
-                            sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
-                            sh label: 'Build solarflow-control', script: 'docker -H ${DOCKER_HOST} buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${TAG} -t ${DOCKER_REGISTRY}/solarflow-control:latest .'
-                        }
-                        dir("${env.WORKSPACE}/imageexport") {
-                            sh label: 'GitHub CLI login', script: 'echo ${GITHUB_AUTH_TOKEN} | gh auth login --with-token'
-                            sh label: 'GitHub CLI status', script: 'gh auth status'
-                            //sh label: 'Save docker images', script: 'docker save -o solarflow-control-${TAG}.tar ${DOCKER_REGISTRY}/solarflow-control:${TAG}'
-                            sh label: 'Create Release', script: 'gh release create ${TAG} --generate-notes -t "Release ${TAG}"'
+                container('docker-buildx') {
+                    sh 'printenv'
+                    dir("${env.WORKSPACE}/src"){
+                        sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,linux/arm64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
+                        sh label: 'Build solarflow-control', script: 'docker -H ${DOCKER_HOST} buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
+                    }
+                    script {
+                        if (env.BRANCH_NAME == 'master') {
+                            dir("${env.WORKSPACE}/src"){
+                                sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
+                                sh label: 'Build solarflow-control', script: 'docker -H ${DOCKER_HOST} buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${TAG} -t ${DOCKER_REGISTRY}/solarflow-control:latest .'
+                            }
+                            dir("${env.WORKSPACE}/imageexport") {
+                                sh label: 'GitHub CLI login', script: 'echo ${GITHUB_AUTH_TOKEN} | gh auth login --with-token'
+                                sh label: 'GitHub CLI status', script: 'gh auth status'
+                                //sh label: 'Save docker images', script: 'docker save -o solarflow-control-${TAG}.tar ${DOCKER_REGISTRY}/solarflow-control:${TAG}'
+                                sh label: 'Create Release', script: 'gh release create ${TAG} --generate-notes -t "Release ${TAG}"'
+                            }
                         }
                     }
                 }
