@@ -31,12 +31,12 @@ pipeline {
             }
         }
         stage('Build Docker Images') {
+            environment { 
+                BRANCH_NAME = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEA').trim()
+                TAG = "0.${BUILD_NUMBER}"
+            }
             steps {
                 container('docker-buildx') {
-                    environment { 
-                        BRANCH_NAME = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEA').trim()
-                        TAG = "0.${BUILD_NUMBER}"
-                    }
                     sh 'printenv'
                     dir("${env.WORKSPACE}/src"){
                         sh label: 'Set up X-Builder', script: 'docker buildx create --name crossbuilder --platform linux/amd64,linux/arm64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
@@ -60,12 +60,12 @@ pipeline {
             }
         }
         stage('Push Docker Images') {
+            environment { 
+                BRANCH_NAME = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEA').trim()
+                TAG = "0.${BUILD_NUMBER}"
+            }
             steps {
                 container('docker-buildx') {
-                    environment { 
-                        BRANCH_NAME = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEA').trim()
-                        TAG = "0.${BUILD_NUMBER}"
-                    }
                     sh label: 'Docker Login', script: 'docker login -u ${DOCKERHUB_LOGIN_USR} -p ${DOCKERHUB_LOGIN_PSW}'
                     dir("${env.WORKSPACE}/src") {
                         sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
