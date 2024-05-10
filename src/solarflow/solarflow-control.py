@@ -307,7 +307,7 @@ def limitHomeInput(client: mqtt_client):
                 # if the direct channel power is below what is theoretically possible, it is worth trying to increase the limit
 
                 # if the max of direct channel power is close to the channel limit we should increase the limit first to get pot more from direct panels 
-                if inv.isWithin(max(inv.getDirectDCPowerValues()) * (inv.getEfficiency()/100),inv.getChannelLimit(),10):
+                if inv.isWithin(max(inv.getDirectDCPowerValues()) * (inv.getEfficiency()/100),inv.getChannelLimit(),10*inv.getNrTotalChannels()):
                     log.info(f'The current max direct channel power {(max(inv.getDirectDCPowerValues()) * (inv.getEfficiency()/100)):.1f}W is close to the current channel limit {inv.getChannelLimit():.1f}W, trying to get more from direct panels.')
                     hub_limit = hub.getLimit()
                     direct_limit = getDirectPanelLimit(inv,hub,smt)
