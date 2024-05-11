@@ -186,9 +186,9 @@ def limitedRise(x) -> int:
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
 def getDirectPanelLimit(inv, hub, smt) -> int:
     # if hub is in bypass mode we can treat it just like a direct panel
-    direct_panel_power = inv.getDirectACPower() + inv.getHubACPower() if hub.getBypass() else 0
+    direct_panel_power = inv.getDirectACPower() + (inv.getHubACPower() if hub.getBypass() else 0)
     if direct_panel_power < MAX_INVERTER_LIMIT:
-        dc_values = inv.getDirectDCPowerValues() + inv.getHubDCPowerValues() if hub.getBypass() else inv.getDirectDCPowerValues()
+        dc_values = (inv.getDirectDCPowerValues() + inv.getHubDCPowerValues()) if hub.getBypass() else inv.getDirectDCPowerValues()
         return math.ceil(max(dc_values) * (inv.getEfficiency()/100)) if smt.getPower() - smt.zero_offset < 0 else limitedRise(max(dc_values) * (inv.getEfficiency()/100))
     else:
         return int(MAX_INVERTER_LIMIT*(inv.getNrHubChannels()/inv.getNrProducingChannels()))
@@ -306,7 +306,7 @@ def limitHomeInput(client: mqtt_client):
                 # is there potentially more to get from direct panels?
                 # if the direct channel power is below what is theoretically possible, it is worth trying to increase the limit
 
-                # if the max of direct channel power is close to the channel limit we should increase the limit first to get pot more from direct panels 
+                # if the max of direct channel power is close to the channel limit we should increase the limit first to eventually get more from direct panels 
                 if inv.isWithin(max(inv.getDirectDCPowerValues()) * (inv.getEfficiency()/100),inv.getChannelLimit(),10*inv.getNrTotalChannels()):
                     log.info(f'The current max direct channel power {(max(inv.getDirectDCPowerValues()) * (inv.getEfficiency()/100)):.1f}W is close to the current channel limit {inv.getChannelLimit():.1f}W, trying to get more from direct panels.')
                     hub_limit = hub.getLimit()
@@ -315,15 +315,20 @@ def limitHomeInput(client: mqtt_client):
                     # check what hub is currently  willing to contribute
                     sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
 
+                    # would the hub's contribution plus direct panel power cross the AC limit? If yes only contribute up to the limit
+                    if sf_contribution + direct_panel_power > inv.acLimit:
+                        log.info(f'Hub could contribute {sf_contribution:.1f}W, but this would cross the legal AC limit ({inv.acLimit}), so only asking for {inv.acLimit - direct_panel_power:.1f}W')
+                        sf_contribution = inv.acLimit - direct_panel_power
+
                     # if the hub's contribution (per channel) is larger than what the direct panels max is delivering (night, low light)
                     # then we can open the hub to max limit and use the inverter to limit it's output (more precise)
                     if sf_contribution/inv.getNrHubChannels() >= max(inv.getDirectDCPowerValues()) * (inv.getEfficiency()/100):
-                        log.info(f'Hub should contribute more ({sf_contribution:.1f}W) than what we currently get from panels ({direct_panel_power:.1f}W), we will use the inverter for fast/precise limiting!')
+                        log.info(f'Hub should contribute more ({sf_contribution:.1f}W) than what we currently get max from panels ({max(inv.getDirectDCPowerValues()) * (inv.getEfficiency()/100):.1f}W), we will use the inverter for fast/precise limiting!')
                         hub_limit = hub.setOutputLimit(0) if hub.getBypass() else hub.setOutputLimit(hub.getInverseMaxPower())
                         direct_limit = sf_contribution/inv.getNrHubChannels()
                     else:
                         hub_limit = hub.setOutputLimit(0) if hub.getBypass() else hub.setOutputLimit(sf_contribution)
-                        log.info(f'Solarflow is willing to contribute {min(hub_limit,hub_contribution_ask):.1f}W of the requested {hub_contribution_ask:.1f}!')
+                        log.info(f'Hub is willing to contribute {min(hub_limit,hub_contribution_ask):.1f}W of the requested {hub_contribution_ask:.1f}!')
                         direct_limit = getDirectPanelLimit(inv,hub,smt)
                         log.info(f'Direct connected panel limit is {direct_limit}W.')
 

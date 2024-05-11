@@ -199,7 +199,7 @@ class DTU:
     
     def getACLimit(self) -> int:
         # if hub is not contributing to AC output, we can calculate the AC limit based on the max direct channels
-        log.info(f'Over limit: {self.getCurrentACPower():.0f}W, {self.getNrProducingChannels()} producing channels: {self.getDirectACPower():.0f}W, from hub channels: {self.getHubACPower():.0f}')
+        log.info(f'Over limit: {self.getCurrentACPower():.0f}W, {self.getNrProducingChannels()} producing channels: {self.getDirectACPower():.0f}W, from hub channels: {self.getHubACPower():.0f}W')
 
         if self.getHubACPower() == 0:
             return int((self.acLimit/self.getNrDirectChannels()) * self.getNrTotalChannels())
