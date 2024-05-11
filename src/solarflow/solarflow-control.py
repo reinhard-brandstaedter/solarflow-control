@@ -239,7 +239,7 @@ def getSFPowerLimit(hub, demand) -> int:
             limit = 0
 
     # get battery Soc at sunset/sunrise
-    td = timedelta(minutes = 1)
+    td = timedelta(minutes = 5)
     if now > sunset and now < sunset + td:
         hub.setSunsetSoC(hub_electricLevel)
     if now > sunrise and now < sunrise + td:
