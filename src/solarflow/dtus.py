@@ -200,7 +200,7 @@ class DTU:
     def getACLimit(self) -> int:
         # if hub is not contributing to AC output, we can calculate the AC limit based on the max direct channels
         log.info(f'Over limit: {self.getCurrentACPower():.0f}W, {self.getNrProducingChannels()} producing channels: {self.getDirectACPower():.0f}W, from hub channels: {self.getHubACPower():.0f}')
-        #Over limit: 265.20082W, 3 direct channels: 530W, 1 hub channels: 265
+
         if self.getHubACPower() == 0:
             return int((self.acLimit/self.getNrDirectChannels()) * self.getNrTotalChannels())
         else:
@@ -229,12 +229,19 @@ class DTU:
         # failsafe: ensure that the inverter's AC output doesn't exceed acceptable legal limits
         # note this could mean that the inverter limit is still higher but it ensures that not too much power is generated
 
-        if self.getCurrentACPower() > self.acLimit and inv_limit > self.acLimit:
+        # acceptable overage on AC power, keep limit where it is
+        if self.getCurrentACPower() > self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
+            inv_limit = self.limitAbsolute
+            withinRange = 0
+            log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is within acceptable overage ({self.acLimit}), keeping limit at {inv_limit}')
+
+        if self.getCurrentACPower() > self.acLimit and not self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
             # decrease inverter limit slowly
             #inv_limit = self.limitAbsolute - 8
             inv_limit = self.getACLimit()
             withinRange = 0
-            log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is higher than configured output limit ({self.acLimit}), reducing limit to {inv_limit}')
+            log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is higher than configured limit ({self.acLimit}), reducing limit to {inv_limit}')
+
 
         # failsafe: if the current AC output is close to the AC limit do not increase the invert limit too much
         if self.getCurrentACPower() < self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 10):
