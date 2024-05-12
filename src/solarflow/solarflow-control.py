@@ -209,7 +209,7 @@ def getSFPowerLimit(hub, demand) -> int:
     if hub.bypass:
         path += "0."
         # leave bypass after sunset/offset
-        if (now < (sunrise + sunrise_off) or now > sunset - sunset_off) and hub.control_bypass:
+        if (now < (sunrise + sunrise_off) or now > sunset - sunset_off) and hub.control_bypass and demand > hub_solarpower:
             hub.allowBypass(False)
             hub.setBypass(False)
             path += "1."
