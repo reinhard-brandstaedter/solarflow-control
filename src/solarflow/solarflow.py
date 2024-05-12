@@ -313,8 +313,8 @@ class Solarflow:
         now = datetime.now()
         if self.lastLimitTS:
             elapsed = now - self.lastLimitTS
-            if elapsed.total_seconds() < 45:
-                log.info(f'Hub has just recently adjusted limit, need to wait until it is set again! Current limit: {self.outputLimit}, new limit: {limit}')
+            if elapsed.total_seconds() < 30:
+                log.info(f'Hub has recently adjusted limit, need to wait until it is set again! Current limit: {self.outputLimit:.0f}, new limit: {limit:.1f}')
                 return self.outputLimit
 
         if limit < 0:
