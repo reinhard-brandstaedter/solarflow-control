@@ -317,7 +317,7 @@ def limitHomeInput(client: mqtt_client):
 
                     # would the hub's contribution plus direct panel power cross the AC limit? If yes only contribute up to the limit
                     if sf_contribution * (inv.getEfficiency()/100) + direct_panel_power  > inv.acLimit:
-                        log.info(f'Hub could contribute {sf_contribution:.1f}W, but this would cross the legal AC limit ({inv.acLimit}), so only asking for {inv.acLimit - direct_panel_power:.1f}W')
+                        log.info(f'Hub could contribute {sf_contribution:.1f}W, but this would exceed the configured AC limit ({inv.acLimit}W), so only asking for {inv.acLimit - direct_panel_power:.1f}W')
                         sf_contribution = inv.acLimit - direct_panel_power
 
                     # if the hub's contribution (per channel) is larger than what the direct panels max is delivering (night, low light)
