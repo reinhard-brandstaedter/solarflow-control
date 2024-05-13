@@ -233,14 +233,14 @@ class DTU:
         if self.getCurrentACPower() > self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
             inv_limit = self.limitAbsolute
             withinRange = 0
-            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0W}) is within acceptable overage ({self.acLimit:.0}W +/- 20W), keeping limit at {inv_limit:.0}W')
+            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0f}W) is within acceptable overage ({self.acLimit:.0f}W +/- 20W), keeping limit at {inv_limit:.0f}W')
 
         if self.getCurrentACPower() > self.acLimit and not self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
             # decrease inverter limit slowly
             #inv_limit = self.limitAbsolute - 8
             inv_limit = self.getACLimit()
             withinRange = 0
-            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0W}) is higher than configured limit ({self.acLimit:.0}W), reducing limit to {inv_limit:.0}W')
+            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0f}W) is higher than configured limit ({self.acLimit:.0f}W), reducing limit to {inv_limit:.0f}W')
 
 
         # failsafe: if the current AC output is close to the AC limit do not increase the invert limit too much
@@ -248,7 +248,7 @@ class DTU:
             # only increase inverter limit a little bit
             inv_limit = self.limitAbsolute + 2
             withinRange = 0
-            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0W}) is close to the configured AC output limit ({self.acLimit:.0}W), slow limit increase to {inv_limit:.0}W') 
+            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0f}W) is close to the configured AC output limit ({self.acLimit:.0f}W), slow limit increase to {inv_limit:.0f}W') 
         
         #if self.limitAbsolute != inv_limit and self.reachable:
         if not self.isWithin(inv_limit,self.limitAbsolute,withinRange) and self.reachable:
