@@ -233,14 +233,14 @@ class DTU:
         if self.getCurrentACPower() > self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
             inv_limit = self.limitAbsolute
             withinRange = 0
-            log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is within acceptable overage ({self.acLimit}), keeping limit at {inv_limit}')
+            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0W}) is within acceptable overage ({self.acLimit}:.0W +/- 20W), keeping limit at {inv_limit}:.0W')
 
         if self.getCurrentACPower() > self.acLimit and not self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
             # decrease inverter limit slowly
             #inv_limit = self.limitAbsolute - 8
             inv_limit = self.getACLimit()
             withinRange = 0
-            log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is higher than configured limit ({self.acLimit}), reducing limit to {inv_limit}')
+            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0W}) is higher than configured limit ({self.acLimit}:.0W), reducing limit to {inv_limit}:.0W')
 
 
         # failsafe: if the current AC output is close to the AC limit do not increase the invert limit too much
@@ -248,7 +248,7 @@ class DTU:
             # only increase inverter limit a little bit
             inv_limit = self.limitAbsolute + 2
             withinRange = 0
-            log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is close to the configured AC output limit ({self.acLimit}), slow limit increase to {inv_limit}') 
+            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0W}) is close to the configured AC output limit ({self.acLimit}:.0W), slow limit increase to {inv_limit}:.0W') 
         
         #if self.limitAbsolute != inv_limit and self.reachable:
         if not self.isWithin(inv_limit,self.limitAbsolute,withinRange) and self.reachable:
