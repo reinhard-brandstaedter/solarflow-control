@@ -263,11 +263,11 @@ class DTU:
     
 
 class OpenDTU(DTU):
-    opts = {"base_topic":str ,"inverter_serial":int,"sf_inverter_channels":list}
+    opts = {"base_topic":str ,"inverter_serial":str,"sf_inverter_channels":list}
     limit_topic = "cmd/limit_nonpersistent_absolute"
     limit_unit = ""
 
-    def __init__(self, client: mqtt_client, base_topic:str, inverter_serial:int, sf_inverter_channels:[]=[], ac_limit:int=800, callback = DTU.default_calllback):
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_serial:str, sf_inverter_channels:[]=[], ac_limit:int=800, callback = DTU.default_calllback):
         super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels, ac_limit=ac_limit, callback=callback)
         self.base_topic = f'{base_topic}/{inverter_serial}'
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}'
@@ -312,11 +312,11 @@ class OpenDTU(DTU):
         super().handleMsg(msg)
 
 class AhoyDTU(DTU):
-    opts = {"base_topic":str, "inverter_id":int, "inverter_name":str, "inverter_max_power":int, "sf_inverter_channels":list}
+    opts = {"base_topic":str, "inverter_id":str, "inverter_name":str, "inverter_max_power":int, "sf_inverter_channels":list}
     limit_topic = "ctrl/limit"
     limit_unit = "W"
 
-    def __init__(self, client: mqtt_client, base_topic:str, inverter_name:str, inverter_id:int, inverter_max_power:int, sf_inverter_channels:[]=[], ac_limit:int=800, callback = DTU.default_calllback):
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_name:str, inverter_id:str, inverter_max_power:int, sf_inverter_channels:[]=[], ac_limit:int=800, callback = DTU.default_calllback):
         super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels,ac_limit=ac_limit, callback=callback)
         self.base_topic = f'{base_topic}'
         self.inverter_name = inverter_name
