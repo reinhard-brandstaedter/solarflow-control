@@ -220,7 +220,7 @@ class DTU:
         #### inv_limit = int(math.ceil(self.limitAbsoluteBuffer.qwavg() / 2.) * 2)
 
         # Avoid setting limit higher than 150% of inverter capacity
-        inv_limit = self.maxPower*1.5 if (inv_limit > self.maxPower*1.5 and self.maxPower > 0) else inv_limit
+        inv_limit = self.maxPower*1.125 if (inv_limit > self.maxPower*1.125 and self.maxPower > 0) else inv_limit
 
         # it could be that maxPower has not yet been detected resulting in a zero limit
         inv_limit = 10 if inv_limit < 10 else int(inv_limit)
