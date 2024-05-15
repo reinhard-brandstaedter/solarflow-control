@@ -1,13 +1,10 @@
 {
-    "name": "Bypass",
+    "name": "Bypass Mode",
     "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
     "stat_t": "~passMode",
     "uniq_id": "{{ device_id }}-passMode",
-    "dev_cla": "switch",
-    "payload_on": "{\"properties\": {\"passMode\": 2 }}",
-    "payload_off": "{\"properties\": {\"passMode\": 0 }}",
-    "state_on": 2,
-    "state_off": 0,
+    "val_tpl": "{{ 'Auto' if value=='0' else ('Off' if value=='1' else ('On' if value=='2' else 'Unknown')) }}",
+    "ops": ["Auto","Off","On"],
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",
