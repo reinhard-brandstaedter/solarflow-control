@@ -104,6 +104,14 @@ class Solarflow:
     def ready(self):
         return (self.electricLevel > -1 and self.solarInputPower > -1)
 
+    def timesync(self, ts):
+        payload = {
+            "zoneOffset": "+00:00", 
+            "messageId": 123,
+            "timestamp": ts
+        }
+        self.client.publish(f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/time-sync/reply',json.dumps(payload))
+
     def pushHomeassistantConfig(self):
         log.info("Publishing Homeassistant templates...")
         hatemplates = [f for f in pathlib.Path().glob("homeassistant/*.json")]

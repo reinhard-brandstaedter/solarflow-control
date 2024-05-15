@@ -239,12 +239,16 @@ def getSFPowerLimit(hub, demand) -> int:
             limit = 0
 
     # get battery Soc at sunset/sunrise
-    td = timedelta(minutes = 5)
+    td = timedelta(minutes = 3)
     if now > sunset and now < sunset + td:
         hub.setSunsetSoC(hub_electricLevel)
     if now > sunrise and now < sunrise + td:
         hub.setSunriseSoC(hub_electricLevel)
         log.info(f'Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!')
+        ts = int(time.time())
+        log.info(f'Syncing time of solarflow hub (UTC): {datetime.fromtimestamp(ts).strftime("%Y-%m-%d, %H:%M:%S")}')
+        hub.timesync(ts)
+
         # sometimes bypass resets to default (auto)
         if hub.control_bypass:
             hub.allowBypass(True)
