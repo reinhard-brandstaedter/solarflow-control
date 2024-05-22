@@ -206,7 +206,7 @@ def getSFPowerLimit(hub, demand) -> int:
     sunset_off = timedelta(minutes = SUNSET_OFFSET)
 
     # if the hub is currently in bypass mode we don't really worry about any limit
-    if hub.bypass:
+    if hub.getBypass():
         path += "0."
         # leave bypass after sunset/offset
         if (now < (sunrise + sunrise_off) or now > sunset - sunset_off) and hub.control_bypass and demand > hub_solarpower:
@@ -217,7 +217,7 @@ def getSFPowerLimit(hub, demand) -> int:
             path += "2."
             limit = hub.getInverseMaxPower()
 
-    if not hub.bypass:
+    if not hub.getBypass():
         if hub_solarpower - demand > MIN_CHARGE_POWER:
             path += "1." 
             if hub_solarpower - MIN_CHARGE_POWER < MAX_DISCHARGE_POWER:
@@ -254,7 +254,7 @@ def getSFPowerLimit(hub, demand) -> int:
             hub.allowBypass(True)
             hub.setBypass(False)
 
-    log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.bypass}), hub could contribute {limit:4.1f}W - Decision path: {path}')
+    log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.getBypass}), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
 
 

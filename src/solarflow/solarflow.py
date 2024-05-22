@@ -419,7 +419,7 @@ class Solarflow:
         return self.outputLimit
 
     def getBypass(self):
-        return self.bypass
+        return self.bypass or (self.bypass_mode == 2 and self.solarInputPower > 0 and self.outputPackPower == 0 and self.outputHomePower > 0)
     
     def getCanDischarge(self):
         fullage = self.getLastFullBattery()
