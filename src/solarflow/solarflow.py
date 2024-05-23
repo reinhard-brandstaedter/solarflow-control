@@ -213,7 +213,7 @@ class Solarflow:
             self.chargeThrough = bool(value)
         log.info(f'Set ChargeThrough: {self.chargeThrough}')
         # in case of setups with no direct panels connected to inverter it is necessary to turn on the inverter as it is likely offline now
-        inv = self.client._userdata['inv']
+        inv = self.client._userdata['dtu']
         if (not inv.ready()) and self.getOutputHomePower() == 0:
             # this will power on the inverter so that control can resume from an interrupted charge-through
             self.setOutputLimit(30)
