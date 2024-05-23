@@ -15,6 +15,10 @@ log = logging.getLogger("")
 
 TRIGGER_DIFF = 30
 
+HUB1200 = "73bkTV"
+HUB2000 = "A8yh63"
+
+
 class Solarflow:
     opts = {"product_id":str, "device_id":str ,"full_charge_interval":int, "control_bypass":bool}
 
@@ -23,7 +27,7 @@ class Solarflow:
 
     def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, control_bypass:bool = False, callback = default_calllback):
         self.client = client
-        self.SF_PRODUCT_ID = product_id
+        self.productId = product_id
         self.deviceId = device_id
         self.fullChargeInterval= full_charge_interval
         self.fwVersion = "unknown"
@@ -47,7 +51,7 @@ class Solarflow:
         self.lastSolarInputTS = None    # time of the last received solar input value
         self.batteryTarget = None
 
-        self.property_topic = f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/write'
+        self.property_topic = f'iot/{self.productId}/{self.deviceId}/properties/write'
         self.chargeThrough = True
         self.dryrun = False
         self.sunriseSoC = None
@@ -77,12 +81,12 @@ class Solarflow:
                         L:{self.outputLimit:>3}W{reset}'.split())
 
     def update(self):
-        log.info(f'Triggering telemetry update: iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/read')
-        self.client.publish(f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/read','{"properties": ["getAll"]}')
+        log.info(f'Triggering telemetry update: iot/{self.productId}/{self.deviceId}/properties/read')
+        self.client.publish(f'iot/{self.productId}/{self.deviceId}/properties/read','{"properties": ["getAll"]}')
 
     def subscribe(self):
         topics = [
-            f'/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/report',
+            f'/{self.productId}/{self.deviceId}/properties/report',
             f'solarflow-hub/{self.deviceId}/telemetry/solarInputPower',
             f'solarflow-hub/{self.deviceId}/telemetry/electricLevel',
             f'solarflow-hub/{self.deviceId}/telemetry/outputPackPower',
@@ -110,7 +114,7 @@ class Solarflow:
             "messageId": 123,
             "timestamp": ts
         }
-        self.client.publish(f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/time-sync/reply',json.dumps(payload))
+        self.client.publish(f'iot/{self.productId}/{self.deviceId}/time-sync/reply',json.dumps(payload))
 
     def pushHomeassistantConfig(self):
         log.info("Publishing Homeassistant templates...")
@@ -119,7 +123,7 @@ class Solarflow:
 
         for hatemplate in hatemplates:
             template = environment.get_template(hatemplate.name)
-            hacfg = template.render(product_id=self.SF_PRODUCT_ID, device_id=self.deviceId, fw_version=self.fwVersion)
+            hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion)
             cfg_type = hatemplate.name.split(".")[0]
             cfg_name = hatemplate.name.split(".")[1]
             self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{cfg_name}/config',hacfg)
@@ -193,6 +197,9 @@ class Solarflow:
         # self.pushHomeassistantConfig() # why here? this is not needed every minute
 
     def updByPass(self, value:int):
+        # Hub2000 doesn't report bypass properly
+        if self.productId == HUB2000:
+            return
         self.bypass = bool(value)
 
     def updByPassMode(self, value: int):
@@ -251,7 +258,7 @@ class Solarflow:
     # handle content of mqtt message and update properties accordingly
     def handleMsg(self, msg):
         # transform the original messages sent by the SF hub into a better readable format
-        if self.SF_PRODUCT_ID in msg.topic:
+        if self.productId in msg.topic:
             device_id = msg.topic.split('/')[2]
             payload = json.loads(msg.payload.decode())
             if "properties" in payload:
@@ -424,7 +431,7 @@ class Solarflow:
         return self.outputLimit
 
     def getBypass(self):
-        return self.bypass or (self.bypass_mode == 2 and self.solarInputPower > 0 and self.outputPackPower == 0 and self.outputHomePower > 0)
+        return self.bypass or (self.bypass_mode == 2 and self.solarInputPower > 0 and self.outputPackPower == 0)
     
     def getCanDischarge(self):
         fullage = self.getLastFullBattery()
