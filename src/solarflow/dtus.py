@@ -46,8 +46,8 @@ class DTU:
     def __str__(self):
         chPower = "|".join([f'{v:>3.1f}' for v in self.channelsDCPower][1:])
         return ' '.join(f'{yellow}INV: \
-                        AC:{self.getCurrentACPower():>3.1f}W, AC_Prediction: {self.getPredictedACPower():>3.1f}W, \
-                        DC:{self.getCurrentDCPower():>3.1f}W, DC_prediction: {self.getPredictedDCPower():>3.1f}W ({chPower}), \
+                        AC:{self.getCurrentACPower():>3.1f}W, \
+                        DC:{self.getCurrentDCPower():>3.1f}W ({chPower}), \
                         L:{self.limitAbsolute:>3.0f}W ({self.getChannelLimit():.1f}W/channel) [{self.maxPower:>3.0f}W]{reset}'.split())
 
     def subscribe(self, topics):
@@ -68,7 +68,6 @@ class DTU:
                 self.acPower.add(value)
             self.channelsDCPower[channel] = value
 
-        # TODO: experimental, trigger limit calculation only on significant changes of DC power prediction
         previous = self.getPreviousACPower()
 
         if abs(previous - self.getCurrentACPower()) >= TRIGGER_DIFF:
@@ -133,12 +132,6 @@ class DTU:
 
     def getCurrentDCPower(self):
         return self.dcPower.last()
-    
-    def getPredictedACPower(self):
-        return self.acPower.predict()[0]
-
-    def getPredictedDCPower(self):
-        return self.dcPower.predict()[0]
     
     def getDirectDCPowerValues(self) -> []:
         direct = []

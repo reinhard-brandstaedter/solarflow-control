@@ -283,7 +283,6 @@ def limitHomeInput(client: mqtt_client):
 
     hub_power = inv.getHubDCPower() * (inv.getEfficiency()/100)
 
-    #grid_power = smt.getPredictedPower()
     grid_power = smt.getPower() - smt.zero_offset
     inv_acpower = inv.getCurrentACPower()
 
