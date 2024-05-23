@@ -212,6 +212,11 @@ class Solarflow:
         if type(value) == int:
             self.chargeThrough = bool(value)
         log.info(f'Set ChargeThrough: {self.chargeThrough}')
+        # in case of setups with no direct panels connected to inverter it is necessary to turn on the inverter as it is likely offline now
+        inv = self.client._userdata['inv']
+        if (not inv.ready()) and self.getOutputHomePower() == 0:
+            # this will power on the inverter so that control can resume from an interrupted charge-through
+            self.setOutputLimit(30)
 
     def setDryRun(self,value):
         if type(value) == str:
@@ -333,7 +338,7 @@ class Solarflow:
         # Hence setting the output limit 0 if SoC 0%
         if self.electricLevel == 0:
             limit = 0
-            log.info(f'Battery is empty! Disabling solaraflow output, setting limit to {limit}')
+            log.info(f'Battery is empty! Disabling solarflow output, setting limit to {limit}')
 
 
         # Charge-Through:
