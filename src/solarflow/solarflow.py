@@ -208,6 +208,9 @@ class Solarflow:
             self.setBypass(False)
             value = 1
 
+        if self.productId == HUB2000:
+            self.bypass = bool(value)
+        
         self.bypass_mode = value
 
     def allowBypass(self, allow):
@@ -431,8 +434,11 @@ class Solarflow:
         return self.outputLimit
 
     def getBypass(self):
-        return self.bypass or (self.bypass_mode == 2 and self.solarInputPower > 0 and self.outputPackPower == 0)
-    
+        if self.productId == HUB2000:
+            return self.bypass_mode == 2
+        else:
+            return self.bypass
+        
     def getCanDischarge(self):
         fullage = self.getLastFullBattery()
         can_discharge = (self.batteryTarget == "discharging") or (self.batteryTarget == "charging" and fullage < self.fullChargeInterval)
