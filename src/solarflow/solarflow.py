@@ -435,7 +435,7 @@ class Solarflow:
 
     def getBypass(self):
         if self.productId == HUB2000:
-            return self.bypass_mode == 2
+            return self.bypass_mode == 2 or self.bypass
         else:
             return self.bypass
         
