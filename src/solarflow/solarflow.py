@@ -197,8 +197,9 @@ class Solarflow:
         # self.pushHomeassistantConfig() # why here? this is not needed every minute
 
     def updByPass(self, value:int):
-        # Hub2000 doesn't report bypass properly
-        if self.productId == HUB2000:
+        # Hub2000 doesn't report bypass via pass property only when in auto mode?
+        # see: https://github.com/reinhard-brandstaedter/solarflow-control/issues/244#issuecomment-2152861536
+        if self.productId == HUB2000 and self.bypass_mode != 0:
             return
         self.bypass = bool(value)
 
