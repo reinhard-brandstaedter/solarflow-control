@@ -4,7 +4,8 @@
     "cmd_tpl": "{\"properties\": {\"passMode\": {% raw %}{{ 0 if value=='Auto' else (1 if value=='Off' else (2 if value=='On')) }}{% endraw %} }}",
     "stat_t": "~passMode",
     "uniq_id": "{{ device_id }}-passMode",
-    "val_tpl": "{{ 'Auto' if value=='0' else ('Off' if value=='1' else ('On' if value=='2' else 'Unknown')) }}",
+    "stat_val_tpl": "{{ 'Auto' if value==0 else ('Off' if value==1 else ('On' if value==2 else 'Unknown')) }}",
+    "val_tpl": "{{ 'Auto' if value==0 else ('Off' if value==1 else ('On' if value==2 else 'Unknown')) }}",
     "ops": ["Auto","Off","On"],
     "dev": {
       "identifiers": ["{{ device_id }}"],

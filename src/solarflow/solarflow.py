@@ -209,7 +209,7 @@ class Solarflow:
             value = 1
 
         if self.productId == HUB2000:
-            self.bypass = bool(value)
+            self.bypass = value==2
         
         self.bypass_mode = value
 
