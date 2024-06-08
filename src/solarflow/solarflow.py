@@ -38,7 +38,7 @@ class Solarflow:
         self.outputHomePower = -1       # power sent to home
         self.bypass = False             # Power Bypass Active/Inactive
         self.control_bypass = control_bypass    # wether we control the bypass switch or the hubs firmware
-        self.bypass_mode = -1           # bypassmode the hub is operating in 0=auto, 1=off, 2=manual
+        self.bypass_mode = -1           # bypassmode the hub is operating in 0=auto, 1=manual off, 2=manual on
         self.allow_bypass = True        # if bypass can be currently enabled or not
         self.electricLevel = -1         # state of charge of battery pack
         self.batteriesSoC = {"none":-1}    # state of charge for individual batteries
@@ -389,6 +389,12 @@ class Solarflow:
     def setBuzzer(self, state: bool):
         buzzer = {"properties": { "buzzerSwitch": 0 if not state else 1 }}
         self.client.publish(self.property_topic,json.dumps(buzzer))
+        log.info(f'Turning hub buzzer {"ON" if state else "OFF"}')
+    
+    def setAutorecover(self, state: bool):
+        autorecover = {"properties": { "autoRecover": 0 if not state else 1 }}
+        self.client.publish(self.property_topic,json.dumps(autorecover))
+        log.info(f'Turning hub bypass autorecover {"ON" if state else "OFF"}')
 
     def setBypass(self, state: bool):
         passmode = {"properties": { "passMode": 2 if state else 1 }}
