@@ -364,6 +364,8 @@ def limitHomeInput(client: mqtt_client):
         # since we usually set the inverter limit not to zero there is always a little bit drawn from the hub (10-15W)
         if direct_panel_power == 0 and hub_power > 15 and hub.getDischargePower() == 0 and not hub.getBypass():
             source = f'hub solarpower: {-grid_power:.1f}W'
+        if direct_panel_power > 0 and hub_power > 15  and hub.getDischargePower() == 0 and hub.getBypass():
+            source = f'hub bypass: {-grid_power:.1f}W'
         if direct_panel_power > 0 and hub_power < 15:
             source = f'panels connected directly to inverter: {-remainder:.1f}'
 
