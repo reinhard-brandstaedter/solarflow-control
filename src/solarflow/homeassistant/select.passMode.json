@@ -4,9 +4,8 @@
     "cmd_tpl": "{\"properties\": {\"passMode\": {% raw %}{{ 0 if value=='Auto' else (1 if value=='Off' else (2 if value=='On')) }}{% endraw %} }}",
     "stat_t": "~passMode",
     "uniq_id": "{{ device_id }}-passMode",
-    "val_tpl": "{% raw %}{{ 'Auto' if is_state('sensor.solarflow_hub_passmode', 0) else ('Off' if is_state('sensor.solarflow_hub_passmode', 1) else ('On' if is_state('sensor.solarflow_hub_passmode', 2) else 'Unknown')) }}{% endraw %}",
-    "stat_val_tpl": "{% raw %}{{ 'Auto' if is_state('sensor.solarflow_hub_passmode', 0) else ('Off' if is_state('sensor.solarflow_hub_passmode', 1) else ('On' if is_state('sensor.solarflow_hub_passmode', 2) else 'Unknown')) }}{% endraw %}",
-    "ops": ["Auto","Off","On"],
+    "val_tpl": "{% raw %}{{ 'Auto' if is_state('sensor.solarflow_hub_passmode', 'Auto') else ('Off' if is_state('sensor.solarflow_hub_passmode', 'Manual off') else ('On' if is_state('sensor.solarflow_hub_passmode', 'Manual on') else 'Unknown')) }}{% endraw %}",
+    "ops": ["Auto","Off","On","Unknown"],
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",
