@@ -4,7 +4,7 @@
     "cmd_tpl": "{\"properties\": {\"passMode\": {% raw %}{{ 0 if value=='Auto' else (1 if value=='Off' else (2 if value=='On')) }}{% endraw %} }}",
     "stat_t": "~passMode",
     "uniq_id": "{{ device_id }}-passMode",
-    "val_tpl": "{% raw %}{{ 'Auto' if is_state('sensor.solarflow_hub_passmode', 'Auto') else ('Off' if is_state('sensor.solarflow_hub_passmode', 'Manual off') else ('On' if is_state('sensor.solarflow_hub_passmode', 'Manual on') else 'Unknown')) }}{% endraw %}",
+    "val_tpl": "{% raw %}{{ 'Auto' if is_state('sensor.solarflow_hub_bypass_mode', 'Auto') else ('Off' if is_state('sensor.solarflow_hub_bypass_mode', 'Manual off') else ('On' if is_state('sensor.solarflow_hub_bypass_mode', 'Manual on') else 'Unknown')) }}{% endraw %}",
     "ops": ["Auto","Off","On","Unknown"],
     "dev": {
       "identifiers": ["{{ device_id }}"],
