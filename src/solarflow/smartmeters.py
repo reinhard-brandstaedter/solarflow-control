@@ -173,6 +173,85 @@ class ShellyEM3(Smartmeter):
             self.client.subscribe(t)
             log.info(f'Shelly3EM subscribing: {t}')
 
+class ShellyProEM3(Smartmeter):
+    opts = {"base_topic":str, "rapid_change_diff":int, "zero_offset": int}
+
+    def __init__(self, client: mqtt_client, base_topic:str, rapid_change_diff:int = 500, zero_offset:int = 0, callback = Smartmeter.default_calllback):
+        self.client = client
+        self.base_topic = base_topic
+        self.power = TimewindowBuffer(minutes=1)
+        self.rapid_change_diff = rapid_change_diff
+        self.zero_offset = zero_offset
+        self.last_trigger_value = 0
+        self.total_act_power = 0
+        self.trigger_callback = callback
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}')
+
+    def __str__(self):
+        return ' '.join(f'{green}SMT: \
+                        T:{self.__class__.__name__} \
+                        P:{self.total_act_power:>3.3f}W {self.power}{reset}'.split())
+
+    def subscribe(self):
+        topics = [f'{self.base_topic}/status/em:0'
+                 ]
+        for t in topics:
+            self.client.subscribe(t)
+            log.info(f'ShellyPro3EM subscribing: {t}')
+
+    def ready(self):
+        return len(self.total_act_power) > 0
+
+    def updPower(self):
+        force_trigger = False
+        phase_sum = self.total_act_power
+        # rapid change detection
+        #diff = (phase_sum if phase_sum < 1000 else 1000) - self.getPower()
+        diff = phase_sum - self.getPower()
+
+         # by populating the readings we ensure that the moving average is reset and calcluted high enough for fast adoption
+        if diff > self.rapid_change_diff:
+            log.info("Rapid rise in demand detected, clearing buffer!")
+            self.power.populate(20,phase_sum)
+            force_trigger = True
+        if diff < 0 and abs(diff) > self.rapid_change_diff:
+            log.info("Rapid drop in demand detected, clearing buffer!")
+            self.power.populate(20,phase_sum)
+            force_trigger = True
+
+        # by recording smartmeter usage only up to a certain max power we can ensure that
+        # demand drops from short high-consumption spikes are faster settled
+        #self.power.add(phase_sum if phase_sum < 1000 else 1000)
+        self.power.add(phase_sum)
+        self.client.publish("solarflow-hub/smartmeter/homeUsage",int(round(phase_sum)))
+        self.client.publish("solarflow-hub/smartmeter/homeUsageSmoothened", int(round(self.power.last())))
+
+        # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
+        previous = self.getPreviousPower()
+        if abs(previous - self.getPower()) >= TRIGGER_DIFF or force_trigger:
+            log.info(f'SMT triggers limit function: {previous} -> {self.getPower()}: {"executed" if self.trigger_callback(self.client,force=force_trigger) else "skipped"}')
+            self.last_trigger_value = self.getPower()
+
+        # agressively try to avoid feed-in (below 0 W) if it comes from hub
+        if self.getPower() < 0 and self.getPreviousPower() < 0:
+            hub = self.client._userdata['hub']
+            if hub.getDischargePower() > 0:
+                self.trigger_callback(self.client)
+
+    def handleMsg(self, msg):
+        if msg.topic.startswith(f'{self.base_topic}/status/em:0') and msg.payload:
+            #payload = json.loads(msg.payload.decode())
+            payload = json.loads(msg.payload)
+            
+            self.total_act_power = float(payload['total_act_power'])
+            self.updPower()
+
+    def getPower(self):
+        return self.power.last()
+
+    def getPreviousPower(self):
+        return self.power.previous()
+
 class VZLogger(Smartmeter):
     opts = {"cur_usage_topic":str, "rapid_change_diff":int, "zero_offset": int}
 
