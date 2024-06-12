@@ -254,6 +254,7 @@ def getSFPowerLimit(hub, demand) -> int:
         if hub.control_bypass:
             hub.allowBypass(True)
             hub.setBypass(False)
+            hub.setAutorecover(False)
 
     log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.getBypass()}), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
