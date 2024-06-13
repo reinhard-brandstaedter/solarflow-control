@@ -38,7 +38,7 @@ class Smartmeter:
     def __str__(self):
         return ' '.join(f'{green}SMT: \
                         T:{self.__class__.__name__} \
-                        P:{sum(self.phase_values.values()):>3.1f}W {self.power} Predict: {self.getPredictedPower():>3.1f}W{reset}'.split())
+                        P:{sum(self.phase_values.values()):>3.1f}W {self.power}{reset}'.split())
                         
     def subscribe(self):
         topics = [f'{self.base_topic}']
@@ -72,7 +72,6 @@ class Smartmeter:
         self.power.add(phase_sum)
         self.client.publish("solarflow-hub/smartmeter/homeUsage",int(round(phase_sum)))
         self.client.publish("solarflow-hub/smartmeter/homeUsageSmoothened", int(round(self.power.last())))
-        self.client.publish("solarflow-hub/smartmeter/homeUsagePredicted",int(round(self.getPredictedPower())))
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
         previous = self.getPreviousPower()
@@ -106,9 +105,6 @@ class Smartmeter:
 
     def getPower(self):
         return self.power.last()
-    
-    def getPredictedPower(self):
-        return self.power.predict()[0]
     
     def getPreviousPower(self):
         return self.power.previous()

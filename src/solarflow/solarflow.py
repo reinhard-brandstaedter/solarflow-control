@@ -15,6 +15,10 @@ log = logging.getLogger("")
 
 TRIGGER_DIFF = 30
 
+HUB1200 = "73bkTV"
+HUB2000 = "A8yh63"
+
+
 class Solarflow:
     opts = {"product_id":str, "device_id":str ,"full_charge_interval":int, "control_bypass":bool}
 
@@ -23,7 +27,7 @@ class Solarflow:
 
     def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, control_bypass:bool = False, callback = default_calllback):
         self.client = client
-        self.SF_PRODUCT_ID = product_id
+        self.productId = product_id
         self.deviceId = device_id
         self.fullChargeInterval= full_charge_interval
         self.fwVersion = "unknown"
@@ -34,7 +38,7 @@ class Solarflow:
         self.outputHomePower = -1       # power sent to home
         self.bypass = False             # Power Bypass Active/Inactive
         self.control_bypass = control_bypass    # wether we control the bypass switch or the hubs firmware
-        self.bypass_mode = -1           # bypassmode the hub is operating in 0=auto, 1=off, 2=manual
+        self.bypass_mode = -1           # bypassmode the hub is operating in 0=auto, 1=manual off, 2=manual on
         self.allow_bypass = True        # if bypass can be currently enabled or not
         self.electricLevel = -1         # state of charge of battery pack
         self.batteriesSoC = {"none":-1}    # state of charge for individual batteries
@@ -47,7 +51,7 @@ class Solarflow:
         self.lastSolarInputTS = None    # time of the last received solar input value
         self.batteryTarget = None
 
-        self.property_topic = f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/write'
+        self.property_topic = f'iot/{self.productId}/{self.deviceId}/properties/write'
         self.chargeThrough = True
         self.dryrun = False
         self.sunriseSoC = None
@@ -70,19 +74,19 @@ class Solarflow:
                         B:{self.electricLevel:>3}% ({batteries_soc}), \
                         V:{(sum(self.batteriesVol.values()) / len(self.batteriesVol)):2.1f}V ({batteries_vol}), \
                         C:{self.outputPackPower-self.packInputPower:>4}W, \
-                        P:{self.bypass} ({"auto" if self.bypass_mode == 0 else "manual"}, {"possible" if self.allow_bypass else "not possible"}), \
+                        P:{self.getBypass()} ({"auto" if self.bypass_mode == 0 else "manual"}, {"possible" if self.allow_bypass else "not possible"}), \
                         F:{self.getLastFullBattery():3.1f}h, \
                         E:{self.getLastEmptyBattery():3.1f}h, \
                         H:{self.outputHomePower:>3}W, \
                         L:{self.outputLimit:>3}W{reset}'.split())
 
     def update(self):
-        log.info(f'Triggering telemetry update: iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/read')
-        self.client.publish(f'iot/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/read','{"properties": ["getAll"]}')
+        log.info(f'Triggering telemetry update: iot/{self.productId}/{self.deviceId}/properties/read')
+        self.client.publish(f'iot/{self.productId}/{self.deviceId}/properties/read','{"properties": ["getAll"]}')
 
     def subscribe(self):
         topics = [
-            f'/{self.SF_PRODUCT_ID}/{self.deviceId}/properties/report',
+            f'/{self.productId}/{self.deviceId}/properties/report',
             f'solarflow-hub/{self.deviceId}/telemetry/solarInputPower',
             f'solarflow-hub/{self.deviceId}/telemetry/electricLevel',
             f'solarflow-hub/{self.deviceId}/telemetry/outputPackPower',
@@ -104,6 +108,14 @@ class Solarflow:
     def ready(self):
         return (self.electricLevel > -1 and self.solarInputPower > -1)
 
+    def timesync(self, ts):
+        payload = {
+            "zoneOffset": "+00:00", 
+            "messageId": 123,
+            "timestamp": ts
+        }
+        self.client.publish(f'iot/{self.productId}/{self.deviceId}/time-sync/reply',json.dumps(payload))
+
     def pushHomeassistantConfig(self):
         log.info("Publishing Homeassistant templates...")
         hatemplates = [f for f in pathlib.Path().glob("homeassistant/*.json")]
@@ -111,7 +123,7 @@ class Solarflow:
 
         for hatemplate in hatemplates:
             template = environment.get_template(hatemplate.name)
-            hacfg = template.render(product_id=self.SF_PRODUCT_ID, device_id=self.deviceId, fw_version=self.fwVersion)
+            hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion)
             cfg_type = hatemplate.name.split(".")[0]
             cfg_name = hatemplate.name.split(".")[1]
             self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{cfg_name}/config',hacfg)
@@ -185,6 +197,10 @@ class Solarflow:
         # self.pushHomeassistantConfig() # why here? this is not needed every minute
 
     def updByPass(self, value:int):
+        # Hub2000 doesn't report bypass via pass property only when in auto mode?
+        # see: https://github.com/reinhard-brandstaedter/solarflow-control/issues/244#issuecomment-2152861536
+        if self.productId == HUB2000 and self.bypass_mode != 0:
+            return
         self.bypass = bool(value)
 
     def updByPassMode(self, value: int):
@@ -193,6 +209,9 @@ class Solarflow:
             self.setBypass(False)
             value = 1
 
+        if self.productId == HUB2000:
+            self.bypass = value==2
+        
         self.bypass_mode = value
 
     def allowBypass(self, allow):
@@ -204,6 +223,11 @@ class Solarflow:
         if type(value) == int:
             self.chargeThrough = bool(value)
         log.info(f'Set ChargeThrough: {self.chargeThrough}')
+        # in case of setups with no direct panels connected to inverter it is necessary to turn on the inverter as it is likely offline now
+        inv = self.client._userdata['dtu']
+        if (not inv.ready()) and self.getOutputHomePower() == 0:
+            # this will power on the inverter so that control can resume from an interrupted charge-through
+            self.setOutputLimit(30)
 
     def setDryRun(self,value):
         if type(value) == str:
@@ -238,7 +262,7 @@ class Solarflow:
     # handle content of mqtt message and update properties accordingly
     def handleMsg(self, msg):
         # transform the original messages sent by the SF hub into a better readable format
-        if self.SF_PRODUCT_ID in msg.topic:
+        if self.productId in msg.topic:
             device_id = msg.topic.split('/')[2]
             payload = json.loads(msg.payload.decode())
             if "properties" in payload:
@@ -325,7 +349,7 @@ class Solarflow:
         # Hence setting the output limit 0 if SoC 0%
         if self.electricLevel == 0:
             limit = 0
-            log.info(f'Battery is empty! Disabling solaraflow output, setting limit to {limit}')
+            log.info(f'Battery is empty! Disabling solarflow output, setting limit to {limit}')
 
 
         # Charge-Through:
@@ -365,6 +389,12 @@ class Solarflow:
     def setBuzzer(self, state: bool):
         buzzer = {"properties": { "buzzerSwitch": 0 if not state else 1 }}
         self.client.publish(self.property_topic,json.dumps(buzzer))
+        log.info(f'Turning hub buzzer {"ON" if state else "OFF"}')
+    
+    def setAutorecover(self, state: bool):
+        autorecover = {"properties": { "autoRecover": 0 if not state else 1 }}
+        self.client.publish(self.property_topic,json.dumps(autorecover))
+        log.info(f'Turning hub bypass autorecover {"ON" if state else "OFF"}')
 
     def setBypass(self, state: bool):
         passmode = {"properties": { "passMode": 2 if state else 1 }}
@@ -411,8 +441,11 @@ class Solarflow:
         return self.outputLimit
 
     def getBypass(self):
-        return self.bypass
-    
+        if self.productId == HUB2000:
+            return self.bypass_mode == 2 or self.bypass
+        else:
+            return self.bypass
+        
     def getCanDischarge(self):
         fullage = self.getLastFullBattery()
         can_discharge = (self.batteryTarget == "discharging") or (self.batteryTarget == "charging" and fullage < self.fullChargeInterval)

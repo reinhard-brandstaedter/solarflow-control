@@ -46,8 +46,8 @@ class DTU:
     def __str__(self):
         chPower = "|".join([f'{v:>3.1f}' for v in self.channelsDCPower][1:])
         return ' '.join(f'{yellow}INV: \
-                        AC:{self.getCurrentACPower():>3.1f}W, AC_Prediction: {self.getPredictedACPower():>3.1f}W, \
-                        DC:{self.getCurrentDCPower():>3.1f}W, DC_prediction: {self.getPredictedDCPower():>3.1f}W ({chPower}), \
+                        AC:{self.getCurrentACPower():>3.1f}W, \
+                        DC:{self.getCurrentDCPower():>3.1f}W ({chPower}), \
                         L:{self.limitAbsolute:>3.0f}W ({self.getChannelLimit():.1f}W/channel) [{self.maxPower:>3.0f}W]{reset}'.split())
 
     def subscribe(self, topics):
@@ -68,7 +68,6 @@ class DTU:
                 self.acPower.add(value)
             self.channelsDCPower[channel] = value
 
-        # TODO: experimental, trigger limit calculation only on significant changes of DC power prediction
         previous = self.getPreviousACPower()
 
         if abs(previous - self.getCurrentACPower()) >= TRIGGER_DIFF:
@@ -133,12 +132,6 @@ class DTU:
 
     def getCurrentDCPower(self):
         return self.dcPower.last()
-    
-    def getPredictedACPower(self):
-        return self.acPower.predict()[0]
-
-    def getPredictedDCPower(self):
-        return self.dcPower.predict()[0]
     
     def getDirectDCPowerValues(self) -> []:
         direct = []
@@ -220,7 +213,7 @@ class DTU:
         #### inv_limit = int(math.ceil(self.limitAbsoluteBuffer.qwavg() / 2.) * 2)
 
         # Avoid setting limit higher than 150% of inverter capacity
-        inv_limit = self.maxPower*1.5 if (inv_limit > self.maxPower*1.5 and self.maxPower > 0) else inv_limit
+        inv_limit = self.maxPower*1.125 if (inv_limit > self.maxPower*1.125 and self.maxPower > 0) else inv_limit
 
         # it could be that maxPower has not yet been detected resulting in a zero limit
         inv_limit = 10 if inv_limit < 10 else int(inv_limit)

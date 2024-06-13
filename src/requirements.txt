@@ -1,1 +1,4 @@
 astral
+paho-mqtt==1.6.1
+requests
+jinja2

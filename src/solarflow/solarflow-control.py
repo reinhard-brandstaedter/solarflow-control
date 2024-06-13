@@ -146,6 +146,7 @@ def on_connect(client, userdata, flags, rc):
         hub.setBuzzer(False)
         if hub.control_bypass:
             hub.setBypass(False)
+            hub.setAutorecover(False)
         inv = client._userdata['dtu']
         inv.subscribe()
         smt = client._userdata['smartmeter']
@@ -206,7 +207,7 @@ def getSFPowerLimit(hub, demand) -> int:
     sunset_off = timedelta(minutes = SUNSET_OFFSET)
 
     # if the hub is currently in bypass mode we don't really worry about any limit
-    if hub.bypass:
+    if hub.getBypass():
         path += "0."
         # leave bypass after sunset/offset
         if (now < (sunrise + sunrise_off) or now > sunset - sunset_off) and hub.control_bypass and demand > hub_solarpower:
@@ -217,7 +218,7 @@ def getSFPowerLimit(hub, demand) -> int:
             path += "2."
             limit = hub.getInverseMaxPower()
 
-    if not hub.bypass:
+    if not hub.getBypass():
         if hub_solarpower - demand > MIN_CHARGE_POWER:
             path += "1." 
             if hub_solarpower - MIN_CHARGE_POWER < MAX_DISCHARGE_POWER:
@@ -239,18 +240,23 @@ def getSFPowerLimit(hub, demand) -> int:
             limit = 0
 
     # get battery Soc at sunset/sunrise
-    td = timedelta(minutes = 5)
+    td = timedelta(minutes = 3)
     if now > sunset and now < sunset + td:
         hub.setSunsetSoC(hub_electricLevel)
     if now > sunrise and now < sunrise + td:
         hub.setSunriseSoC(hub_electricLevel)
         log.info(f'Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!')
+        ts = int(time.time())
+        log.info(f'Syncing time of solarflow hub (UTC): {datetime.fromtimestamp(ts).strftime("%Y-%m-%d, %H:%M:%S")}')
+        hub.timesync(ts)
+
         # sometimes bypass resets to default (auto)
         if hub.control_bypass:
             hub.allowBypass(True)
             hub.setBypass(False)
+            hub.setAutorecover(False)
 
-    log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.bypass}), hub could contribute {limit:4.1f}W - Decision path: {path}')
+    log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.getBypass()}), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
 
 
@@ -279,7 +285,6 @@ def limitHomeInput(client: mqtt_client):
 
     hub_power = inv.getHubDCPower() * (inv.getEfficiency()/100)
 
-    #grid_power = smt.getPredictedPower()
     grid_power = smt.getPower() - smt.zero_offset
     inv_acpower = inv.getCurrentACPower()
 
@@ -360,6 +365,8 @@ def limitHomeInput(client: mqtt_client):
         # since we usually set the inverter limit not to zero there is always a little bit drawn from the hub (10-15W)
         if direct_panel_power == 0 and hub_power > 15 and hub.getDischargePower() == 0 and not hub.getBypass():
             source = f'hub solarpower: {-grid_power:.1f}W'
+        if direct_panel_power > 0 and hub_power > 15  and hub.getDischargePower() == 0 and hub.getBypass():
+            source = f'hub bypass: {-grid_power:.1f}W'
         if direct_panel_power > 0 and hub_power < 15:
             source = f'panels connected directly to inverter: {-remainder:.1f}'
 
