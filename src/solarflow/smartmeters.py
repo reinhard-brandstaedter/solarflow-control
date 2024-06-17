@@ -183,7 +183,7 @@ class ShellyProEM3(Smartmeter):
         self.rapid_change_diff = rapid_change_diff
         self.zero_offset = zero_offset
         self.last_trigger_value = 0
-        self.total_act_power = 0
+        self.total_act_power = None
         self.trigger_callback = callback
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}')
 
@@ -200,7 +200,7 @@ class ShellyProEM3(Smartmeter):
             log.info(f'ShellyPro3EM subscribing: {t}')
 
     def ready(self):
-        return len(self.total_act_power) > 0
+        return self.total_act_power is not None
 
     def updPower(self):
         force_trigger = False
