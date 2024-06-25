@@ -16,12 +16,12 @@ logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
 
 class Smartmeter:
-    opts = {"base_topic":str, "cur_accessor":str, "total_accessor":str, "rapid_change_diff":int, "zero_offset": int}
+    opts = {"base_topic":str, "cur_accessor":str, "total_accessor":str, "rapid_change_diff":int, "zero_offset": int, "scaling_factor":int}
 
     def default_calllback(self):
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500, zero_offset:int = 0, callback = default_calllback):
+    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str = "Power.Power_curr", total_accessor:str = "Power.Total_in", rapid_change_diff:int = 500, zero_offset:int = 0, scaling_factor:int = 1, callback = default_calllback):
         self.client = client
         self.base_topic = base_topic
         self.power = TimewindowBuffer(minutes=1)
@@ -32,7 +32,8 @@ class Smartmeter:
         self.zero_offset = zero_offset
         self.last_trigger_value = 0
         self.trigger_callback = callback
-        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Current power accessor: {self.cur_accessor}, Total power accessor: {self.total_accessor}, Rapid change diff {self.rapid_change_diff}W, Zero offset: {self.zero_offset}W')
+        self.scaling_factor = scaling_factor
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Current power accessor: {self.cur_accessor}, Total power accessor: {self.total_accessor}, Rapid change diff: {self.rapid_change_diff}W, Zero offset: {self.zero_offset}W, Scaling factor: {self.scaling_factor}')
 
     
     def __str__(self):
@@ -91,7 +92,7 @@ class Smartmeter:
             payload = json.loads(msg.payload.decode())
 
             if type(payload) is float or type(payload) is int:
-                self.phase_values.update({msg.topic:payload})
+                self.phase_values.update({msg.topic:payload * self.scaling_factor})
                 self.updPower()
             if type(payload) is dict:
                 try: 
@@ -100,7 +101,7 @@ class Smartmeter:
                     log.error(f'Could not get value from topic payload: {sys.exc_info()}')
 
                 if value:
-                    self.phase_values.update({msg.topic:value})
+                    self.phase_values.update({msg.topic:value * self.scaling_factor})
                     self.updPower()
 
     def getPower(self):
