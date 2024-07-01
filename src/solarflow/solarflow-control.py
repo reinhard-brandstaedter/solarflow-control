@@ -144,6 +144,8 @@ def on_connect(client, userdata, flags, rc):
         hub = client._userdata['hub']
         hub.subscribe()
         hub.setBuzzer(False)
+        hub.setBatteryHighSoC(BATTERY_HIGH)
+        hub.setBatteryLowSoC(BATTERY_LOW)
         if hub.control_bypass:
             hub.setBypass(False)
             hub.setAutorecover(False)
