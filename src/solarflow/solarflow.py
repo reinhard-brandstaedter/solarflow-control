@@ -21,20 +21,21 @@ HUB2000 = "A8yh63"
 BATTERY_TARGET_CHARGING    = "charging"
 BATTERY_TARGET_DISCHARGING = "discharging"
 
+# according to https://github.com/epicRE/zendure_ble
+INVERTER_BRAND = {0: 'Other', 1: 'Hoymiles', 2: 'Enphase', 3: 'APsystems', 4: 'Anker', 5: 'Deye', 6: 'BossWerk', 7: 'Tsun'}
+
 
 class Solarflow:
-    opts = {"product_id":str, "device_id":str ,"full_charge_interval":int, "control_bypass":bool}
+    opts = {"product_id":str, "device_id":str ,"full_charge_interval":int, "control_bypass":bool, "control_soc":bool}
 
     def default_calllback(self):
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, control_bypass:bool = False, callback = default_calllback):
+    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, control_bypass:bool = False, control_soc:bool = False, callback = default_calllback):
         self.client = client
         self.productId = product_id
         self.deviceId = device_id
         self.fullChargeInterval = full_charge_interval
-        self.batteryLow = 0
-        self.batteryHigh = 100
         self.fwVersion = "unknown"
         self.solarInputValues = TimewindowBuffer(minutes=1)
         self.solarInputPower = -1       # solar input power of connected panels
@@ -55,6 +56,12 @@ class Solarflow:
         self.lastEmptyTS = None         # keep track of last time the battery pack was empty (0%)
         self.lastSolarInputTS = None    # time of the last received solar input value
         self.batteryTarget = None
+        
+        self.batteryTargetSoCMax = -1
+        self.batteryTargetSoCMin = -1
+        self.batteryLow = -1
+        self.batteryHigh = -1
+        self.control_soc = control_soc    # wether we control the soc levels
 
         self.property_topic = f'iot/{self.productId}/{self.deviceId}/properties/write'
         self.chargeThrough = True
@@ -155,10 +162,6 @@ class Solarflow:
     def updElectricLevel(self, value:int):
         batteryTarget = self.batteryTarget
 
-        # check if we should enable charge through
-        if self.getLastFullBattery() > self.fullChargeInterval:
-            self.setChargeThrough(True)
-
         # handle user given max SoC
         if value >= self.batteryHigh and not self.chargeThrough:
             batteryTarget = BATTERY_TARGET_DISCHARGING
@@ -207,6 +210,12 @@ class Solarflow:
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',batteryTarget,retain=True)
 
         self.electricLevel = value
+        
+    def updBatteryTargetSoCMax(self, value: int):
+        self.batteryTargetSoCMax = value / 10
+        
+    def updBatteryTargetSoCMin(self, value: int):
+        self.batteryTargetSoCMin = value / 10
 
     def updOutputPack(self, value:int):
         self.outputPackPower = value
@@ -270,8 +279,11 @@ class Solarflow:
         if type(value) == bool:
             chargeThrough = value
 
-        # only process changes
         if chargeThrough is None:
+            return
+        
+        if chargeThrough and (self.batteryTargetSoCMax < 100 and not self.control_soc):
+            log.info(f'Impossible to set charge through! We are not permitted to change maximum target SoC and solarflow has limit configured to {self.batteryTargetSoCMax}!')
             return
         
         log.info(f'Set ChargeThrough: {chargeThrough}')
@@ -389,6 +401,10 @@ class Solarflow:
                     self.updByPass(int(value))
                 case "passMode":
                     self.updByPassMode(int(value))
+                case "socSet":
+                    self.updBatteryTargetSoCMax(int(value))
+                case "minSoc":
+                    self.updBatteryTargetSoCMin(int(value))
                 case _:
                     log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
@@ -514,18 +530,48 @@ class Solarflow:
     
     def setBatteryHighSoC(self, level:int, temporary:bool=False) -> int:
         level = min(max(level, 40), 100)
-        payload = {"properties": { "socSet": level * 10 }}
-        self.client.publish(self.property_topic,json.dumps(payload))
         if not temporary:
             log.info(f'Setting maximum charge level to {level}%')
             self.batteryHigh = level
+        
+        if not self.control_soc:
+            return self.batteryLow
+        
+        payload = {"properties": { "socSet": level * 10 }}
+        self.client.publish(self.property_topic,json.dumps(payload))
         return level
 
     def setBatteryLowSoC(self, level:int, temporary:bool=False) -> int:
         level = min(max(level, 0), 60)
-        payload = {"properties": { "minSoc": level * 10 }}
-        self.client.publish(self.property_topic,json.dumps(payload))
         if not temporary:
             log.info(f'Setting minimum charge level to {level}%')
             self.batteryLow = level
+            
+        if not self.control_soc:
+            return self.batteryLow
+        
+        payload = {"properties": { "minSoc": level * 10 }}
+        self.client.publish(self.property_topic,json.dumps(payload))
         return level
+    
+    def checkChargeThrough(self) -> bool:
+        fullage = self.getLastFullBattery()
+        # check if we should enable charge through
+        if fullage < 0 or fullage > self.fullChargeInterval:
+            self.setChargeThrough(True)
+            
+        return self.chargeThrough
+    
+    def setInverseMaxPower(self, value:int) -> int:
+        if value <= 100:
+            value = 100
+        payload = {"properties": { "inverseMaxPower": value }}
+        self.client.publish(self.property_topic,json.dumps(payload))
+        self.inverseMaxPower = value
+        return value
+    
+    def setPvBrand(self, brand:int = 1):
+        brand_str = INVERTER_BRAND.get(brand,f'Unkown [{brand}]')
+        payload = {"properties": { "pvBrand": brand }}
+        self.client.publish(self.property_topic,json.dumps(payload))
+        log.info(f'Setting inverter brand to {brand_str}')

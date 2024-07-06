@@ -67,7 +67,7 @@ MIN_CHARGE_POWER =      config.getint('control', 'min_charge_power', fallback=No
 MAX_DISCHARGE_POWER =   config.getint('control', 'max_discharge_power', fallback=None) \
                         or int(os.environ.get('MAX_DISCHARGE_POWER',145))   
 
-# battery SoC levels to consider the battry full or empty                                            
+# battery SoC levels to consider the battery full or empty
 BATTERY_LOW =           config.getint('control', 'battery_low', fallback=None) \
                         or int(os.environ.get('BATTERY_LOW',10)) 
 BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) \
@@ -75,8 +75,9 @@ BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) 
 
 # the maximum allowed inverter output
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
-                        or int(os.environ.get('MAX_INVERTER_LIMIT',800))                                               
-MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_POWER
+                        or int(os.environ.get('MAX_INVERTER_LIMIT',800))
+MAX_INVERTER_INPUT =    config.getint('control', 'max_inverter_input', fallback=None) \
+                        or int(os.environ.get('MAX_INVERTER_INPUT',MAX_INVERTER_LIMIT - MIN_CHARGE_POWER))
 
 # this controls the internal calculation of limited growth for setting inverter limits
 INVERTER_START_LIMIT = 5
@@ -91,9 +92,9 @@ steering_interval =     config.getint('control', 'steering_interval', fallback=N
 
 #Adjustments possible to sunrise and sunset offset
 SUNRISE_OFFSET =    config.getint('global', 'sunrise_offset', fallback=60) \
-                        or int(os.environ.get('SUNRISE_OFFSET',60))                                               
+                        or int(os.environ.get('SUNRISE_OFFSET',60))
 SUNSET_OFFSET =    config.getint('global', 'sunset_offset', fallback=60) \
-                        or int(os.environ.get('SUNSET_OFFSET',60))                                                                                             
+                        or int(os.environ.get('SUNSET_OFFSET',60))
 
 # Location Info
 LAT = config.getfloat('global', 'latitude', fallback=None) or float(os.environ.get('LATITUDE',0))
@@ -144,6 +145,8 @@ def on_connect(client, userdata, flags, rc):
         hub = client._userdata['hub']
         hub.subscribe()
         hub.setBuzzer(False)
+        hub.setPvBrand(1)
+        hub.setInverseMaxPower(MAX_INVERTER_INPUT)
         hub.setBatteryHighSoC(BATTERY_HIGH)
         hub.setBatteryLowSoC(BATTERY_LOW)
         if hub.control_bypass:
@@ -257,6 +260,9 @@ def getSFPowerLimit(hub, demand) -> int:
             hub.allowBypass(True)
             hub.setBypass(False)
             hub.setAutorecover(False)
+            
+        # check if we should run a full charge cycle
+        hub.checkChargeThrough()
 
     log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.getBypass()}), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
@@ -500,6 +506,8 @@ def main(argv):
     log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
     log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
     log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
+    log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
+    log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
 
     loc = MyLocation()
     if not LNG and not LAT:
