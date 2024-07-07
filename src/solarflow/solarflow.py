@@ -431,12 +431,9 @@ class Solarflow:
 
         # Charge-Through:
         # If charge-through is enabled the hub will not provide any power if the last full state is to long ago
-        # this ensures regular loading to 100% to avoid battery-drift
-        fullage = self.getLastFullBattery()
-        emptyage = self.getLastEmptyBattery()
-        can_discharge = (self.batteryTarget == BATTERY_TARGET_DISCHARGING) or (self.batteryTarget == BATTERY_TARGET_CHARGING and fullage < self.fullChargeInterval)
-        if  self.chargeThrough and (limit > 0 and (not can_discharge or fullage < 0)):
-            log.info(f'Battery hasn\'t fully charged for {fullage:.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval}hrs not discharging now!')
+        # this ensures regular loading to 100% to avoid battery-drift            
+        if self.chargeThrough and limit > 0 and self.batteryTarget == BATTERY_TARGET_CHARGING:
+            log.info(f'Charge-Through is active! To ensure it is fully charged at least every {self.fullChargeInterval}hrs not discharging now!')
             # either limit to 0 or only give away what is higher than min_charge_level
             limit = 0
 
@@ -554,11 +551,13 @@ class Solarflow:
         self.client.publish(self.property_topic,json.dumps(payload))
         return level
     
-    def checkChargeThrough(self) -> bool:
+    def checkChargeThrough(self, daylight:int = 0) -> bool:
         fullage = self.getLastFullBattery()
+        fullage_today = fullage + daylight
         # check if we should enable charge through
-        if fullage < 0 or fullage > self.fullChargeInterval:
-            self.setChargeThrough(True)
+        if fullage < 0 or fullage > self.fullChargeInterval or fullage_today > self.fullChargeInterval:
+            log.info(f'Battery hasn\'t fully charged for {fullage:.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval}hrs chargeing through now!')
+            self.setChargeThrough(True) 
             
         return self.chargeThrough
     

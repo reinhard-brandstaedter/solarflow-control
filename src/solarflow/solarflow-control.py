@@ -261,8 +261,12 @@ def getSFPowerLimit(hub, demand) -> int:
             hub.setBypass(False)
             hub.setAutorecover(False)
             
-        # check if we should run a full charge cycle
-        hub.checkChargeThrough()
+        # calculate expected daylight in hours
+        diff = sunset - sunrise
+        daylight = diff.total_seconds()/3600
+
+        # check if we should run a full charge cycle today
+        hub.checkChargeThrough(daylight)
 
     log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.getBypass()}), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
