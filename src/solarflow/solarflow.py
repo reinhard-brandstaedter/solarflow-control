@@ -64,7 +64,7 @@ class Solarflow:
         self.control_soc = control_soc    # wether we control the soc levels
 
         self.property_topic = f'iot/{self.productId}/{self.deviceId}/properties/write'
-        self.chargeThrough = True
+        self.chargeThrough = False
         self.dryrun = False
         self.sunriseSoC = None
         self.sunsetSoC = None
