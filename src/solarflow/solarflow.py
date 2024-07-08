@@ -528,35 +528,36 @@ class Solarflow:
     def setBatteryHighSoC(self, level:int, temporary:bool=False) -> int:
         level = min(max(level, 40), 100)
         if not temporary:
-            log.info(f'Setting maximum charge level to {level}%')
             self.batteryHigh = level
-        
+
         if not self.control_soc:
             return self.batteryLow
-        
+
         payload = {"properties": { "socSet": level * 10 }}
         self.client.publish(self.property_topic,json.dumps(payload))
+        log.info(f'Setting maximum charge level to {level}%')
         return level
 
     def setBatteryLowSoC(self, level:int, temporary:bool=False) -> int:
         level = min(max(level, 0), 60)
         if not temporary:
-            log.info(f'Setting minimum charge level to {level}%')
             self.batteryLow = level
-            
+
         if not self.control_soc:
             return self.batteryLow
-        
+
         payload = {"properties": { "minSoc": level * 10 }}
         self.client.publish(self.property_topic,json.dumps(payload))
+        log.info(f'Setting minimum charge level to {level}%')
         return level
-    
-    def checkChargeThrough(self, daylight:int = 0) -> bool:
+
+    def checkChargeThrough(self, daylight:float = 0.0) -> bool:
+        log.info(f'Checking conditions for charge through with expexted daylight of {daylight:.1f} hours')
         fullage = self.getLastFullBattery()
         fullage_today = fullage + daylight
         # check if we should enable charge through
         if fullage < 0 or fullage > self.fullChargeInterval or fullage_today > self.fullChargeInterval:
-            log.info(f'Battery hasn\'t fully charged for {fullage:.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval}hrs chargeing through now!')
+            log.info(f'Battery hasn\'t fully charged for {fullage:.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval} hours chargeing through now!')
             self.setChargeThrough(True) 
             
         return self.chargeThrough
