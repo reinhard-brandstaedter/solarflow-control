@@ -18,6 +18,7 @@ TRIGGER_DIFF = 30
 HUB1200 = "73bkTV"
 HUB2000 = "A8yh63"
 
+BATTERY_TARGET_IDLE        = "idle"
 BATTERY_TARGET_CHARGING    = "charging"
 BATTERY_TARGET_DISCHARGING = "discharging"
 
@@ -26,12 +27,12 @@ INVERTER_BRAND = {0: 'Other', 1: 'Hoymiles', 2: 'Enphase', 3: 'APsystems', 4: 'A
 
 
 class Solarflow:
-    opts = {"product_id":str, "device_id":str ,"full_charge_interval":int, "control_bypass":bool, "control_soc":bool}
+    opts = {"product_id":str, "device_id":str ,"full_charge_interval":int, "control_bypass":bool, "control_soc":bool, "disable_full_discharge":bool}
 
     def default_calllback(self):
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, control_bypass:bool = False, control_soc:bool = False, callback = default_calllback):
+    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, control_bypass:bool = False, control_soc:bool = False, disable_full_discharge:bool = False, callback = default_calllback):
         self.client = client
         self.productId = product_id
         self.deviceId = device_id
@@ -56,6 +57,7 @@ class Solarflow:
         self.lastEmptyTS = None         # keep track of last time the battery pack was empty (0%)
         self.lastSolarInputTS = None    # time of the last received solar input value
         self.batteryTarget = None
+        self.allowFullCycle = not disable_full_discharge
         
         self.batteryTargetSoCMax = -1
         self.batteryTargetSoCMin = -1
@@ -65,6 +67,7 @@ class Solarflow:
 
         self.property_topic = f'iot/{self.productId}/{self.deviceId}/properties/write'
         self.chargeThrough = False
+        self.chargeThroughStage = 'idle'
         self.dryrun = False
         self.sunriseSoC = None
         self.sunsetSoC = None
@@ -177,7 +180,13 @@ class Solarflow:
                 log.info(f'Battery is full: {self.electricLevel}')
 
             if self.chargeThrough:
-                self.setChargeThrough(False)
+                # if allowed to run full cycle, change to discharge,now
+                if self.allowFullCycle:
+                    self.setChargeThroughStage(BATTERY_TARGET_DISCHARGING)
+                # otherwise, we are done
+                else:
+                    self.setChargeThrough(False)
+                    
             
             self.lastFullTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
@@ -188,12 +197,15 @@ class Solarflow:
                 log.info(f'Battery is empty: {self.electricLevel}')
 
             batteryTarget = BATTERY_TARGET_CHARGING
+            
+            if self.chargeThrough:
+                self.setChargeThroughStage(BATTERY_TARGET_IDLE)
 
             self.lastEmptyTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastEmptyTimestamp',int(datetime.timestamp(self.lastEmptyTS)),retain=True)
 
         # handle user given min SoC
-        if value <= self.batteryLow:
+        if value <= self.batteryLow and not self.chargeThrough:
             batteryTarget = BATTERY_TARGET_CHARGING
 
             if self.batteryTarget == BATTERY_TARGET_DISCHARGING:
@@ -286,11 +298,6 @@ class Solarflow:
             log.info(f'Impossible to set charge through! We are not permitted to change maximum target SoC and solarflow has limit configured to {self.batteryTargetSoCMax}!')
             return
         
-        log.info(f'Set ChargeThrough: {chargeThrough}')
-
-        # adjust charge limit
-        self.setBatteryHighSoC(100 if chargeThrough else self.batteryHigh, True)
-
         # in case of setups with no direct panels connected to inverter it is necessary to turn on the inverter as it is likely offline now
         inv = self.client._userdata['dtu']
         if (not inv.ready()) and self.getOutputHomePower() == 0:
@@ -298,10 +305,22 @@ class Solarflow:
             self.setOutputLimit(30)
 
         if self.chargeThrough != chargeThrough:
+            log.info(f'Set ChargeThrough: {self.chargeThrough} => {chargeThrough}')
+            self.setChargeThroughStage(BATTERY_TARGET_CHARGING if chargeThrough else BATTERY_TARGET_IDLE)
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThrough','ON' if chargeThrough else 'OFF')
+            
 
         self.chargeThrough = chargeThrough
 
+    def setChargeThroughStage(self,stage):
+        log.info(f'Updateing charge through stage: {self.chargeThroughStage} => {stage}')
+        batteryHigh = 100 if stage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING] else self.batteryHigh
+        batteryLow = 0 if stage == BATTERY_TARGET_DISCHARGING and self.allowFullCycle else 0
+        self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThroughState', stage)
+        self.setBatteryHighSoC(batteryHigh)
+        self.setBatteryLowSoC(batteryLow)
+        self.chargeThroughStage = stage
+        
     def setDryRun(self,value):
         if type(value) == str:
             self.dryrun = value.upper() == 'ON'
@@ -405,6 +424,8 @@ class Solarflow:
                     self.updBatteryTargetSoCMax(int(value))
                 case "minSoc":
                     self.updBatteryTargetSoCMin(int(value))
+                case "chargeThroughState":
+                    pass
                 case _:
                     log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
