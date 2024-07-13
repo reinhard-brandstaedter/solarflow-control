@@ -165,13 +165,6 @@ class Solarflow:
     def updElectricLevel(self, value:int):
         batteryTarget = self.batteryTarget
 
-        # handle user given max SoC
-        if value >= self.batteryHigh and not self.chargeThrough:
-            batteryTarget = BATTERY_TARGET_DISCHARGING
-
-            if self.batteryTarget == BATTERY_TARGET_CHARGING:
-                log.info(f'Battery maximum charge level reached: {self.electricLevel}')
-
         # handle full battery
         if value == 100:
             batteryTarget = BATTERY_TARGET_DISCHARGING
@@ -186,26 +179,30 @@ class Solarflow:
                 # otherwise, we are done
                 else:
                     self.setChargeThrough(False)
-                    
             
             self.lastFullTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastFullTimestamp',int(datetime.timestamp(self.lastFullTS)),retain=True)
+        # handle user given max SoC
+        elif value >= self.batteryHigh and not self.chargeThrough:
+            batteryTarget = BATTERY_TARGET_DISCHARGING
 
+            if self.batteryTarget == BATTERY_TARGET_CHARGING:
+                log.info(f'Battery maximum charge level reached: {self.electricLevel}')
+                
         # handle empty battery
         if value == 0:
+            batteryTarget = BATTERY_TARGET_CHARGING
+            
             if self.batteryTarget == BATTERY_TARGET_DISCHARGING:
                 log.info(f'Battery is empty: {self.electricLevel}')
-
-            batteryTarget = BATTERY_TARGET_CHARGING
             
             if self.chargeThrough:
                 self.setChargeThroughStage(BATTERY_TARGET_IDLE)
 
             self.lastEmptyTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastEmptyTimestamp',int(datetime.timestamp(self.lastEmptyTS)),retain=True)
-
         # handle user given min SoC
-        if value <= self.batteryLow and not self.chargeThrough:
+        elif value <= self.batteryLow and not self.chargeThrough:
             batteryTarget = BATTERY_TARGET_CHARGING
 
             if self.batteryTarget == BATTERY_TARGET_DISCHARGING:
