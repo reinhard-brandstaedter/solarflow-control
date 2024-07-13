@@ -69,9 +69,9 @@ MAX_DISCHARGE_POWER =   config.getint('control', 'max_discharge_power', fallback
 
 # battery SoC levels to consider the battery full or empty
 BATTERY_LOW =           config.getint('control', 'battery_low', fallback=None) \
-                        or int(os.environ.get('BATTERY_LOW',10)) 
+                        or int(os.environ.get('BATTERY_LOW',0)) 
 BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) \
-                        or int(os.environ.get('BATTERY_HIGH',98))
+                        or int(os.environ.get('BATTERY_HIGH',100))
 
 # the maximum allowed inverter output
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
