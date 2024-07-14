@@ -170,7 +170,7 @@ class Solarflow:
             batteryTarget = BATTERY_TARGET_DISCHARGING
 
             if self.batteryTarget == BATTERY_TARGET_CHARGING:
-                log.info(f'Battery is full: {self.electricLevel}')
+                log.info(f'Battery is full: {self.electricLevel} => {value}')
 
             if self.chargeThrough:
                 # if allowed to run full cycle, change to discharge,now
@@ -187,14 +187,14 @@ class Solarflow:
             batteryTarget = BATTERY_TARGET_DISCHARGING
 
             if self.batteryTarget == BATTERY_TARGET_CHARGING:
-                log.info(f'Battery maximum charge level reached: {self.electricLevel}')
+                log.info(f'Battery maximum charge level reached: {self.electricLevel} => {value}')
                 
         # handle empty battery
         if value == 0:
             batteryTarget = BATTERY_TARGET_CHARGING
             
             if self.batteryTarget == BATTERY_TARGET_DISCHARGING:
-                log.info(f'Battery is empty: {self.electricLevel}')
+                log.info(f'Battery is empty: {self.electricLevel} => {value}')
             
             if self.chargeThrough:
                 self.setChargeThroughStage(BATTERY_TARGET_IDLE)
@@ -206,7 +206,7 @@ class Solarflow:
             batteryTarget = BATTERY_TARGET_CHARGING
 
             if self.batteryTarget == BATTERY_TARGET_DISCHARGING:
-                log.info(f'Battery minimum charge level reached: {self.electricLevel}')
+                log.info(f'Battery minimum charge level reached: {self.electricLevel} => {value}')
 
         # process changes
         if batteryTarget != self.batteryTarget:
@@ -310,12 +310,15 @@ class Solarflow:
         self.chargeThrough = chargeThrough
 
     def setChargeThroughStage(self,stage):
+        if self.chargeThroughStage == stage:
+            return
+        
         log.info(f'Updateing charge through stage: {self.chargeThroughStage} => {stage}')
         batteryHigh = 100 if stage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING] else self.batteryHigh
-        batteryLow = 0 if stage == BATTERY_TARGET_DISCHARGING and self.allowFullCycle else 0
+        batteryLow = 0 if stage == BATTERY_TARGET_DISCHARGING and self.allowFullCycle else self.batteryLow
         self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThroughState', stage)
-        self.setBatteryHighSoC(batteryHigh)
-        self.setBatteryLowSoC(batteryLow)
+        self.setBatteryHighSoC(batteryHigh, True)
+        self.setBatteryLowSoC(batteryLow, True)
         self.chargeThroughStage = stage
         
     def setDryRun(self,value):
