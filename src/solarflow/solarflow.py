@@ -67,7 +67,7 @@ class Solarflow:
 
         self.property_topic = f'iot/{self.productId}/{self.deviceId}/properties/write'
         self.chargeThrough = False
-        self.chargeThroughStage = 'idle'
+        self.chargeThroughStage = BATTERY_TARGET_IDLE
         self.dryrun = False
         self.sunriseSoC = None
         self.sunsetSoC = None
@@ -197,7 +197,7 @@ class Solarflow:
                 log.info(f'Battery is empty: {self.electricLevel} => {value}')
             
             if self.chargeThrough:
-                self.setChargeThroughStage(BATTERY_TARGET_IDLE)
+                self.setChargeThrough(False)
 
             self.lastEmptyTS = datetime.now()
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/lastEmptyTimestamp',int(datetime.timestamp(self.lastEmptyTS)),retain=True)
