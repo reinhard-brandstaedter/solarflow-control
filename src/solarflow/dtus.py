@@ -224,9 +224,16 @@ class DTU:
 
         # acceptable overage on AC power, keep limit where it is
         if self.getCurrentACPower() > self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
-            inv_limit = self.limitAbsolute
+            smt = self.client._userdata['smartmeter']
+            #hub = self.client._userdata['hub']
+            smt_power = smt.getPower() - smt.zero_offset
+            if  smt_power > 0:
+                inv_limit = self.limitAbsolute
+            else:
+                inv_limit = self.getACLimit()
             withinRange = 0
-            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0f}W) is within acceptable overage ({self.acLimit:.0f}W +/- 20W), keeping limit at {inv_limit:.0f}W')
+            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0f}W) is within acceptable overage ({self.acLimit:.0f}W +/- 20W), {"keeping limit at" if smt_power > 0 else "but less demand, setting limit to"} {inv_limit:.0f}W')
+
 
         if self.getCurrentACPower() > self.acLimit and not self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
             # decrease inverter limit slowly

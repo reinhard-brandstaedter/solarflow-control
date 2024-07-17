@@ -123,10 +123,16 @@ class Solarflow:
 
         for hatemplate in hatemplates:
             template = environment.get_template(hatemplate.name)
-            hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion)
             cfg_type = hatemplate.name.split(".")[0]
             cfg_name = hatemplate.name.split(".")[1]
-            self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{cfg_name}/config',hacfg)
+            if cfg_name == "maxTemp":
+                for serial,v in self.batteriesVol.items():
+                    hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion, battery_serial=serial)
+                    if serial != "none":
+                        self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{serial}-{cfg_name}/config',hacfg)
+            else:
+                hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion)
+                self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{cfg_name}/config',hacfg)
             #log.info(hacfg)
         log.info(f"Published {len(hatemplates)} Homeassistant templates.")
 
