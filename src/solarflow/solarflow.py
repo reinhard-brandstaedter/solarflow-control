@@ -337,7 +337,8 @@ class Solarflow:
                 case "passMode":
                     self.updByPassMode(int(value))
                 case _:
-                    log.warning(f'Ignoring solarflow-hub metric: {metric}')
+                    if not "control" in msg.topic:
+                        log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
     def setOutputLimit(self, limit:int):
         # since the hub is slow in adoption we should not try to set the limit too frequently

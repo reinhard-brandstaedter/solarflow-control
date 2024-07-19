@@ -147,15 +147,19 @@ def on_message(client, userdata, msg):
         match parameter:
             case "sunriseOffset":
                 SUNRISE_OFFSET = int(value)
+                log.info(f'Updating SUNRISE_OFFSET to {SUNRISE_OFFSET} minutes')
             case "sunsetOffset":
                 SUNSET_OFFSET = int(value)
+                log.info(f'Updating SUNSET_OFFSET to {SUNRISE_OFFSET} minutes')
             case "minChargePower":
                 MIN_CHARGE_POWER = int(value)
+                log.info(f'Updating MIN_CHARGE_POWER to {MIN_CHARGE_POWER} W')
             case "maxDischargePower":
                 MAX_DISCHARGE_POWER = int(value)
+                log.info(f'Updating MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER} W')
             case "dischargeDuringDaytime":
                 DISCHARGE_DURING_DAYTIME = str2bool(value)
-
+                log.info(f'Updating DISCHARGE_DURING_DAYTIME to {DISCHARGE_DURING_DAYTIME}')
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
