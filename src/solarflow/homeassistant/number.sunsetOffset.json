@@ -1,0 +1,19 @@
+{
+    "name": "Sunrise Offset",
+    "cmd_t": "~control/sunriseOffset",
+    "stat_t": "~control/sunriseOffset",
+    "uniq_id": "{{ device_id }}-sunriseOffset",
+    "unit_of_meas": "m",
+    "max": 500,
+    "min": 0,
+    "step": 10,
+    "mode": "box",
+    "dev": {
+      "identifiers": ["solarflow-control"],
+      "manufacturer": "Reinhard Weber",
+      "model": "Solarflow Control",
+      "name": "Solarflow Control",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/"
+}

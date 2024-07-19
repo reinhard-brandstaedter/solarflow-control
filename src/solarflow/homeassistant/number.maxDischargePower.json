@@ -1,0 +1,19 @@
+{
+    "name": "Maximum Disharge Power",
+    "cmd_t": "~control/maxDischargePower",
+    "stat_t": "~control/maxDischargePower",
+    "uniq_id": "{{ device_id }}-maxDischargePower",
+    "unit_of_meas": "W",
+    "max": 1000,
+    "min": 0,
+    "step": 1,
+    "mode": "box",
+    "dev": {
+      "identifiers": ["solarflow-control"],
+      "manufacturer": "Reinhard Weber",
+      "model": "Solarflow Control",
+      "name": "Solarflow Control",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/"
+}
