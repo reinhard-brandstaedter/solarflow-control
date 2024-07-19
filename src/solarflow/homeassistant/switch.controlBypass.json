@@ -1,0 +1,20 @@
+{
+    "name": "Control Bypass",
+    "cmd_t": "~control/controlBypass",
+    "stat_t": "~control/controlBypass",
+    "uniq_id": "{{ device_id }}-controlBypass",
+    "dev_cla": "switch",
+    "payload_on": "ON",
+    "payload_off": "OFF",
+    "state_on": "ON",
+    "state_off": "OFF",
+    "retain": true,
+    "dev": {
+      "identifiers": ["solarflow-control"],
+      "manufacturer": "Reinhard Weber",
+      "model": "Solarflow Control",
+      "name": "Solarflow Control",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/"
+}

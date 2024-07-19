@@ -234,6 +234,7 @@ class Solarflow:
 
     def setControlBypass(self, value):
         self.control_bypass = str2bool(value)
+        log.info(f'Taking over bypass control: {self.control_bypass}')
 
     def setDryRun(self,value):
         if type(value) == str:

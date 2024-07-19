@@ -177,6 +177,15 @@ def on_connect(client, userdata, flags, rc):
         smt.subscribe()
     else:
         log.error("Failed to connect, return code %d\n", rc)
+    
+    # publish current control parameters
+    client.publish(f'solarflow-hub/{sf_device_id}/control/controlBypass',str(hub.control_bypass),retain=True)
+    client.publish(f'solarflow-hub/{sf_device_id}/control/sunriseOffset',SUNRISE_OFFSET,retain=True)
+    client.publish(f'solarflow-hub/{sf_device_id}/control/sunsetOffset',SUNSET_OFFSET,retain=True)
+    client.publish(f'solarflow-hub/{sf_device_id}/control/minChargePower',MIN_CHARGE_POWER,retain=True)
+    client.publish(f'solarflow-hub/{sf_device_id}/control/maxDischargePower',MAX_DISCHARGE_POWER,retain=True)
+    client.publish(f'solarflow-hub/{sf_device_id}/control/dischargeDuringDaytime',str(DISCHARGE_DURING_DAYTIME),retain=True)
+    
 
 def on_disconnect(client, userdata, rc):
     if rc == 0:
