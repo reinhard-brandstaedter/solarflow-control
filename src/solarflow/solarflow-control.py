@@ -12,7 +12,7 @@ import math
 from solarflow import Solarflow
 import dtus
 import smartmeters
-from utils import RepeatedTimer
+from utils import RepeatedTimer, str2bool
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -94,9 +94,9 @@ DISCHARGE_DURING_DAYTIME =     config.getboolean('control', 'discharge_during_da
                         or bool(os.environ.get('DISCHARGE_DURING_DAYTIME',False))
 
 #Adjustments possible to sunrise and sunset offset
-SUNRISE_OFFSET =    config.getint('global', 'sunrise_offset', fallback=60) \
+SUNRISE_OFFSET =    config.getint('control', 'sunrise_offset', fallback=60) \
                         or int(os.environ.get('SUNRISE_OFFSET',60))                                               
-SUNSET_OFFSET =    config.getint('global', 'sunset_offset', fallback=60) \
+SUNSET_OFFSET =    config.getint('control', 'sunset_offset', fallback=60) \
                         or int(os.environ.get('SUNSET_OFFSET',60))                                                                                             
 
 # Location Info
@@ -140,7 +140,22 @@ def on_message(client, userdata, msg):
     dtu = userdata["dtu"]
     dtu.handleMsg(msg)
 
-    # handle own messages
+    # handle own messages (control parameters)
+    if msg.topic.startswith('solarflow-hub') and "control" in msg.topic and msg.payload:
+        parameter = msg.topic.split('/')[-1]
+        value = msg.payload.decode()
+        match parameter:
+            case "sunriseOffset":
+                SUNRISE_OFFSET = int(value)
+            case "sunsetOffset":
+                SUNSET_OFFSET = int(value)
+            case "minChargePower":
+                MIN_CHARGE_POWER = int(value)
+            case "maxDischargePower":
+                MAX_DISCHARGE_POWER = int(value)
+            case "dischargeDuringDaytime":
+                DISCHARGE_DURING_DAYTIME = str2bool(value)
+
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -160,7 +175,7 @@ def on_connect(client, userdata, flags, rc):
 
 def on_disconnect(client, userdata, rc):
     if rc == 0:
-        log.info("Disconnected from MQTT Broker on porpose!")
+        log.info("Disconnected from MQTT Broker on purpose!")
     else:
         log.error("Disconnected from MQTT broker!")
 
