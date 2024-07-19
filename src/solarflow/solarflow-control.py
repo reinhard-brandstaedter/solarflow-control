@@ -132,6 +132,7 @@ class MyLocation:
         return (lat,lon)
 
 def on_message(client, userdata, msg):
+    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME
     #delegate message handling to hub,smartmeter, dtu
     smartmeter = userdata["smartmeter"]
     smartmeter.handleMsg(msg)
@@ -150,7 +151,7 @@ def on_message(client, userdata, msg):
                 log.info(f'Updating SUNRISE_OFFSET to {SUNRISE_OFFSET} minutes')
             case "sunsetOffset":
                 SUNSET_OFFSET = int(value)
-                log.info(f'Updating SUNSET_OFFSET to {SUNRISE_OFFSET} minutes')
+                log.info(f'Updating SUNSET_OFFSET to {SUNSET_OFFSET} minutes')
             case "minChargePower":
                 MIN_CHARGE_POWER = int(value)
                 log.info(f'Updating MIN_CHARGE_POWER to {MIN_CHARGE_POWER} W')
