@@ -89,10 +89,6 @@ limit_inverter =        config.getboolean('control', 'limit_inverter', fallback=
 steering_interval =     config.getint('control', 'steering_interval', fallback=None) \
                         or int(os.environ.get('STEERING_INTERVAL',15))
 
-# flag, which can be set to allow discharging the battery during daytime
-DISCHARGE_DURING_DAYTIME =     config.getboolean('control', 'discharge_during_daytime', fallback=None) \
-                        or bool(os.environ.get('DISCHARGE_DURING_DAYTIME',False))
-
 #Adjustments possible to sunrise and sunset offset
 SUNRISE_OFFSET =    config.getint('global', 'sunrise_offset', fallback=60) \
                         or int(os.environ.get('SUNRISE_OFFSET',60))                                               
@@ -234,9 +230,9 @@ def getSFPowerLimit(hub, demand) -> int:
             else:
                 path += "2."
                 limit = min(demand,hub_solarpower - MIN_CHARGE_POWER)
-        if hub_solarpower - demand <= MIN_CHARGE_POWER:  
+        if hub_solarpower - demand <= MIN_CHARGE_POWER:
             path += "2."
-            if ((now < (sunrise + sunrise_off) or now > sunset - sunset_off) or DISCHARGE_DURING_DAYTIME): 
+            if ((now < (sunrise + sunrise_off) or now > sunset - sunset_off) or hub.getDischargeDuringDaytime()): 
                 path += "1."
                 limit = min(demand,MAX_DISCHARGE_POWER)
             else:
@@ -510,7 +506,6 @@ def main(argv):
     log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
     log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
     log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
-    log.info(f'  DISCHARGE_DURING_DAYTIME = {DISCHARGE_DURING_DAYTIME}')
 
     loc = MyLocation()
     if not LNG and not LAT:

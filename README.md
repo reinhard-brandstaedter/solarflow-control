@@ -204,6 +204,13 @@ INFO: HUB: S:0.0W [ 0.0 ], B: 80% (80|82|80), V:49.4V (49.3|49.4|49.4), C:-360W,
 
 The ```P:False (manual, not possible)``` part tells you that the Bypass is on/off (P:False|True), that the hub reported mode is via firmware (=auto) or done by solarflow-control (=manual) and if a change/enabling of the bypass is currently possible.
 
-#### What does the ``` zero_offset``` configuration parameter of smartmeters do?
+#### What does the ```zero_offset``` configuration parameter of smartmeters do?
 If you see a lot of feed-in to the grid (especially when discharging the battery during rather constant demand), you can use to "shift" the "zero-point" of your smartmeter readings. In solarflow-controls logic this will then use the adjusted point for calculating the output from the hub to the house.
 Note that short feed-in situations are OK, depending if your household demand changes quickly there will be always a little bit of lag in adjusting limits, so at the end of a high-usage contribution you will always see a little bit of overcontribution.
+
+#### What purpose does the `discharge_during_daytime` configuration parameter serve?
+solarflow-control by default prioritizes charging the battery during daytime hours and not allowing any discharge to happen, even when power demand increases and electricity has to be imported from the grid. This behavior is switched off after `sunset - sunset_offset` time is passed and switched on again after `sunrise + sunrise_offset` time is passed.
+
+Setting `discharge_during_daytime = true` disables this behavior entirely and enables solarflow-control to always meet the required demand, resulting in the battery feeding power to the house, when solar power is not enough to satisfy it.
+
+This configuration is also controllable in Home Assistant, where changing the value publishes a retained message to the MQTT broker. This means that the value set in Home Assistant will persist even when solarflow-control is restarted.

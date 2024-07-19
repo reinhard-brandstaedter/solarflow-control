@@ -20,12 +20,12 @@ HUB2000 = "A8yh63"
 
 
 class Solarflow:
-    opts = {"product_id":str, "device_id":str ,"full_charge_interval":int, "control_bypass":bool}
+    opts = {"product_id":str, "device_id":str ,"full_charge_interval":int, "control_bypass":bool, "discharge_during_daytime":bool}
 
     def default_calllback(self):
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, control_bypass:bool = False, callback = default_calllback):
+    def __init__(self, client: mqtt_client, product_id:str, device_id:str, full_charge_interval:int, control_bypass:bool = False, discharge_during_daytime:bool = False, callback = default_calllback):
         self.client = client
         self.productId = product_id
         self.deviceId = device_id
@@ -38,6 +38,7 @@ class Solarflow:
         self.outputHomePower = -1       # power sent to home
         self.bypass = False             # Power Bypass Active/Inactive
         self.control_bypass = control_bypass    # wether we control the bypass switch or the hubs firmware
+        self.discharge_during_daytime = discharge_during_daytime    # wether we allow the battery to be discharged during the day
         self.bypass_mode = -1           # bypassmode the hub is operating in 0=auto, 1=manual off, 2=manual on
         self.allow_bypass = True        # if bypass can be currently enabled or not
         self.electricLevel = -1         # state of charge of battery pack
@@ -242,6 +243,13 @@ class Solarflow:
             self.dryrun = bool(value)
         log.info(f'{self.__class__.__name__} set DryRun: {self.dryrun}')
 
+    def setDischargeDuringDaytime(self,value):
+        if type(value) == str:
+            self.discharge_during_daytime = value.upper() == 'ON'
+        if type(value) == int:
+            self.discharge_during_daytime = bool(value)
+        log.info(f'{self.__class__.__name__} set Discharge during daytime: {self.discharge_during_daytime}')
+
     def setLastFullTimestamp(self, value):
         self.lastFullTS = datetime.fromtimestamp(value)
         log.info(f'Reading last full time: {datetime.fromtimestamp(value)}')
@@ -324,6 +332,8 @@ class Solarflow:
                     self.setChargeThrough(value)
                 case "dryRun":
                     self.setDryRun(value)
+                case "dischargeDuringDaytime":
+                    self.setDischargeDuringDaytime(value)
                 case "lastFullTimestamp":
                     self.setLastFullTimestamp(float(value))
                 case "lastEmptyTimestamp":
@@ -451,6 +461,9 @@ class Solarflow:
             return self.bypass_mode == 2 or self.bypass
         else:
             return self.bypass
+        
+    def getDischargeDuringDaytime(self):
+        return self.discharge_during_daytime
         
     def getCanDischarge(self):
         fullage = self.getLastFullBattery()
