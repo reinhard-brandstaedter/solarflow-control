@@ -165,6 +165,8 @@ def on_message(client, userdata, msg):
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         log.info("Connected to MQTT Broker!")
+        hub = client._userdata['hub']
+        
          # publish current control parameters
         client.publish(f'solarflow-hub/{sf_device_id}/control/controlBypass',str(hub.control_bypass),retain=True)
         client.publish(f'solarflow-hub/{sf_device_id}/control/sunriseOffset',SUNRISE_OFFSET,retain=True)
@@ -173,7 +175,6 @@ def on_connect(client, userdata, flags, rc):
         client.publish(f'solarflow-hub/{sf_device_id}/control/maxDischargePower',MAX_DISCHARGE_POWER,retain=True)
         client.publish(f'solarflow-hub/{sf_device_id}/control/dischargeDuringDaytime',str(DISCHARGE_DURING_DAYTIME),retain=True)
 
-        hub = client._userdata['hub']
         hub.subscribe()
         hub.setBuzzer(False)
         if hub.control_bypass:
