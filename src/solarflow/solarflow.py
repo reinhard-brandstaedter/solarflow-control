@@ -5,7 +5,7 @@ import json
 import sys
 import pathlib
 from jinja2 import Environment, FileSystemLoader, DebugUndefined
-from utils import TimewindowBuffer, RepeatedTimer
+from utils import TimewindowBuffer, RepeatedTimer, str2bool
 
 red = "\x1b[31;20m"
 reset = "\x1b[0m"
@@ -224,16 +224,17 @@ class Solarflow:
         self.allow_bypass = allow
 
     def setChargeThrough(self, value):
-        if type(value) == str:
-            self.chargeThrough = value.upper() == 'ON'
-        if type(value) == int:
-            self.chargeThrough = bool(value)
+        self.chargeThrough = str2bool(value)
         log.info(f'Set ChargeThrough: {self.chargeThrough}')
         # in case of setups with no direct panels connected to inverter it is necessary to turn on the inverter as it is likely offline now
         inv = self.client._userdata['dtu']
         if (not inv.ready()) and self.getOutputHomePower() == 0:
             # this will power on the inverter so that control can resume from an interrupted charge-through
             self.setOutputLimit(30)
+
+    def setControlBypass(self, value):
+        self.control_bypass = str2bool(value)
+        log.info(f'Taking over bypass control: {self.control_bypass}')
 
     def setDryRun(self,value):
         if type(value) == str:
@@ -322,6 +323,8 @@ class Solarflow:
                     self.updMasterSoftVersion(value=int(value))
                 case "chargeThrough":
                     self.setChargeThrough(value)
+                case "controlBypass":
+                    self.setControlBypass(value)
                 case "dryRun":
                     self.setDryRun(value)
                 case "lastFullTimestamp":
@@ -335,7 +338,8 @@ class Solarflow:
                 case "passMode":
                     self.updByPassMode(int(value))
                 case _:
-                    log.warning(f'Ignoring solarflow-hub metric: {metric}')
+                    if not "control" in msg.topic:
+                        log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
     def setOutputLimit(self, limit:int):
         # since the hub is slow in adoption we should not try to set the limit too frequently

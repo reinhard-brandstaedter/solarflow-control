@@ -1,8 +1,8 @@
 {
-    "name": "Charge Through Mode",
-    "cmd_t": "~control/chargeThrough",
-    "stat_t": "~control/chargeThrough",
-    "uniq_id": "{{ device_id }}-chargeThrough",
+    "name": "Control Bypass",
+    "cmd_t": "~control/controlBypass",
+    "stat_t": "~control/controlBypass",
+    "uniq_id": "{{ device_id }}-controlBypass",
     "dev_cla": "switch",
     "payload_on": "ON",
     "payload_off": "OFF",
