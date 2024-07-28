@@ -5,7 +5,7 @@ import json
 import sys
 import pathlib
 from jinja2 import Environment, FileSystemLoader, DebugUndefined
-from utils import TimewindowBuffer, RepeatedTimer
+from utils import TimewindowBuffer, RepeatedTimer, str2bool
 
 red = "\x1b[31;20m"
 reset = "\x1b[0m"
@@ -280,17 +280,7 @@ class Solarflow:
         self.allow_bypass = allow
 
     def setChargeThrough(self, value):
-        chargeThrough = None
-        if type(value) == str:
-            chargeThrough = value.upper() == 'ON'
-        if type(value) == int:
-            chargeThrough = bool(value)
-        if type(value) == bool:
-            chargeThrough = value
-
-        if chargeThrough is None:
-            return
-        
+        chargeThrough = str2bool(value)
         if chargeThrough and (self.batteryTargetSoCMax < 100 and not self.control_soc):
             log.info(f'Impossible to set charge through! We are not permitted to change maximum target SoC and solarflow has limit configured to {self.batteryTargetSoCMax}!')
             return
@@ -305,7 +295,6 @@ class Solarflow:
             log.info(f'Set ChargeThrough: {self.chargeThrough} => {chargeThrough}')
             self.setChargeThroughStage(BATTERY_TARGET_CHARGING if chargeThrough else BATTERY_TARGET_IDLE)
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThrough','ON' if chargeThrough else 'OFF')
-            
 
         self.chargeThrough = chargeThrough
 
@@ -321,6 +310,10 @@ class Solarflow:
         self.setBatteryLowSoC(batteryLow, True)
         self.chargeThroughStage = stage
         
+    def setControlBypass(self, value):
+        self.control_bypass = str2bool(value)
+        log.info(f'Taking over bypass control: {self.control_bypass}')
+
     def setDryRun(self,value):
         if type(value) == str:
             self.dryrun = value.upper() == 'ON'
@@ -408,6 +401,8 @@ class Solarflow:
                     self.updMasterSoftVersion(value=int(value))
                 case "chargeThrough":
                     self.setChargeThrough(value)
+                case "controlBypass":
+                    self.setControlBypass(value)
                 case "dryRun":
                     self.setDryRun(value)
                 case "lastFullTimestamp":
@@ -427,7 +422,8 @@ class Solarflow:
                 case "chargeThroughState":
                     pass
                 case _:
-                    log.warning(f'Ignoring solarflow-hub metric: {metric}')
+                    if not "control" in msg.topic:
+                        log.warning(f'Ignoring solarflow-hub metric: {metric}')
 
     def setOutputLimit(self, limit:int):
         # since the hub is slow in adoption we should not try to set the limit too frequently

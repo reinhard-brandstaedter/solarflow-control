@@ -1,0 +1,19 @@
+{
+    "name": "Minimum Charge Power",
+    "cmd_t": "~control/minChargePower",
+    "stat_t": "~control/minChargePower",
+    "uniq_id": "{{ device_id }}-minChargePower",
+    "unit_of_meas": "W",
+    "max": 1000,
+    "min": 0,
+    "step": 1,
+    "mode": "box",
+    "dev": {
+      "identifiers": ["solarflow-control"],
+      "manufacturer": "Reinhard Weber",
+      "model": "Solarflow Control",
+      "name": "Solarflow Control",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/"
+}

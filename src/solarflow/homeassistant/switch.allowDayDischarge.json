@@ -1,8 +1,8 @@
 {
-    "name": "Charge Through Mode",
-    "cmd_t": "~control/chargeThrough",
-    "stat_t": "~control/chargeThrough",
-    "uniq_id": "{{ device_id }}-chargeThrough",
+    "name": "Allow Day Discharge",
+    "cmd_t": "~control/dischargeDuringDaytime",
+    "stat_t": "~control/dischargeDuringDaytime",
+    "uniq_id": "{{ device_id }}-dischargeDuringDaytime",
     "dev_cla": "switch",
     "payload_on": "ON",
     "payload_off": "OFF",

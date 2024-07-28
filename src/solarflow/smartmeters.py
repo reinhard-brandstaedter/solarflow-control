@@ -126,6 +126,7 @@ class Poweropti(Smartmeter):
         self.zero_offset = zero_offset
         self.last_trigger_value = 0
         self.trigger_callback = callback
+        self.scaling_factor = 1
         self.session = None
 
     def pollPowerfoxAPI(self):
@@ -163,6 +164,7 @@ class ShellyEM3(Smartmeter):
         self.zero_offset = zero_offset
         self.last_trigger_value = 0
         self.trigger_callback = callback
+        self.scaling_factor = 1
         log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}')
 
     def subscribe(self):
@@ -186,6 +188,7 @@ class VZLogger(Smartmeter):
         self.zero_offset = zero_offset
         self.last_trigger_value = 0
         self.trigger_callback = callback
+        self.scaling_factor = 1
         log.info(f'Using {type(self).__name__}: Current Usage Topic: {self.base_topic}')
 
     def subscribe(self):
