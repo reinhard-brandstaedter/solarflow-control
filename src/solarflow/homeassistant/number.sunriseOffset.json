@@ -6,7 +6,7 @@
     "unit_of_meas": "m",
     "max": 500,
     "min": 0,
-    "step": 10,
+    "step": 1,
     "mode": "box",
     "dev": {
       "identifiers": ["solarflow-control"],
