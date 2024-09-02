@@ -129,10 +129,10 @@ class Solarflow:
                 for serial,v in self.batteriesVol.items():
                     hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion, battery_serial=serial)
                     if serial != "none":
-                        self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{serial}-{cfg_name}/config',hacfg)
+                        self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{serial}-{cfg_name}/config',hacfg,retain=True)
             else:
                 hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion)
-                self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{cfg_name}/config',hacfg)
+                self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{cfg_name}/config',hacfg,retain=True)
             #log.info(hacfg)
         log.info(f"Published {len(hatemplates)} Homeassistant templates.")
 
