@@ -5,7 +5,7 @@
     "uniq_id": "{{ device_id }}-passMode",
     "dev_cla": "switch",
     "payload_on": "{\"properties\": {\"passMode\": 2 }}",
-    "payload_off": "{\"properties\": {\"passMode\": 0 }}",
+    "payload_off": "{\"properties\": {\"passMode\": 1 }}",
     "state_on": 2,
     "state_off": 0,
     "dev": {

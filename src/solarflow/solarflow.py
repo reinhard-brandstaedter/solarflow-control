@@ -57,8 +57,8 @@ class Solarflow:
 
         self.lastLimitTS = None
 
-        updater = RepeatedTimer(60, self.update)
-        haconfig = RepeatedTimer(600, self.pushHomeassistantConfig)
+        self.updater = RepeatedTimer(60, self.update)
+        self.haconfig = RepeatedTimer(180, self.pushHomeassistantConfig)
         self.pushHomeassistantConfig()
         self.update()
 
@@ -179,10 +179,10 @@ class Solarflow:
         major = (value & 0xf000) >> 12
         minor = (value & 0x0f00) >> 8
         build = (value & 0x00ff)
-        self.fwVersion = f'{major}.{minor}.{build}'
-
-        # put into own timer in init
-        # self.pushHomeassistantConfig() # why here? this is not needed every minute
+        newfwVersion = f'{major}.{minor}.{build}'
+        if self.fwVersion != newfwVersion: # publish ha templates on new version
+            self.fwVersion = newfwVersion
+            self.pushHomeassistantConfig()
 
     def updByPass(self, value:int):
         self.bypass = bool(value)
