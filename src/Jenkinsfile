@@ -1,8 +1,11 @@
 pipeline {
-    agent { label 'docker-builder' }
+    //agent { label 'docker-builder' }
+    agent {
+        label 'docker-buildx'
+    }
     
     environment {
-        DOCKER_HOST = "tcp://docker.local:2375"
+        //DOCKER_HOST = "tcp://docker.local:2375"
         DOCKER_REGISTRY = "rbrandstaedter"
         LOG_LEVEL = "INFO"
         BUILD_NUMBER = "${BUILD_NUMBER}"
@@ -13,41 +16,65 @@ pipeline {
         BRANCH_NAME = git_branch.substring(git_branch.lastIndexOf('/') + 1, git_branch.length())
     }
 
+    options {
+        skipDefaultCheckout true
+    }
+
     stages {
-        stage('Build Docker Images') {
+        stage('Checkout') {
             steps {
-                sh 'printenv'
-                dir("${env.WORKSPACE}/src"){
-                    sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
-                    sh label: 'Build solarflow-control', script: 'docker -H ${DOCKER_HOST} buildx build --platform linux/amd64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
-                }
-                script {
-                    if (env.BRANCH_NAME == 'master') {
-                        dir("${env.WORKSPACE}/src"){
-                            sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
-                            sh label: 'Build solarflow-control', script: 'docker -H ${DOCKER_HOST} buildx build --platform linux/amd64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${TAG} -t ${DOCKER_REGISTRY}/solarflow-control:latest .'
-                        }
-                        dir("${env.WORKSPACE}/imageexport") {
-                            sh label: 'GitHub CLI login', script: 'echo ${GITHUB_AUTH_TOKEN} | gh auth login --with-token'
-                            sh label: 'GitHub CLI status', script: 'gh auth status'
-                            //sh label: 'Save docker images', script: 'docker save -o solarflow-control-${TAG}.tar ${DOCKER_REGISTRY}/solarflow-control:${TAG}'
-                            sh label: 'Create Release', script: 'gh release create ${TAG} --generate-notes -t "Release ${TAG}"'
+                sh label: 'get id', script: 'rm -rf ~/.ssh && mkdir ~/.ssh && ssh-keyscan -H github.com >> ~/.ssh/known_hosts'
+                sh label: 'env', script: 'echo $GITHUB_AUTH_TOKEN > ~/.ssh/id.rsa'
+                checkout scm
+            }
+        }
+        stage('Build Docker Images') {
+            environment { 
+                BRANCH_NAME = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+                TAG = "0.${BUILD_NUMBER}"
+            }
+            steps {
+                container('docker-buildx') {
+                    dir("${env.WORKSPACE}/src"){
+                        sh label: 'Set up X-Builder', script: 'docker buildx create --name crossbuilder --platform linux/amd64,linux/arm64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
+                        sh label: 'Build solarflow-control', script: 'docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
+                    }
+                    script {
+                        if (env.BRANCH_NAME == 'master') {
+                            dir("${env.WORKSPACE}/src"){
+                                sh label: 'Set up X-Builder', script: 'docker buildx rm crossbuilder && docker buildx create --name crossbuilder --platform linux/amd64,linux/arm/v7 && docker buildx ls && docker buildx use crossbuilder && docker buildx inspect --bootstrap'
+                                sh label: 'Build solarflow-control', script: 'docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t ${DOCKER_REGISTRY}/solarflow-control:${TAG} -t ${DOCKER_REGISTRY}/solarflow-control:latest .'
+                            }
+                            dir("${env.WORKSPACE}/imageexport") {
+                                sh label: 'Github CLI install', script: 'apk add github-cli'
+                                sh label: 'GitHub CLI login', script: 'echo ${GITHUB_AUTH_TOKEN} | gh auth login --with-token'
+                                sh label: 'GitHub CLI status', script: 'gh auth status'
+                                sh label: 'git config', script: 'git config --global --add safe.directory /home/jenkins/agent/workspace/solarflow-control-master'
+                                //sh label: 'Save docker images', script: 'docker save -o solarflow-control-${TAG}.tar ${DOCKER_REGISTRY}/solarflow-control:${TAG}'
+                                sh label: 'Create Release', script: 'gh release create ${TAG} --generate-notes -t "Release ${TAG}"'
+                            }
                         }
                     }
                 }
             }
         }
         stage('Push Docker Images') {
+            environment { 
+                BRANCH_NAME = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+                TAG = "0.${BUILD_NUMBER}"
+            }
             steps {
-                sh label: 'Docker Login', script: 'docker login -u ${DOCKERHUB_LOGIN_USR} -p ${DOCKERHUB_LOGIN_PSW}'
-                dir("${env.WORKSPACE}/src") {
-                    sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
-                }
-                script {
-                    if (env.BRANCH_NAME == 'master') {
-                        dir("${env.WORKSPACE}/src"){
-                            sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:latest .'
-                            sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:${TAG} .'
+                container('docker-buildx') {
+                    sh label: 'Docker Login', script: 'docker login -u ${DOCKERHUB_LOGIN_USR} -p ${DOCKERHUB_LOGIN_PSW}'
+                    dir("${env.WORKSPACE}/src") {
+                        sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:${BRANCH_NAME} .'
+                    }
+                    script {
+                        if (env.BRANCH_NAME == 'master') {
+                            dir("${env.WORKSPACE}/src"){
+                                sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:latest .'
+                                sh label: 'Push solarflow-control', script: 'docker buildx build --push --platform linux/amd64,linux/arm64,linux/arm/v7 -q -t ${DOCKER_REGISTRY}/solarflow-control:${TAG} .'
+                            }
                         }
                     }
                 }

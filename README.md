@@ -159,7 +159,7 @@ If you read this far you probably are really interested or maybe a happy user. I
 
 
 ## Q&A
-#### How can I enable/disable the charge-thorough feature
+#### How can I enable/disable the charge-thorough feature?
 By default solarflow-control has a charge-through feature which ensures that the batteries of the hub are fully charged once in a while. This interval can be set via the configuration setting:
 
 ```
@@ -181,3 +181,29 @@ To switch this behavior on the fly (e.g. if you want to enforce or stop a discha
 | topic | content | 
 | ----- | ------- |
 | solarflow-hub/5ak8yGU7/control/chargeThrough | ON/OFF |
+
+#### How do I use the Bypass control feature?
+Usually the hub's firmware controls the Bypass feature (direct solarinput to home output when battery is full). However this sometimes works unreliable, or switches too often. You can let solarflow-control control of the Bypass by setting the option in your ```config.ini```:
+
+```
+[solarflow]
+control_bypass = true
+```
+
+This will turn the bypass on/off with the following logic, trying to perform as few unnecessary switches as possible:
+- after sunrise it is potentially allowed to switch the bypass on
+- when the battery reaches 100% the bypass is turned on
+- the bypass is kept on until sunset - ```sunset_offset``` (this might change still, depending on feedback)
+- after turning the bypass of it is not allowed to turn it on until the next sunrise
+
+In the logs you will find some bypass information of the hub:
+
+```
+INFO: HUB: S:0.0W [ 0.0 ], B: 80% (80|82|80), V:49.4V (49.3|49.4|49.4), C:-360W, P:False (manual, not possible), F:2.5h, E:109.3h, H:343W, L:700W
+```
+
+The ```P:False (manual, not possible)``` part tells you that the Bypass is on/off (P:False|True), that the hub reported mode is via firmware (=auto) or done by solarflow-control (=manual) and if a change/enabling of the bypass is currently possible.
+
+#### What does the ``` zero_offset``` configuration parameter of smartmeters do?
+If you see a lot of feed-in to the grid (especially when discharging the battery during rather constant demand), you can use to "shift" the "zero-point" of your smartmeter readings. In solarflow-controls logic this will then use the adjusted point for calculating the output from the hub to the house.
+Note that short feed-in situations are OK, depending if your household demand changes quickly there will be always a little bit of lag in adjusting limits, so at the end of a high-usage contribution you will always see a little bit of overcontribution.
