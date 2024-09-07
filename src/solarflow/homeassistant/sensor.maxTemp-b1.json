@@ -1,0 +1,17 @@
+{
+    "expire_after": 300,
+    "name": "Battery Max Temp CO4HLMEMA802003",
+    "stat_t": "~batteries/CO4HLMEMA802003/maxTemp", 
+    "uniq_id": "{{ device_id }}-batteries-CO4HLMEMA802003maxTemp",
+    "dev_cla": "temperature",
+    "value_template": "{% raw %}{{ (value | float/10 - 273.15) | round(1) }}{% endraw %}",
+    "unit_of_meas": "°C",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}

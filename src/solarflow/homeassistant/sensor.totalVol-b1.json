@@ -1,0 +1,16 @@
+{
+    "name": "Battery Total Voltage CO4HLMEMA802003",
+    "stat_t": "~batteries/CO4HLMEMA802003/totalVol",
+    "uniq_id": "{{ device_id }}-batteries-CO4HLMEMA802003totalVol",
+    "dev_cla": "voltage",
+    "value_template": "{% raw %}{% if value | int > 0 %}{{ value | multiply(0.01) |round(3)| float }}{% else %}{% endif %}{% endraw %}",
+    "unit_of_meas": "V",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}

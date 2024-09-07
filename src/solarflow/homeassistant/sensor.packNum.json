@@ -1,4 +1,5 @@
 {
+    "expire_after": 300,
     "name": "Batteries",
     "stat_t": "~packNum",
     "uniq_id": "{{ device_id }}-packNum",

@@ -1,10 +1,10 @@
 {
     "expire_after": 300,
-    "name": "Output Pack Power",
-    "stat_t": "~outputPackPower",
-    "uniq_id": "{{ device_id }}-outputPackPower",
-    "dev_cla": "power",
-    "unit_of_meas": "W",
+   "name": "RemainInputTime",
+    "stat_t": "~remainInputTime",
+    "uniq_id": "{{ device_id }}-remaininputtime",
+    "unit_of_meas": "minutes",
+    "dev_cla": "duration",
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",
