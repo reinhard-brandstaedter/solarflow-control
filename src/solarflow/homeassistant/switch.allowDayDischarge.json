@@ -1,0 +1,20 @@
+{
+    "name": "Allow Day Discharge",
+    "cmd_t": "~control/dischargeDuringDaytime",
+    "stat_t": "~control/dischargeDuringDaytime",
+    "uniq_id": "{{ device_id }}-dischargeDuringDaytime",
+    "dev_cla": "switch",
+    "payload_on": "ON",
+    "payload_off": "OFF",
+    "state_on": "ON",
+    "state_off": "OFF",
+    "retain": true,
+    "dev": {
+      "identifiers": ["solarflow-control"],
+      "manufacturer": "Reinhard Weber",
+      "model": "Solarflow Control",
+      "name": "Solarflow Control",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/"
+}

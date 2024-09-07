@@ -1,5 +1,5 @@
 {
-    "name": "Bypass Mode (custom)",
+    "name": "Bypass Mode",
     "command_topic": "iot/{{ product_id }}/{{ device_id }}/properties/write",
     "command_template": "{% raw %}{%- set cmd = this.attributes.options.index(value) if value is defined else 0 %}{\"properties\": {\"passMode\": {{ cmd }} }, \"debugStefan\": \"{{value}} - {{ this.attributes.options.index(value) }}\" }{% endraw %}",
     "state_topic": "~passMode",

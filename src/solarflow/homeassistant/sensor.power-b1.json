@@ -1,11 +1,11 @@
-
+{
     "expire_after": 300,
-    "name": "Pack Input Power",
-    "stat_t": "~packInputPower",
-    "uniq_id": "{{ device_id }}-packInputPower",
+    "name": "Battery Power CO4HLMEMA802003",
+    "stat_t": "~batteries/CO4HLMEMA802003/power",
+    "uniq_id": "{{ device_id }}-batteries-CO4HLMEMA802003power",
     "dev_cla": "power",
+    "value_template": "{% raw %}{% if value | int < 10000 %}{{ value }}{% else %}{% endif %}{% endraw %}",
     "unit_of_meas": "W",
-    "state_class": "measurement",
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",
