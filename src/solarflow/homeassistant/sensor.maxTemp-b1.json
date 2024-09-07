@@ -1,6 +1,6 @@
 {
     "name": "Battery Max Temp B1",
-    "stat_t": "~maxTemp", 
+    "stat_t": "~maxTemp",
     "value_template": "{% raw %}{{ (value | float/10 - 273.15) | round(1) }}{% endraw %}",
     "uniq_id": "{{ device_id }}-batteries-CO4HLMEMA802003maxTemp",
     "unit_of_meas": "°C",
