@@ -46,8 +46,8 @@ class DTU:
     def __str__(self):
         chPower = "|".join([f'{v:>3.1f}' for v in self.channelsDCPower][1:])
         return ' '.join(f'{yellow}INV: \
-                        AC:{self.getCurrentACPower():>3.1f}W, AC_Prediction: {self.getPredictedACPower():>3.1f}W, \
-                        DC:{self.getCurrentDCPower():>3.1f}W, DC_prediction: {self.getPredictedDCPower():>3.1f}W ({chPower}), \
+                        AC:{self.getCurrentACPower():>3.1f}W, \
+                        DC:{self.getCurrentDCPower():>3.1f}W ({chPower}), \
                         L:{self.limitAbsolute:>3.0f}W ({self.getChannelLimit():.1f}W/channel) [{self.maxPower:>3.0f}W]{reset}'.split())
 
     def subscribe(self, topics):
@@ -68,7 +68,6 @@ class DTU:
                 self.acPower.add(value)
             self.channelsDCPower[channel] = value
 
-        # TODO: experimental, trigger limit calculation only on significant changes of DC power prediction
         previous = self.getPreviousACPower()
 
         if abs(previous - self.getCurrentACPower()) >= TRIGGER_DIFF:
@@ -134,12 +133,6 @@ class DTU:
     def getCurrentDCPower(self):
         return self.dcPower.last()
     
-    def getPredictedACPower(self):
-        return self.acPower.predict()[0]
-
-    def getPredictedDCPower(self):
-        return self.dcPower.predict()[0]
-    
     def getDirectDCPowerValues(self) -> []:
         direct = []
         for idx,v in enumerate(self.channelsDCPower):
@@ -161,6 +154,9 @@ class DTU:
 
     def getNrTotalChannels(self) -> int:
         return len(self.channelsDCPower)-1
+    
+    def getNrProducingChannels(self) -> int:
+        return len(list(filter(lambda x: x > 0, self.channelsDCPower)))-1
     
     def getHubDCPowerValues(self) -> []:
         hub = []
@@ -194,6 +190,15 @@ class DTU:
         else:
             return 0
     
+    def getACLimit(self) -> int:
+        # if hub is not contributing to AC output, we can calculate the AC limit based on the max direct channels
+        log.info(f'Over limit: {self.getCurrentACPower():.0f}W, {self.getNrProducingChannels()} producing channels: {self.getDirectACPower():.0f}W, from hub channels: {self.getHubACPower():.0f}W')
+
+        if self.getHubACPower() == 0:
+            return int((self.acLimit/self.getNrDirectChannels()) * self.getNrTotalChannels())
+        else:
+            return int((self.acLimit/self.getNrProducingChannels()) * self.getNrTotalChannels())
+
     def setLimit(self, limit:int):
         # failsafe, never set the inverter limit to 0, keep a minimum
         # see: https://github.com/lumapu/ahoy/issues/1079
@@ -208,7 +213,7 @@ class DTU:
         #### inv_limit = int(math.ceil(self.limitAbsoluteBuffer.qwavg() / 2.) * 2)
 
         # Avoid setting limit higher than 150% of inverter capacity
-        inv_limit = self.maxPower*1.5 if (inv_limit > self.maxPower*1.5 and self.maxPower > 0) else inv_limit
+        inv_limit = self.maxPower*1.125 if (inv_limit > self.maxPower*1.125 and self.maxPower > 0) else inv_limit
 
         # it could be that maxPower has not yet been detected resulting in a zero limit
         inv_limit = 10 if inv_limit < 10 else int(inv_limit)
@@ -217,18 +222,33 @@ class DTU:
         # failsafe: ensure that the inverter's AC output doesn't exceed acceptable legal limits
         # note this could mean that the inverter limit is still higher but it ensures that not too much power is generated
 
-        if self.getCurrentACPower() > self.acLimit and inv_limit > self.acLimit:
-            # decrease inverter limit slowly
-            inv_limit = self.limitAbsolute - 8
+        # acceptable overage on AC power, keep limit where it is
+        if self.getCurrentACPower() > self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
+            smt = self.client._userdata['smartmeter']
+            #hub = self.client._userdata['hub']
+            smt_power = smt.getPower() - smt.zero_offset
+            if  smt_power > 0:
+                inv_limit = self.limitAbsolute
+            else:
+                inv_limit = self.getACLimit()
             withinRange = 0
-            log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is higher than configured output limit ({self.acLimit}), reducing limit to {inv_limit}')
+            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0f}W) is within acceptable overage ({self.acLimit:.0f}W +/- 20W), {"keeping limit at" if smt_power > 0 else "but less demand, setting limit to"} {inv_limit:.0f}W')
+
+
+        if self.getCurrentACPower() > self.acLimit and not self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
+            # decrease inverter limit slowly
+            #inv_limit = self.limitAbsolute - 8
+            inv_limit = self.getACLimit()
+            withinRange = 0
+            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0f}W) is higher than configured limit ({self.acLimit:.0f}W), reducing limit to {inv_limit:.0f}W')
+
 
         # failsafe: if the current AC output is close to the AC limit do not increase the invert limit too much
-        if self.getCurrentACPower() < self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 6):
+        if self.getCurrentACPower() < self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 10):
             # only increase inverter limit a little bit
             inv_limit = self.limitAbsolute + 2
             withinRange = 0
-            log.info(f'Current inverter AC output ({self.getCurrentACPower()}) is close to the configured AC output limit ({self.acLimit}), slow limit increase to {inv_limit}') 
+            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0f}W) is close to the configured AC output limit ({self.acLimit:.0f}W), slow limit increase to {inv_limit:.0f}W') 
         
         #if self.limitAbsolute != inv_limit and self.reachable:
         if not self.isWithin(inv_limit,self.limitAbsolute,withinRange) and self.reachable:
@@ -243,11 +263,11 @@ class DTU:
     
 
 class OpenDTU(DTU):
-    opts = {"base_topic":str ,"inverter_serial":int,"sf_inverter_channels":list}
+    opts = {"base_topic":str ,"inverter_serial":str,"sf_inverter_channels":list}
     limit_topic = "cmd/limit_nonpersistent_absolute"
     limit_unit = ""
 
-    def __init__(self, client: mqtt_client, base_topic:str, inverter_serial:int, sf_inverter_channels:[]=[], ac_limit:int=800, callback = DTU.default_calllback):
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_serial:str, sf_inverter_channels:[]=[], ac_limit:int=800, callback = DTU.default_calllback):
         super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels, ac_limit=ac_limit, callback=callback)
         self.base_topic = f'{base_topic}/{inverter_serial}'
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}'
@@ -292,11 +312,11 @@ class OpenDTU(DTU):
         super().handleMsg(msg)
 
 class AhoyDTU(DTU):
-    opts = {"base_topic":str, "inverter_id":int, "inverter_name":str, "inverter_max_power":int, "sf_inverter_channels":list}
+    opts = {"base_topic":str, "inverter_id":str, "inverter_name":str, "inverter_max_power":int, "sf_inverter_channels":list}
     limit_topic = "ctrl/limit"
     limit_unit = "W"
 
-    def __init__(self, client: mqtt_client, base_topic:str, inverter_name:str, inverter_id:int, inverter_max_power:int, sf_inverter_channels:[]=[], ac_limit:int=800, callback = DTU.default_calllback):
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_name:str, inverter_id:str, inverter_max_power:int, sf_inverter_channels:[]=[], ac_limit:int=800, callback = DTU.default_calllback):
         super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels,ac_limit=ac_limit, callback=callback)
         self.base_topic = f'{base_topic}'
         self.inverter_name = inverter_name

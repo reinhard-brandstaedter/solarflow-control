@@ -4,10 +4,6 @@ from functools import reduce
 from threading import Timer
 import logging
 import sys
-import numpy as np
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
 
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
@@ -119,26 +115,15 @@ class TimewindowBuffer:
         self.values = []
         for s in range(duration,-1,-1):
             self.values.append((now-timedelta(seconds=s),value))
-
-    def predict(self) -> []:
-        if len(self.aggregated_values) >= 5:
-            data = {'X': [i for i,v in enumerate(self.values)],
-                    'y': [v[1] for i,v in enumerate(self.values)]}
-            df = pd.DataFrame(data)
-            X = df["X"]
-            X = np.array(X).reshape(-1,1)
-            y = df["y"]
-
-            model = LinearRegression()
-            model.fit(X,y)
-            
-            y_pred = model.predict(np.array([[6]]))
-            log.debug(f'prediction of {self}: {y_pred}')
-
-            return list(map(lambda x: round(x,1), y_pred))
-        else:
-            return [self.aggregated_values[-1]] if len(self.aggregated_values) > 0 else [0]
-
     
 def deep_get(dictionary, keys, default=None):
     return reduce(lambda d, key: d.get(key, default) if isinstance(d, dict) else default, keys.split("."), dictionary)
+
+def str2bool (val):
+    val = str(val).lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return True
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return False
+    else:
+        return False
