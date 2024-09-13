@@ -7,7 +7,7 @@
     "uniq_id": "{{ device_id }}-outputLimit",
     "dev_cla": "power",
     "unit_of_meas": "W",
-    "max": 900,
+    "max": 1200,
     "min": 0,
     "step": 1,
     "dev": {
