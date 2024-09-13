@@ -126,8 +126,8 @@ class Solarflow:
             cfg_type = hatemplate.name.split(".")[0]
             cfg_name = hatemplate.name.split(".")[1]
             if cfg_name == "maxTemp":
-                for serial,v in self.batteriesVol.items():
-                    hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion, battery_serial=serial)
+                for index, (serial,v) in enumerate(self.batteriesVol.items()):
+                    hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion, battery_serial=serial, battery_index=index+1)
                     if serial != "none":
                         self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{serial}-{cfg_name}/config',hacfg,retain=True)
             else:
