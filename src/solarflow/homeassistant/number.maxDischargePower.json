@@ -4,7 +4,7 @@
     "stat_t": "~control/maxDischargePower",
     "uniq_id": "{{ device_id }}-maxDischargePower",
     "unit_of_meas": "W",
-    "max": 1000,
+    "max": 1200,
     "min": 0,
     "step": 1,
     "mode": "box",
