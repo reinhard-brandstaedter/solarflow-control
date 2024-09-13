@@ -1,6 +1,6 @@
 {
-    "name": "Battery Max Temp {{ battery_serial }}",
-    "stat_t": "~maxTemp", 
+    "name": "Battery {{battery_index}} Temperature",
+    "stat_t": "~maxTemp",
     "value_template": "{% raw %}{{ (value | float/10 - 273.15) | round(1) }}{% endraw %}",
     "uniq_id": "{{ device_id }}-{{ battery_serial }}-maxTemp",
     "unit_of_meas": "°C",
