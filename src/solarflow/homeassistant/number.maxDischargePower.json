@@ -1,10 +1,10 @@
 {
-    "name": "Maximum Disharge Power",
+    "name": "Maximum Discharge Power",
     "cmd_t": "~control/maxDischargePower",
     "stat_t": "~control/maxDischargePower",
     "uniq_id": "{{ device_id }}-maxDischargePower",
     "unit_of_meas": "W",
-    "max": 1000,
+    "max": 1200,
     "min": 0,
     "step": 1,
     "mode": "box",

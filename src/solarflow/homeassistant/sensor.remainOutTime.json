@@ -1,0 +1,16 @@
+{
+    "name": "Remaining Discharging Time",
+    "stat_t": "~remainOutTime",
+    "uniq_id": "{{ device_id }}-remainOutTime",
+    "dev_cla": "duration",
+    "unit_of_meas": "min",
+    "value_template": "{% raw %}{{ '0' if value=='59940' else value }}{% endraw %}",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+}
