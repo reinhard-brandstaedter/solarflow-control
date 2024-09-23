@@ -203,10 +203,6 @@ class Solarflow:
         # self.pushHomeassistantConfig() # why here? this is not needed every minute
 
     def updByPass(self, value:int):
-        # Hub2000 doesn't report bypass via pass property only when in auto mode?
-        # see: https://github.com/reinhard-brandstaedter/solarflow-control/issues/244#issuecomment-2152861536
-        if self.productId == HUB2000 and self.bypass_mode != 0:
-            return
         self.bypass = bool(value)
 
     def updByPassMode(self, value: int):
@@ -214,9 +210,6 @@ class Solarflow:
         if self.control_bypass and value == 0 and not self.bypass:
             self.setBypass(False)
             value = 1
-
-        if self.productId == HUB2000:
-            self.bypass = value==2
         
         self.bypass_mode = value
 
@@ -451,10 +444,7 @@ class Solarflow:
         return self.outputLimit
 
     def getBypass(self):
-        if self.productId == HUB2000:
-            return self.bypass_mode == 2 or self.bypass
-        else:
-            return self.bypass
+        return self.bypass
         
     def getCanDischarge(self):
         fullage = self.getLastFullBattery()
