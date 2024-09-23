@@ -38,7 +38,7 @@ To change a setting you need to write a JSON payload to the above topic in this 
 Known properties (taken from Hub1200 reverse engineering) and their function:
 
 | Property | read/write | Value | Function |
-|---|---|---|
+|---|---|---|---|
 | solarInputPower | read | [int] W | current solarpower accross all inputs |
 | outputPackPower | read | [int] W | current charging power of the battery |
 | solarPower1 | read | [int] W | current solarpower of input 1 |
