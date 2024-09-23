@@ -67,16 +67,17 @@ MIN_CHARGE_POWER =      config.getint('control', 'min_charge_power', fallback=No
 MAX_DISCHARGE_POWER =   config.getint('control', 'max_discharge_power', fallback=None) \
                         or int(os.environ.get('MAX_DISCHARGE_POWER',145))   
 
-# battery SoC levels to consider the battry full or empty                                            
+# battery SoC levels to consider the battery full or empty
 BATTERY_LOW =           config.getint('control', 'battery_low', fallback=None) \
-                        or int(os.environ.get('BATTERY_LOW',10)) 
+                        or int(os.environ.get('BATTERY_LOW',0)) 
 BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) \
-                        or int(os.environ.get('BATTERY_HIGH',98))
+                        or int(os.environ.get('BATTERY_HIGH',100))
 
 # the maximum allowed inverter output
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
-                        or int(os.environ.get('MAX_INVERTER_LIMIT',800))                                               
-MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_POWER
+                        or int(os.environ.get('MAX_INVERTER_LIMIT',800))
+MAX_INVERTER_INPUT =    config.getint('control', 'max_inverter_input', fallback=None) \
+                        or int(os.environ.get('MAX_INVERTER_INPUT',MAX_INVERTER_LIMIT - MIN_CHARGE_POWER))
 
 # this controls the internal calculation of limited growth for setting inverter limits
 INVERTER_START_LIMIT = 5
@@ -177,6 +178,10 @@ def on_connect(client, userdata, flags, rc):
 
         hub.subscribe()
         hub.setBuzzer(False)
+        hub.setPvBrand(1)
+        hub.setInverseMaxPower(MAX_INVERTER_INPUT)
+        hub.setBatteryHighSoC(BATTERY_HIGH)
+        hub.setBatteryLowSoC(BATTERY_LOW)
         if hub.control_bypass:
             hub.setBypass(False)
             hub.setAutorecover(False)
@@ -291,6 +296,13 @@ def getSFPowerLimit(hub, demand) -> int:
             hub.allowBypass(True)
             hub.setBypass(False)
             hub.setAutorecover(False)
+            
+        # calculate expected daylight in hours
+        diff = sunset - sunrise
+        daylight = diff.total_seconds()/3600
+
+        # check if we should run a full charge cycle today
+        hub.checkChargeThrough(daylight)
 
     log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.getBypass()}), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
@@ -539,6 +551,8 @@ def main(argv):
     log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
     log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
     log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
+    log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
+    log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
     log.info(f'  DISCHARGE_DURING_DAYTIME = {DISCHARGE_DURING_DAYTIME}')
 
     loc = MyLocation()
