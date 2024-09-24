@@ -538,7 +538,7 @@ class Solarflow:
             self.batteryHigh = level
 
         if not self.control_soc:
-            return self.batteryLow
+            return self.batteryHigh
 
         payload = {"properties": { "socSet": level * 10 }}
         self.client.publish(self.property_topic,json.dumps(payload))
