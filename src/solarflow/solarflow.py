@@ -64,6 +64,7 @@ class Solarflow:
         self.batteryLow = -1
         self.batteryHigh = -1
         self.control_soc = control_soc    # wether we control the soc levels
+        self.chargeThroughRequested = False
 
         self.property_topic = f'iot/{self.productId}/{self.deviceId}/properties/write'
         self.chargeThrough = False
@@ -219,12 +220,22 @@ class Solarflow:
             self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',batteryTarget,retain=True)
 
         self.electricLevel = value
-        
+
+    def processRequestedChargeThrough(self) -> bool:
+        if self.chargeThroughRequested and self.batteryTargetSoCMax >= 0 and self.batteryTargetSoCMin >= 0:
+            self.chargeThroughRequested = False
+            self.setChargeThrough(True)
+            return True
+
+        return False
+
     def updBatteryTargetSoCMax(self, value: int):
         self.batteryTargetSoCMax = value / 10
-        
+        self.processRequestedChargeThrough()
+
     def updBatteryTargetSoCMin(self, value: int):
         self.batteryTargetSoCMin = value / 10
+        self.processRequestedChargeThrough()
 
     def updOutputPack(self, value:int):
         self.outputPackPower = value
@@ -274,10 +285,27 @@ class Solarflow:
 
     def setChargeThrough(self, value):
         chargeThrough = str2bool(value)
-        if chargeThrough and (self.batteryTargetSoCMax < 100 and not self.control_soc):
-            log.info(f'Impossible to set charge through! We are not permitted to change maximum target SoC and solarflow has limit configured to {self.batteryTargetSoCMax}!')
-            return
-        
+
+        # chargeThrough can only be used if control_soc is enabled via configuration 
+        # **OR** 
+        # if SoC levels configured in battery are correct
+        if chargeThrough and not self.control_soc:
+            # if no levels have not been read, wait for then and redo evaluation
+            if self.batteryTargetSoCMax < 0 or self.batteryTargetSoCMin < 0:
+                log.info(f'We are not allowed to control SoC levels and the values read from battery are not available, yet. Waiting for update to re-check conditions')
+                self.chargeThroughRequested = True
+                return
+
+            # batteryTargetSoCMax has to be setup correctly
+            if self.batteryTargetSoCMax < 100:
+                log.info(f'Impossible to set charge through! We are not permitted to change maximum target SoC and solarflow has limit configured to {self.batteryTargetSoCMax}% but we expected 100%!')
+                return
+
+            # if we shall do a full cycle, batteryTargetSoCMin has to be setup correctly
+            if self.allowFullCycle and self.batteryTargetSoCMin > 0:
+                log.info(f'Impossible to do full charge through cycle! We are not permitted to change minimum target SoC and solarflow has limit configured to {self.batteryTargetSoCMin}% but we expect 0%!')
+                return
+
         # in case of setups with no direct panels connected to inverter it is necessary to turn on the inverter as it is likely offline now
         inv = self.client._userdata['dtu']
         if (not inv.ready()) and self.getOutputHomePower() == 0:
@@ -538,7 +566,7 @@ class Solarflow:
             self.batteryHigh = level
 
         if not self.control_soc:
-            return self.batteryLow
+            return self.batteryHigh
 
         payload = {"properties": { "socSet": level * 10 }}
         self.client.publish(self.property_topic,json.dumps(payload))
