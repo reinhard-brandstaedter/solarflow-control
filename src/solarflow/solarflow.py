@@ -290,6 +290,7 @@ class Solarflow:
         # chargeThrough can only be used if control_soc is enabled via configuration 
         # **OR** 
         # if SoC levels configured in battery are correct
+        log.info(f'Received charge-through control: {value}, Control SoC: {self.control_soc}, SocMax: {self.batteryTargetSoCMax}, SocMin: {self.batteryTargetSoCMin}')
         if chargeThrough and self.control_soc:
             # if no levels have not been read, wait for then and redo evaluation
             if self.batteryTargetSoCMax < 0 or self.batteryTargetSoCMin < 0:
