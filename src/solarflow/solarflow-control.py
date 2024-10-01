@@ -61,17 +61,21 @@ SMT_TYPE =              config.get('global', 'smartmeter_type', fallback=None) \
 
 # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
 MIN_CHARGE_POWER =      config.getint('control', 'min_charge_power', fallback=None) \
-                        or int(os.environ.get('MIN_CHARGE_POWER',0))          
+                        or int(os.environ.get('MIN_CHARGE_POWER',0))
 
 # The maximum discharge level of the packSoc. Even if there is more demand it will not go beyond that
 MAX_DISCHARGE_POWER =   config.getint('control', 'max_discharge_power', fallback=None) \
-                        or int(os.environ.get('MAX_DISCHARGE_POWER',145))   
+                        or int(os.environ.get('MAX_DISCHARGE_POWER',145))
 
 # battery SoC levels to consider the battery full or empty
 BATTERY_LOW =           config.getint('control', 'battery_low', fallback=None) \
                         or int(os.environ.get('BATTERY_LOW',0)) 
 BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) \
                         or int(os.environ.get('BATTERY_HIGH',100))
+
+# the SoC that is required before discharging of the battery would start. To allow a bit of charging first in the morning.
+BATTERY_DISCHARGE_START = config.getint('control', 'battery_discharge_start', fallback=None) \
+                        or int(os.environ.get('BATTERY_DISCHARGE_START',10)) 
 
 # the maximum allowed inverter output
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
@@ -272,7 +276,12 @@ def getSFPowerLimit(hub, demand) -> int:
             path += "2."
             if ((now < (sunrise + sunrise_off) or now > sunset - sunset_off) or DISCHARGE_DURING_DAYTIME): 
                 path += "1."
-                limit = min(demand,MAX_DISCHARGE_POWER)
+                # FEAT: we should not allow discharging in the sunrise window if battery is still below a certain threshold
+                # e.g. if the battery has just started charging do not discharge it again immediately
+                if (now < (sunrise + sunrise_off)) and hub_electricLevel <= BATTERY_DISCHARGE_START:
+                    limit = 0
+                else:
+                    limit = min(demand,MAX_DISCHARGE_POWER)
             else:
                 path += "2."  
                 #limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 and hub.getElectricLevel() < 100 else hub_solarpower - MIN_CHARGE_POWER                                   
