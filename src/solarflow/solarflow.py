@@ -93,7 +93,7 @@ class Solarflow:
                         P:{self.getBypass()} ({"auto" if self.bypass_mode == 0 else "manual"}, {"possible" if self.allow_bypass else "not possible"}), \
                         F:{self.getLastFullBattery():3.1f}h, \
                         E:{self.getLastEmptyBattery():3.1f}h, \
-                        CT:{self.fullChargeInterval:>3}h \
+                        CT:{"ON" if self.chargeThrough else "OFF"} ({self.fullChargeInterval}hrs), \
                         H:{self.outputHomePower:>3}W, \
                         L:{self.outputLimit:>3}W{reset}'.split())
 
@@ -114,6 +114,8 @@ class Solarflow:
             f'solarflow-hub/{self.deviceId}/telemetry/masterSoftVersion',
             f'solarflow-hub/{self.deviceId}/telemetry/pass',
             f'solarflow-hub/{self.deviceId}/telemetry/passMode',
+            f'solarflow-hub/{self.deviceId}/telemetry/socSet',
+            f'solarflow-hub/{self.deviceId}/telemetry/minSoc',
             f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/socLevel',
             f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/totalVol',
             f'solarflow-hub/{self.deviceId}/control/#'
@@ -290,23 +292,23 @@ class Solarflow:
         # chargeThrough can only be used if control_soc is enabled via configuration 
         # **OR** 
         # if SoC levels configured in battery are correct
-        log.info(f'Received charge-through control: {value}, Control SoC: {self.control_soc}, SocMax: {self.batteryTargetSoCMax}, SocMin: {self.batteryTargetSoCMin}')
+        log.info(f'Received charge-through control: {value}, Control SoC: {self.control_soc}, SocMax: {self.batteryTargetSoCMax}%, SocMin: {self.batteryTargetSoCMin}%')
         if chargeThrough and self.control_soc:
             # if no levels have not been read, wait for then and redo evaluation
             if self.batteryTargetSoCMax < 0 or self.batteryTargetSoCMin < 0:
-                log.info(f'We are not allowed to control SoC levels and the values read from battery are not available, yet. Waiting for update to re-check conditions')
+                log.info(f'We can control SoC levels but the SoC boundaries read from hub are not available yet. Waiting for update to re-check conditions')
                 self.chargeThroughRequested = True
                 return
 
             # batteryTargetSoCMax has to be setup correctly
             if self.batteryTargetSoCMax < 100:
-                log.info(f'Impossible to set charge through! We are not permitted to change maximum target SoC and solarflow has limit configured to {self.batteryTargetSoCMax}% but we expected 100%!')
-                return
+                log.info(f'To turn on charge-through we need to adjust the max SoC from {self.batteryTargetSoCMax}% to 100%!')
+                self.setBatteryHighSoC(100,True)
 
             # if we shall do a full cycle, batteryTargetSoCMin has to be setup correctly
             if self.allowFullCycle and self.batteryTargetSoCMin > 0:
-                log.info(f'Impossible to do full charge through cycle! We are not permitted to change minimum target SoC and solarflow has limit configured to {self.batteryTargetSoCMin}% but we expect 0%!')
-                return
+                log.info(f'To turn on charge-through with a full-cycle we need to adjust the min SoC from {self.batteryTargetSoCMin}% to 0%!')
+                self.setBatteryLowSoC(0,True)
 
         # in case of setups with no direct panels connected to inverter it is necessary to turn on the inverter as it is likely offline now
         inv = self.client._userdata['dtu']
@@ -325,7 +327,7 @@ class Solarflow:
         if self.chargeThroughStage == stage:
             return
         
-        log.info(f'Updateing charge through stage: {self.chargeThroughStage} => {stage}')
+        log.info(f'Updating charge through stage: {self.chargeThroughStage} => {stage}')
         batteryHigh = 100 if stage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING] else self.batteryHigh
         batteryLow = 0 if stage == BATTERY_TARGET_DISCHARGING and self.allowFullCycle else self.batteryLow
         self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThroughState', stage)
@@ -464,15 +466,15 @@ class Solarflow:
         # If battery SoC reaches 0% during night, it has been observed that in the morning with first light, residual energy in the batteries gets released
         # Hub goes then into error and no charging occurs (probably deep discharge assumed by the battery).
         # Hence setting the output limit 0 if SoC 0%
-        if self.electricLevel == 0:
+        if self.electricLevel <= self.batteryLow:
             limit = 0
-            log.info(f'Battery is empty! Disabling solarflow output, setting limit to {limit}')
+            log.info(f'Battery is empty ({self.electricLevel} <= {self.batteryLow})! Disabling solarflow output, setting limit to {limit}')
 
 
         # Charge-Through:
         # If charge-through is enabled the hub will not provide any power if the last full state is to long ago
         # this ensures regular loading to 100% to avoid battery-drift            
-        if self.chargeThrough and limit > 0 and self.batteryTarget == BATTERY_TARGET_CHARGING:
+        if self.chargeThrough and limit > 0 and self.chargeThroughStage == BATTERY_TARGET_CHARGING:
             log.info(f'Charge-Through is active! To ensure it is fully charged at least every {self.fullChargeInterval}hrs not discharging now!')
             # either limit to 0 or only give away what is higher than min_charge_level
             limit = 0
@@ -594,7 +596,7 @@ class Solarflow:
         fullage_today = fullage + daylight
         # check if we should enable charge through
         if fullage < 0 or fullage > self.fullChargeInterval or fullage_today > self.fullChargeInterval:
-            log.info(f'Battery hasn\'t fully charged for {fullage:.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval} hours chargeing through now!')
+            log.info(f'Battery hasn\'t fully charged for {fullage:.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval}hrs, not discharging until it\'s fully charged!')
             self.setChargeThrough(True) 
             
         return self.chargeThrough
