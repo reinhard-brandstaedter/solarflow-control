@@ -79,6 +79,10 @@ MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=
 MAX_INVERTER_INPUT =    config.getint('control', 'max_inverter_input', fallback=None) \
                         or int(os.environ.get('MAX_INVERTER_INPUT',MAX_INVERTER_LIMIT - MIN_CHARGE_POWER))
 
+# minimum inverter limit
+INVERTER_MIN_LIMIT =    config.getint('control', 'inverter_min_limit', fallback=None) \
+                        or int(os.environ.get('INVERTER_MIN_LIMIT',10))
+
 # this controls the internal calculation of limited growth for setting inverter limits
 INVERTER_START_LIMIT = 5
 
@@ -490,7 +494,7 @@ def run():
 
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
-    dtu = dtuType(client=client,ac_limit=MAX_INVERTER_LIMIT,callback=limit_callback,**dtu_opts)
+    dtu = dtuType(client=client,ac_limit=MAX_INVERTER_LIMIT,min_limit=INVERTER_MIN_LIMIT,callback=limit_callback,**dtu_opts)
 
     smtType = getattr(smartmeters, SMT_TYPE)
     smt_opts = getOpts(smtType)
@@ -549,6 +553,7 @@ def main(argv):
     log.info(f'  MAX_DISCHARGE_LEVEL = {MAX_DISCHARGE_POWER}')
     log.info(f'  MAX_INVERTER_LIMIT = {MAX_INVERTER_LIMIT}')
     log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
+    log.info(f'  INVERTER_MIN_LIMIT = {INVERTER_MIN_LIMIT}')
     log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
     log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
     log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
