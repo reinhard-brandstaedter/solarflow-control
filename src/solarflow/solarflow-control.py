@@ -116,6 +116,8 @@ client_id = f'solarflow-ctrl-{random.randint(0, 100)}'
 
 lastTriggerTS:datetime = None
 
+startup = True
+
 class MyLocation:
     def getCoordinates(self) -> tuple:
         lat = lon = 0.0
@@ -164,6 +166,7 @@ def on_message(client, userdata, msg):
                 log.info(f'Updating DISCHARGE_DURING_DAYTIME to {DISCHARGE_DURING_DAYTIME}')
 
 def on_connect(client, userdata, flags, rc):
+    global startup
     if rc == 0:
         log.info("Connected to MQTT Broker!")
         hub = client._userdata['hub']
@@ -189,6 +192,11 @@ def on_connect(client, userdata, flags, rc):
         inv.subscribe()
         smt = client._userdata['smartmeter']
         smt.subscribe()
+
+        # check for charge-through once on startup
+        if startup:
+            startup = False
+            hub.checkChargeThrough()
     else:
         log.error("Failed to connect, return code %d\n", rc)
 
