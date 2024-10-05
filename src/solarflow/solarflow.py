@@ -114,6 +114,8 @@ class Solarflow:
             f'solarflow-hub/{self.deviceId}/telemetry/masterSoftVersion',
             f'solarflow-hub/{self.deviceId}/telemetry/pass',
             f'solarflow-hub/{self.deviceId}/telemetry/passMode',
+            f'solarflow-hub/{self.deviceId}/telemetry/socSet',
+            f'solarflow-hub/{self.deviceId}/telemetry/minSoc',
             f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/socLevel',
             f'solarflow-hub/{self.deviceId}/telemetry/batteries/+/totalVol',
             f'solarflow-hub/{self.deviceId}/control/#'
@@ -166,6 +168,10 @@ class Solarflow:
 
     def updElectricLevel(self, value:int):
         batteryTarget = self.batteryTarget
+
+        # enforce SoC levels to be set correctly during charge through
+        if self.chargeThrough and not self.setChargeThroughSoC():
+            log.warning(f'Invalid SoC settings detetced during charge-through! Is anybody else writing settings to HUB? Affected settings: SocMax: {self.batteryTargetSoCMax}, SocMin: {self.batteryTargetSoCMin}')
 
         # handle full battery
         if value == 100:
@@ -291,7 +297,7 @@ class Solarflow:
         # **OR** 
         # if SoC levels configured in battery are correct
         log.info(f'Received charge-through control: {value}, Control SoC: {self.control_soc}, SocMax: {self.batteryTargetSoCMax}, SocMin: {self.batteryTargetSoCMin}')
-        if chargeThrough and self.control_soc:
+        if chargeThrough and not self.control_soc:
             # if no levels have not been read, wait for then and redo evaluation
             if self.batteryTargetSoCMax < 0 or self.batteryTargetSoCMin < 0:
                 log.info(f'We are not allowed to control SoC levels and the values read from battery are not available, yet. Waiting for update to re-check conditions')
@@ -324,15 +330,27 @@ class Solarflow:
     def setChargeThroughStage(self,stage):
         if self.chargeThroughStage == stage:
             return
-        
+
         log.info(f'Updateing charge through stage: {self.chargeThroughStage} => {stage}')
-        batteryHigh = 100 if stage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING] else self.batteryHigh
-        batteryLow = 0 if stage == BATTERY_TARGET_DISCHARGING and self.allowFullCycle else self.batteryLow
         self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThroughState', stage)
-        self.setBatteryHighSoC(batteryHigh, True)
-        self.setBatteryLowSoC(batteryLow, True)
         self.chargeThroughStage = stage
-        
+        self.setChargeThroughSoC()
+
+    def setChargeThroughSoC(self) -> bool:
+        batteryHigh = 100 if self.chargeThroughStage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING] else self.batteryHigh
+        if self.batteryTargetSoCMax != batteryHigh:
+            self.setBatteryHighSoC(batteryHigh, True)
+
+        batteryLow = 0 if self.chargeThroughStage == BATTERY_TARGET_DISCHARGING and self.allowFullCycle else self.batteryLow
+        if self.batteryTargetSoCMin != batteryLow:
+            self.setBatteryLowSoC(batteryLow, True)
+
+        # unable to verify settings if they have not been gathered, yet
+        if self.batteryTargetSoCMax < 0 or self.batteryTargetSoCMin < 0:
+            return True
+
+        return self.batteryTargetSoCMax == batteryHigh and self.batteryTargetSoCMin == batteryLow
+
     def setControlBypass(self, value):
         self.control_bypass = str2bool(value)
         log.info(f'Taking over bypass control: {self.control_bypass}')
