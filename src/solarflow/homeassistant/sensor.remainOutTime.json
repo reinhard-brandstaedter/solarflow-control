@@ -1,10 +1,11 @@
 {
-    "expire_after": 300,
     "name": "RemainOutTime",
     "stat_t": "~remainOutTime",
     "uniq_id": "{{ device_id }}-remainouttime",
-    "unit_of_meas": "minutes",
     "dev_cla": "duration",
+    "unit_of_meas": "minutes",
+    "expire_after": 300,
+    "value_template": "{% raw %}{{ '0' if value=='59940' else value }}{% endraw %}",
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",

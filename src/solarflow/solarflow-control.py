@@ -67,16 +67,17 @@ MIN_CHARGE_POWER =      config.getint('control', 'min_charge_power', fallback=No
 MAX_DISCHARGE_POWER =   config.getint('control', 'max_discharge_power', fallback=None) \
                         or int(os.environ.get('MAX_DISCHARGE_POWER',145))   
 
-# battery SoC levels to consider the battry full or empty                                            
+# battery SoC levels to consider the battery full or empty
 BATTERY_LOW =           config.getint('control', 'battery_low', fallback=None) \
-                        or int(os.environ.get('BATTERY_LOW',10)) 
+                        or int(os.environ.get('BATTERY_LOW',0)) 
 BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) \
-                        or int(os.environ.get('BATTERY_HIGH',98))
+                        or int(os.environ.get('BATTERY_HIGH',100))
 
 # the maximum allowed inverter output
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
-                        or int(os.environ.get('MAX_INVERTER_LIMIT',800))                                               
-MAX_INVERTER_INPUT = MAX_INVERTER_LIMIT - MIN_CHARGE_POWER
+                        or int(os.environ.get('MAX_INVERTER_LIMIT',800))
+MAX_INVERTER_INPUT =    config.getint('control', 'max_inverter_input', fallback=None) \
+                        or int(os.environ.get('MAX_INVERTER_INPUT',MAX_INVERTER_LIMIT - MIN_CHARGE_POWER))
 
 # this controls the internal calculation of limited growth for setting inverter limits
 INVERTER_START_LIMIT = 5
@@ -123,7 +124,7 @@ class MyLocation:
             response = result.json()
             log.info(f'IP Address: {response["query"]}')
             log.info(f'Location: {response["city"]}, {response["regionName"]}, {response["country"]}')
-            log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]}')
+            log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]})')
             lat = response["lat"]
             lon = response["lon"]
         except Exception as e:
@@ -132,7 +133,7 @@ class MyLocation:
         return (lat,lon)
 
 def on_message(client, userdata, msg):
-    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME
+    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME, BATTERY_LOW, BATTERY_HIGH
     #delegate message handling to hub,smartmeter, dtu
     smartmeter = userdata["smartmeter"]
     smartmeter.handleMsg(msg)
@@ -146,21 +147,29 @@ def on_message(client, userdata, msg):
         parameter = msg.topic.split('/')[-1]
         value = msg.payload.decode()
         match parameter:
-            case "sunriseOffset":
+            case "sunriseOffset": # Sunrise Offset
                 SUNRISE_OFFSET = int(value)
                 log.info(f'Updating SUNRISE_OFFSET to {SUNRISE_OFFSET} minutes')
-            case "sunsetOffset":
+            case "sunsetOffset": # Sunset Offset
                 SUNSET_OFFSET = int(value)
                 log.info(f'Updating SUNSET_OFFSET to {SUNSET_OFFSET} minutes')
-            case "minChargePower":
+            case "minChargePower": # Minimum Charge Power
                 MIN_CHARGE_POWER = int(value)
                 log.info(f'Updating MIN_CHARGE_POWER to {MIN_CHARGE_POWER} W')
-            case "maxDischargePower":
+            case "maxDischargePower": # Maximum Discharge Power
                 MAX_DISCHARGE_POWER = int(value)
                 log.info(f'Updating MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER} W')
-            case "dischargeDuringDaytime":
+            case "dischargeDuringDaytime": # Allow Day Discharge
                 DISCHARGE_DURING_DAYTIME = str2bool(value)
                 log.info(f'Updating DISCHARGE_DURING_DAYTIME to {DISCHARGE_DURING_DAYTIME}')
+            case "batteryLow":
+                BATTERY_LOW = int(value)
+                log.info(f'Updating BATTERY_LOW to {BATTERY_LOW} %')
+                hub.updBatteryTargetSoCMin(BATTERY_LOW*10)
+            case "batteryHigh":
+                BATTERY_HIGH = int(value)
+                log.info(f'Updating BATTERY_HIGH to {BATTERY_HIGH} %')
+                hub.updBatteryTargetSoCMax(BATTERY_HIGH*10)
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -174,9 +183,15 @@ def on_connect(client, userdata, flags, rc):
         client.publish(f'solarflow-hub/{sf_device_id}/control/minChargePower',MIN_CHARGE_POWER,retain=True)
         client.publish(f'solarflow-hub/{sf_device_id}/control/maxDischargePower',MAX_DISCHARGE_POWER,retain=True)
         client.publish(f'solarflow-hub/{sf_device_id}/control/dischargeDuringDaytime',str(DISCHARGE_DURING_DAYTIME),retain=True)
+        client.publish(f'solarflow-hub/{sf_device_id}/control/batteryHigh',BATTERY_HIGH,retain=True)
+        client.publish(f'solarflow-hub/{sf_device_id}/control/batteryLow',BATTERY_LOW,retain=True)
 
         hub.subscribe()
         hub.setBuzzer(False)
+        hub.setPvBrand(1)
+        hub.setInverseMaxPower(MAX_INVERTER_INPUT)
+        hub.setBatteryHighSoC(BATTERY_HIGH)
+        hub.setBatteryLowSoC(BATTERY_LOW)
         if hub.control_bypass:
             hub.setBypass(False)
             hub.setAutorecover(False)
@@ -291,6 +306,13 @@ def getSFPowerLimit(hub, demand) -> int:
             hub.allowBypass(True)
             hub.setBypass(False)
             hub.setAutorecover(False)
+            
+        # calculate expected daylight in hours
+        diff = sunset - sunrise
+        daylight = diff.total_seconds()/3600
+
+        # check if we should run a full charge cycle today
+        hub.checkChargeThrough(daylight)
 
     log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.getBypass()}), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)
@@ -539,6 +561,8 @@ def main(argv):
     log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
     log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
     log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
+    log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
+    log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
     log.info(f'  DISCHARGE_DURING_DAYTIME = {DISCHARGE_DURING_DAYTIME}')
 
     loc = MyLocation()

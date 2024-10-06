@@ -5,6 +5,7 @@
     "dev_cla": "voltage",
     "value_template": "{% raw %}{% if value | int > 0 %}{{ value | multiply(0.01) |round(3)| float }}{% else %}{% endif %}{% endraw %}",
     "unit_of_meas": "V",
+    "state_class": "measurement",
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",

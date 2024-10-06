@@ -5,6 +5,7 @@
     "uniq_id": "{{ device_id }}-outputPackPower",
     "dev_cla": "power",
     "unit_of_meas": "W",
+    "state_class": "measurement",
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",

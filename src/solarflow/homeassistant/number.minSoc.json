@@ -1,5 +1,6 @@
 {
-    "name": "Discharge Limit",
+    "expire_after": 300,
+    "name": "Max Discharge Limit",
     "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
     "cmd_tpl": "{\"properties\": {\"minSoc\": {% raw %}{{ value | multiply(10) }}{% endraw %} }}",
     "stat_t": "~minSoc",

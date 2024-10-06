@@ -5,6 +5,7 @@
     "uniq_id": "{{ device_id }}-electricLevel",
     "dev_cla": "battery",
     "unit_of_meas": "%",
+    "state_class": "measurement",
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",

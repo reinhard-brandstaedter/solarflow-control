@@ -1,10 +1,11 @@
 {
-    "name": "Battery Max Temp",
+    "name": "Battery Max Temp {{ battery_serial }}",
     "stat_t": "~maxTemp", 
     "value_template": "{% raw %}{{ (value | float/10 - 273.15) | round(1) }}{% endraw %}",
     "uniq_id": "{{ device_id }}-{{ battery_serial }}-maxTemp",
     "unit_of_meas": "°C",
     "dev_cla": "temperature",
+    "state_class": "measurement",
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",
@@ -12,5 +13,6 @@
       "name": "Solarflow Hub",
       "sw_version": "{{ fw_version }}"
     },
+    "expire_after": 300,
     "~": "solarflow-hub/{{ device_id }}/telemetry/batteries/{{ battery_serial }}/"
 }
