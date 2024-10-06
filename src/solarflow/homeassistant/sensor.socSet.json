@@ -1,8 +1,8 @@
 {
-    "name": "Charge Capacity Limitation",
+    "name": "Charge Capacity Limitation (obsolet)",
     "stat_t": "~socSet",
     "value_template": "{% raw %}{{ value | multiply(0.1) | round(0) | int }} {% endraw %}",
-    "uniq_id": "{{ device_id }}-socSet",
+    "uniq_id": "{{ device_id }}-socSet-obsolet",
     "unit_of_meas": "%",
     "dev": {
       "identifiers": ["{{ device_id }}"],
