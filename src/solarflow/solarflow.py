@@ -25,13 +25,6 @@ BATTERY_TARGET_DISCHARGING = "discharging"
 # according to https://github.com/epicRE/zendure_ble
 INVERTER_BRAND = {0: 'Other', 1: 'Hoymiles', 2: 'Enphase', 3: 'APsystems', 4: 'Anker', 5: 'Deye', 6: 'BossWerk', 7: 'Tsun'}
 
-BATTERY_TARGET_IDLE        = "idle"
-BATTERY_TARGET_CHARGING    = "charging"
-BATTERY_TARGET_DISCHARGING = "discharging"
-
-# according to https://github.com/epicRE/zendure_ble
-INVERTER_BRAND = {0: 'Other', 1: 'Hoymiles', 2: 'Enphase', 3: 'APsystems', 4: 'Anker', 5: 'Deye', 6: 'BossWerk', 7: 'Tsun'}
-
 
 class Solarflow:
     opts = {"product_id":str, "device_id":str ,"full_charge_interval":int, "control_bypass":bool, "control_soc":bool, "disable_full_discharge":bool}
@@ -100,6 +93,7 @@ class Solarflow:
                         P:{self.getBypass()} ({"auto" if self.bypass_mode == 0 else "manual"}, {"possible" if self.allow_bypass else "not possible"}), \
                         F:{self.getLastFullBattery():3.1f}h, \
                         E:{self.getLastEmptyBattery():3.1f}h, \
+                        CT:{self.fullChargeInterval:>3}h \
                         H:{self.outputHomePower:>3}W, \
                         L:{self.outputLimit:>3}W{reset}'.split())
 
@@ -296,7 +290,8 @@ class Solarflow:
         # chargeThrough can only be used if control_soc is enabled via configuration
         # **OR**
         # if SoC levels configured in battery are correct
-        if chargeThrough and not self.control_soc:
+        log.info(f'Received charge-through control: {value}, Control SoC: {self.control_soc}, SocMax: {self.batteryTargetSoCMax}, SocMin: {self.batteryTargetSoCMin}')
+        if chargeThrough and self.control_soc:
             # if no levels have not been read, wait for then and redo evaluation
             if self.batteryTargetSoCMax < 0 or self.batteryTargetSoCMin < 0:
                 log.info(f'We are not allowed to control SoC levels and the values read from battery are not available, yet. Waiting for update to re-check conditions')
@@ -330,7 +325,7 @@ class Solarflow:
         if self.chargeThroughStage == stage:
             return
 
-        log.info(f'Updating charge through stage: {self.chargeThroughStage} => {stage}')
+        log.info(f'Updateing charge through stage: {self.chargeThroughStage} => {stage}')
         batteryHigh = 100 if stage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING] else self.batteryHigh
         batteryLow = 0 if stage == BATTERY_TARGET_DISCHARGING and self.allowFullCycle else self.batteryLow
         self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThroughState', stage)
