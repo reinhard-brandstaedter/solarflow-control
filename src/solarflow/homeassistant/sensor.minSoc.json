@@ -1,9 +1,9 @@
 {
     "expire_after": 300,
-    "name": "Max Discharge Level (obsolet)",
+    "name": "Max Discharge Level",
     "stat_t": "~minSoc",
     "value_template": "{% raw %}{{ value | multiply(0.1) | round(0) | int }} {% endraw %}",
-    "uniq_id": "{{ device_id }}-minSoc-obsolet",
+    "uniq_id": "{{ device_id }}-minSoc",
     "unit_of_meas": "%",
     "dev": {
       "identifiers": ["{{ device_id }}"],

@@ -1,8 +1,8 @@
 {
     "expire_after": 300,
-    "name": "Max Inverter Output Power (obsolet)",
+    "name": "Max Inverter Output Power",
     "stat_t": "~inverseMaxPower",
-    "uniq_id": "{{ device_id }}-inverseMaxPower-obsolet",
+    "uniq_id": "{{ device_id }}-inverseMaxPower",
     "dev_cla": "power",
     "unit_of_meas": "W",
     "dev": {

@@ -1,7 +1,7 @@
 {
-    "name": "Output Limit (obsolet)",
+    "name": "Output Limit",
     "stat_t": "~outputLimit",
-    "uniq_id": "{{ device_id }}-outputLimit-obsolet",
+    "uniq_id": "{{ device_id }}-outputLimit",
     "dev_cla": "power",
     "unit_of_meas": "W",
     "dev": {
