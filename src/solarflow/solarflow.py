@@ -293,7 +293,7 @@ class Solarflow:
         # **OR** 
         # if SoC levels configured in battery are correct
         log.info(f'Received charge-through control: {value}, Control SoC: {self.control_soc}, SocMax: {self.batteryTargetSoCMax}%, SocMin: {self.batteryTargetSoCMin}%')
-        if chargeThrough and self.control_soc:
+        if chargeThrough and not self.chargeThrough and self.control_soc:
             # if no levels have not been read, wait for then and redo evaluation
             if self.batteryTargetSoCMax < 0 or self.batteryTargetSoCMin < 0:
                 log.info(f'We can control SoC levels but the SoC boundaries read from hub are not available yet. Waiting for update to re-check conditions')

@@ -9,7 +9,7 @@ import requests
 #from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import math
-from solarflow import Solarflow
+import solarflow
 import dtus
 import smartmeters
 from utils import RepeatedTimer, str2bool
@@ -278,9 +278,11 @@ def getSFPowerLimit(hub, demand) -> int:
                 path += "1."
                 # FEAT: we should not allow discharging in the sunrise window if battery is still below a certain threshold
                 # e.g. if the battery has just started charging do not discharge it again immediately
-                if (now < (sunrise + sunrise_off)) and hub_electricLevel <= BATTERY_DISCHARGE_START:
+                if (now < (sunrise + sunrise_off)) and hub_electricLevel <= BATTERY_DISCHARGE_START and hub.batteryTarget != solarflow.BATTERY_TARGET_DISCHARGING:
+                    path += "1."
                     limit = 0
                 else:
+                    path += "2."
                     limit = min(demand,MAX_DISCHARGE_POWER)
             else:
                 path += "2."  
@@ -406,7 +408,7 @@ def limitHomeInput(client: mqtt_client):
         sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
         hub_limit = hub.setOutputLimit(hub.getInverseMaxPower())
         direct_limit = sf_contribution/inv.getNrHubChannels()
-        log.info(f'Solarflow is willing to contribute {direct_limit:.1f}W (per channel) of the requested {hub_contribution_ask:.1f}!')
+        log.info(f'Solarflow is willing to contribute {min(hub_limit,direct_limit):.1f}W (per channel) of the requested {hub_contribution_ask:.1f}!')
 
 
     if direct_limit != None:
@@ -494,8 +496,8 @@ def deviceInfo(client:mqtt_client):
 
 def run():
     client = connect_mqtt()
-    hub_opts = getOpts(Solarflow)
-    hub = Solarflow(client=client,callback=limit_callback,**hub_opts)
+    hub_opts = getOpts(solarflow.Solarflow)
+    hub = solarflow.Solarflow(client=client,callback=limit_callback,**hub_opts)
 
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
@@ -562,6 +564,7 @@ def main(argv):
     log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
     log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
     log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
+    log.info(f'  BATTERY_DISCHARGE_START = {BATTERY_DISCHARGE_START}')
     log.info(f'  DISCHARGE_DURING_DAYTIME = {DISCHARGE_DURING_DAYTIME}')
 
     loc = MyLocation()
