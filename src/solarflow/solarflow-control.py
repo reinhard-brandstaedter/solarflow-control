@@ -278,7 +278,7 @@ def getSFPowerLimit(hub, demand) -> int:
                 path += "1."
                 # FEAT: we should not allow discharging in the sunrise window if battery is still below a certain threshold
                 # e.g. if the battery has just started charging do not discharge it again immediately
-                if (now < (sunrise + sunrise_off)) and hub_electricLevel <= BATTERY_DISCHARGE_START and hub.batteryTarget != solarflow.BATTERY_TARGET_DISCHARGING:
+                if (sunrise < now < (sunrise + sunrise_off)) and hub_electricLevel <= BATTERY_DISCHARGE_START and hub.batteryTarget != solarflow.BATTERY_TARGET_DISCHARGING:
                     path += "1."
                     limit = 0
                 else:
