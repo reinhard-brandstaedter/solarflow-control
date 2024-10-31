@@ -144,7 +144,7 @@ class Solarflow:
             template = environment.get_template(hatemplate.name)
             cfg_type = hatemplate.name.split(".")[0]
             cfg_name = hatemplate.name.split(".")[1]
-            if cfg_name == "maxTemp":
+            if cfg_name == "maxTemp" or cfg_name == "totalVol":
                 for index, (serial,v) in enumerate(self.batteriesVol.items()):
                     hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion, battery_serial=serial, battery_index=index+1)
                     if serial != "none":
