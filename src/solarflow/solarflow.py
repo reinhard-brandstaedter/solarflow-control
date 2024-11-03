@@ -87,13 +87,13 @@ class Solarflow:
         batteries_vol = "|".join([f'{v:2.1f}' for v in self.batteriesVol.values()])
         return ' '.join(f'{red}HUB: \
                         S:{self.solarInputPower:>3.1f}W {self.solarInputValues}, \
-                        B:{self.electricLevel:>3}% ({batteries_soc}), \
+                        B:{self.electricLevel:>3}% ({batteries_soc}) low: {self.batteryLow} high: {self.batteryHigh}, \
                         V:{(sum(self.batteriesVol.values()) / len(self.batteriesVol)):2.1f}V ({batteries_vol}), \
                         C:{self.outputPackPower-self.packInputPower:>4}W, \
                         P:{self.getBypass()} ({"auto" if self.bypass_mode == 0 else "manual"}, {"possible" if self.allow_bypass else "not possible"}), \
                         F:{self.getLastFullBattery():3.1f}h, \
                         E:{self.getLastEmptyBattery():3.1f}h, \
-                        CT:{"ON" if self.chargeThrough else "OFF"} ({self.fullChargeInterval}hrs), \
+                        CT:{"ON" if self.chargeThrough else "OFF"} ({self.fullChargeInterval}hrs) {self.chargeThroughStage}, \
                         H:{self.outputHomePower:>3}W, \
                         L:{self.outputLimit:>3}W{reset}'.split())
 
