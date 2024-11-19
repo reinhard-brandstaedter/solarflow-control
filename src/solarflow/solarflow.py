@@ -21,6 +21,7 @@ HUB2000 = "A8yh63"
 BATTERY_TARGET_IDLE        = "idle"
 BATTERY_TARGET_CHARGING    = "charging"
 BATTERY_TARGET_DISCHARGING = "discharging"
+AC_MODE_OUTPUT = 2
 
 # according to https://github.com/epicRE/zendure_ble
 INVERTER_BRAND = {0: 'Other', 1: 'Hoymiles', 2: 'Enphase', 3: 'APsystems', 4: 'Anker', 5: 'Deye', 6: 'BossWerk', 7: 'Tsun'}
@@ -509,6 +510,11 @@ class Solarflow:
         buzzer = {"properties": { "buzzerSwitch": 0 if not state else 1 }}
         self.client.publish(self.property_topic,json.dumps(buzzer))
         log.info(f'Turning hub buzzer {"ON" if state else "OFF"}')
+    
+    def setACMode(self):
+        acmode = {"properties": { "acMode": 2 }}
+        self.client.publish(self.property_topic,json.dumps(acmode))
+        log.info(f'Ensure hub AC Mode is set to output')
     
     def setAutorecover(self, state: bool):
         autorecover = {"properties": { "autoRecover": 0 if not state else 1 }}
