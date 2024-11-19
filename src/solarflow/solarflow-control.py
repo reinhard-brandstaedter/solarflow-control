@@ -186,6 +186,8 @@ def on_connect(client, userdata, flags, rc):
         hub.setInverseMaxPower(MAX_INVERTER_INPUT)
         hub.setBatteryHighSoC(BATTERY_HIGH)
         hub.setBatteryLowSoC(BATTERY_LOW)
+        hub.setACMode()
+        
         if hub.control_bypass:
             hub.setBypass(False)
             hub.setAutorecover(False)
