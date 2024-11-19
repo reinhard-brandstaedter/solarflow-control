@@ -320,7 +320,7 @@ class Solarflow:
         if self.chargeThrough != chargeThrough:
             log.info(f'Set ChargeThrough: {self.chargeThrough} => {chargeThrough}')
             self.setChargeThroughStage(BATTERY_TARGET_CHARGING if chargeThrough else BATTERY_TARGET_IDLE)
-            self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThrough','ON' if chargeThrough else 'OFF')
+            self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThrough','ON' if chargeThrough else 'OFF',retain=True)
 
         self.chargeThrough = chargeThrough
 
@@ -331,7 +331,7 @@ class Solarflow:
         log.info(f'Updating charge through stage: {self.chargeThroughStage} => {stage}')
         batteryHigh = 100 if stage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING] else self.batteryHigh
         batteryLow = 0 if stage == BATTERY_TARGET_DISCHARGING and self.allowFullCycle else self.batteryLow
-        self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThroughState', stage)
+        self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThroughState', stage,retain=True)
         self.setBatteryHighSoC(batteryHigh, True)
         self.setBatteryLowSoC(batteryLow, True)
         self.chargeThroughStage = stage
