@@ -519,11 +519,11 @@ def run():
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
     client.on_message = on_message
 
-    updateConfigParams(client)
     infotimer = RepeatedTimer(120, deviceInfo, client)
 
     #client.loop_start()
     client.loop_forever()
+    updateConfigParams(client)
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
