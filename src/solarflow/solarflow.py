@@ -79,8 +79,7 @@ class Solarflow:
         self.lastLimitTS = None
 
         client.publish(f'solarflow-hub/{self.deviceId}/control/controlBypass',str(self.control_bypass),retain=True)
-        client.publish(f'solarflow-hub/{self.deviceId}/control/fullChargeInterval',self.full_charge_interval,retain=True)
-
+        client.publish(f'solarflow-hub/{self.deviceId}/control/fullChargeInterval',self.fullChargeInterval,retain=True)
 
         updater = RepeatedTimer(60, self.update)
         haconfig = RepeatedTimer(600, self.pushHomeassistantConfig)
