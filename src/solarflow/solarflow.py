@@ -78,6 +78,10 @@ class Solarflow:
 
         self.lastLimitTS = None
 
+        client.publish(f'solarflow-hub/{self.deviceId}/control/controlBypass',str(self.control_bypass),retain=True)
+        client.publish(f'solarflow-hub/{self.deviceId}/control/fullChargeInterval',self.full_charge_interval,retain=True)
+
+
         updater = RepeatedTimer(60, self.update)
         haconfig = RepeatedTimer(600, self.pushHomeassistantConfig)
         self.pushHomeassistantConfig()
@@ -283,6 +287,9 @@ class Solarflow:
             value = 1
         
         self.bypass_mode = value
+    
+    def updFullChargeInterval(self, value: int):
+        self.fullChargeInterval = value
 
     def allowBypass(self, allow):
         self.allow_bypass = allow
@@ -429,6 +436,8 @@ class Solarflow:
                     self.setChargeThrough(value)
                 case "controlBypass":
                     self.setControlBypass(value)
+                case "fullChargeInterval":
+                    self.updFullChargeInterval(int(value))
                 case "dryRun":
                     self.setDryRun(value)
                 case "lastFullTimestamp":
