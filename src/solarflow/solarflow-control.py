@@ -475,7 +475,7 @@ def deviceInfo(client:mqtt_client):
     limitHomeInput(client)
 
 def updateConfigParams(client):
-    global config, DISCHARGE_DURING_DAYTIME, SUNRISE_OFFSET, SUNSET_OFFSET
+    global config, DISCHARGE_DURING_DAYTIME, SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER
 
     # only update if configparameters haven't been updated/read from MQTT
     if DISCHARGE_DURING_DAYTIME == None:
