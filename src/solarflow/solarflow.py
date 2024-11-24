@@ -432,7 +432,7 @@ class Solarflow:
                 case "minSoc":
                     self.updMinSoC(int(value))
                 case "socSet":
-                    self.updupdSocSet(int(value))
+                    self.updSocSet(int(value))
                 case "totalVol":
                     sn = msg.topic.split('/')[-2]
                     self.updBatteryVol(sn=sn, value=int(value))
