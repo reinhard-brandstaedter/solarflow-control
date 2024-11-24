@@ -263,6 +263,12 @@ class Solarflow:
         self.batteriesSoC.pop("none",None)
         self.batteriesSoC.update({sn:value})
 
+    def updMinSoC(self,value:int):
+        self.batteryLow=int(value/10)
+
+    def updSocSet(self,value:int):
+        self.batteryHigh=int(value/10)
+
     def updBatteryVol(self, sn:str, value:int):
         self.batteriesVol.pop("none",None)
         self.batteriesVol.update({sn:value/100})
@@ -272,9 +278,6 @@ class Solarflow:
         minor = (value & 0x0f00) >> 8
         build = (value & 0x00ff)
         self.fwVersion = f'{major}.{minor}.{build}'
-
-        # put into own timer in init
-        # self.pushHomeassistantConfig() # why here? this is not needed every minute
 
     def updByPass(self, value:int):
         self.bypass = bool(value)
@@ -426,6 +429,10 @@ class Solarflow:
                 case "socLevel":
                     sn = msg.topic.split('/')[-2]
                     self.updBatterySoC(sn=sn, value=int(value))
+                case "minSoc":
+                    self.updMinSoC(int(value))
+                case "socSet":
+                    self.updupdSocSet(int(value))
                 case "totalVol":
                     sn = msg.topic.split('/')[-2]
                     self.updBatteryVol(sn=sn, value=int(value))
