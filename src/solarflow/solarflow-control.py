@@ -9,7 +9,7 @@ import requests
 #from ip2geotools.databases.noncommercial import DbIpCity
 import configparser
 import math
-from solarflow import Solarflow
+import solarflow
 import dtus
 import smartmeters
 from utils import RepeatedTimer, str2bool
@@ -60,18 +60,20 @@ SMT_TYPE =              config.get('global', 'smartmeter_type', fallback=None) \
                         or os.environ.get('SMARTMETER_TYPE',"Smartmeter")
 
 # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
-MIN_CHARGE_POWER =      config.getint('control', 'min_charge_power', fallback=None) \
-                        or int(os.environ.get('MIN_CHARGE_POWER',0))          
+MIN_CHARGE_POWER = None     #config.getint('control', 'min_charge_power', fallback=None) or int(os.environ.get('MIN_CHARGE_POWER',0))
 
 # The maximum discharge level of the packSoc. Even if there is more demand it will not go beyond that
-MAX_DISCHARGE_POWER =   config.getint('control', 'max_discharge_power', fallback=None) \
-                        or int(os.environ.get('MAX_DISCHARGE_POWER',145))   
+MAX_DISCHARGE_POWER = None  #config.getint('control', 'max_discharge_power', fallback=None) or int(os.environ.get('MAX_DISCHARGE_POWER',145))
 
 # battery SoC levels to consider the battery full or empty
 BATTERY_LOW =           config.getint('control', 'battery_low', fallback=None) \
                         or int(os.environ.get('BATTERY_LOW',0)) 
 BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) \
                         or int(os.environ.get('BATTERY_HIGH',100))
+
+# the SoC that is required before discharging of the battery would start. To allow a bit of charging first in the morning.
+BATTERY_DISCHARGE_START = config.getint('control', 'battery_discharge_start', fallback=None) \
+                        or int(os.environ.get('BATTERY_DISCHARGE_START',10)) 
 
 # the maximum allowed inverter output
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
@@ -91,14 +93,11 @@ steering_interval =     config.getint('control', 'steering_interval', fallback=N
                         or int(os.environ.get('STEERING_INTERVAL',15))
 
 # flag, which can be set to allow discharging the battery during daytime
-DISCHARGE_DURING_DAYTIME =     config.getboolean('control', 'discharge_during_daytime', fallback=None) \
-                        or bool(os.environ.get('DISCHARGE_DURING_DAYTIME',False))
+DISCHARGE_DURING_DAYTIME = None   #config.getboolean('control', 'discharge_during_daytime', fallback=None) or bool(os.environ.get('DISCHARGE_DURING_DAYTIME',False))
 
 #Adjustments possible to sunrise and sunset offset
-SUNRISE_OFFSET =    config.getint('control', 'sunrise_offset', fallback=60) \
-                        or int(os.environ.get('SUNRISE_OFFSET',60))                                               
-SUNSET_OFFSET =    config.getint('control', 'sunset_offset', fallback=60) \
-                        or int(os.environ.get('SUNSET_OFFSET',60))                                                                                             
+SUNRISE_OFFSET = None   #config.getint('control', 'sunrise_offset', fallback=60) or int(os.environ.get('SUNRISE_OFFSET',60))                                               
+SUNSET_OFFSET = None    #config.getint('control', 'sunset_offset', fallback=60) or int(os.environ.get('SUNSET_OFFSET',60))                                                                                             
 
 # Location Info
 LAT = config.getfloat('global', 'latitude', fallback=None) or float(os.environ.get('LATITUDE',0))
@@ -167,14 +166,6 @@ def on_connect(client, userdata, flags, rc):
     if rc == 0:
         log.info("Connected to MQTT Broker!")
         hub = client._userdata['hub']
-        
-         # publish current control parameters
-        client.publish(f'solarflow-hub/{sf_device_id}/control/controlBypass',str(hub.control_bypass),retain=True)
-        client.publish(f'solarflow-hub/{sf_device_id}/control/sunriseOffset',SUNRISE_OFFSET,retain=True)
-        client.publish(f'solarflow-hub/{sf_device_id}/control/sunsetOffset',SUNSET_OFFSET,retain=True)
-        client.publish(f'solarflow-hub/{sf_device_id}/control/minChargePower',MIN_CHARGE_POWER,retain=True)
-        client.publish(f'solarflow-hub/{sf_device_id}/control/maxDischargePower',MAX_DISCHARGE_POWER,retain=True)
-        client.publish(f'solarflow-hub/{sf_device_id}/control/dischargeDuringDaytime',str(DISCHARGE_DURING_DAYTIME),retain=True)
 
         hub.subscribe()
         hub.setBuzzer(False)
@@ -182,6 +173,8 @@ def on_connect(client, userdata, flags, rc):
         hub.setInverseMaxPower(MAX_INVERTER_INPUT)
         hub.setBatteryHighSoC(BATTERY_HIGH)
         hub.setBatteryLowSoC(BATTERY_LOW)
+        hub.setACMode()
+        
         if hub.control_bypass:
             hub.setBypass(False)
             hub.setAutorecover(False)
@@ -272,7 +265,14 @@ def getSFPowerLimit(hub, demand) -> int:
             path += "2."
             if ((now < (sunrise + sunrise_off) or now > sunset - sunset_off) or DISCHARGE_DURING_DAYTIME): 
                 path += "1."
-                limit = min(demand,MAX_DISCHARGE_POWER)
+                # FEAT: we should not allow discharging in the sunrise window if battery is still below a certain threshold
+                # e.g. if the battery has just started charging do not discharge it again immediately
+                if (sunrise < now < (sunrise + sunrise_off)) and hub_electricLevel <= BATTERY_DISCHARGE_START and hub.batteryTarget != solarflow.BATTERY_TARGET_DISCHARGING:
+                    path += "1."
+                    limit = 0
+                else:
+                    path += "2."
+                    limit = min(demand,MAX_DISCHARGE_POWER)
             else:
                 path += "2."  
                 #limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 and hub.getElectricLevel() < 100 else hub_solarpower - MIN_CHARGE_POWER                                   
@@ -397,7 +397,7 @@ def limitHomeInput(client: mqtt_client):
         sf_contribution = getSFPowerLimit(hub,hub_contribution_ask)
         hub_limit = hub.setOutputLimit(hub.getInverseMaxPower())
         direct_limit = sf_contribution/inv.getNrHubChannels()
-        log.info(f'Solarflow is willing to contribute {direct_limit:.1f}W (per channel) of the requested {hub_contribution_ask:.1f}!')
+        log.info(f'Solarflow is willing to contribute {min(hub_limit,direct_limit):.1f}W (per channel) of the requested {hub_contribution_ask:.1f}!')
 
 
     if direct_limit != None:
@@ -473,20 +473,40 @@ def limit_callback(client: mqtt_client,force=False):
 
 def deviceInfo(client:mqtt_client):
     limitHomeInput(client)
-    '''
-    hub = client._userdata['hub']
-    log.info(f'{hub}')
-    inv = client._userdata['dtu']
-    log.info(f'{inv}')
-    smt = client._userdata['smartmeter']
-    log.info(f'{smt}')
-    '''
 
+def updateConfigParams(client):
+    global config, DISCHARGE_DURING_DAYTIME, SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER
+
+    # only update if configparameters haven't been updated/read from MQTT
+    if DISCHARGE_DURING_DAYTIME == None:
+        DISCHARGE_DURING_DAYTIME = config.getboolean('control', 'discharge_during_daytime', fallback=None) or bool(os.environ.get('DISCHARGE_DURING_DAYTIME',False))
+        log.info(f'Updating DISCHARGE_DURING_DAYTIME from config file to {DISCHARGE_DURING_DAYTIME}')
+        client.publish(f'solarflow-hub/{sf_device_id}/control/dischargeDuringDaytime',str(DISCHARGE_DURING_DAYTIME),retain=True)
+
+    if SUNRISE_OFFSET == None:
+        SUNRISE_OFFSET = config.getint('control', 'sunrise_offset', fallback=60) or int(os.environ.get('SUNRISE_OFFSET',60))
+        log.info(f'Updating SUNRISE_OFFSET from config file to {SUNRISE_OFFSET} minutes')
+        client.publish(f'solarflow-hub/{sf_device_id}/control/sunriseOffset',SUNRISE_OFFSET,retain=True)
+
+    if SUNSET_OFFSET == None:  
+        SUNSET_OFFSET = config.getint('control', 'sunset_offset', fallback=60) or int(os.environ.get('SUNSET_OFFSET',60))
+        log.info(f'Updating SUNSET_OFFSET from config file to {SUNSET_OFFSET} minutes')
+        client.publish(f'solarflow-hub/{sf_device_id}/control/sunsetOffset',SUNSET_OFFSET,retain=True)
+
+    if MIN_CHARGE_POWER == None:
+        MIN_CHARGE_POWER = config.getint('control', 'min_charge_power', fallback=None) or int(os.environ.get('MIN_CHARGE_POWER',0))
+        log.info(f'Updating MIN_CHARGE_POWER from config file to {MIN_CHARGE_POWER}W')
+        client.publish(f'solarflow-hub/{sf_device_id}/control/minChargePower',MIN_CHARGE_POWER,retain=True)
+
+    if MAX_DISCHARGE_POWER == None:
+        MAX_DISCHARGE_POWER = config.getint('control', 'max_discharge_power', fallback=None) or int(os.environ.get('MAX_DISCHARGE_POWER',145))
+        log.info(f'Updating MAX_DISCHARGE_POWER from config file to {MAX_DISCHARGE_POWER}W')
+        client.publish(f'solarflow-hub/{sf_device_id}/control/maxDischargePower',MAX_DISCHARGE_POWER,retain=True)
 
 def run():
     client = connect_mqtt()
-    hub_opts = getOpts(Solarflow)
-    hub = Solarflow(client=client,callback=limit_callback,**hub_opts)
+    hub_opts = getOpts(solarflow.Solarflow)
+    hub = solarflow.Solarflow(client=client,callback=limit_callback,**hub_opts)
 
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
@@ -503,6 +523,7 @@ def run():
 
     #client.loop_start()
     client.loop_forever()
+    updateConfigParams(client)
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
@@ -553,6 +574,7 @@ def main(argv):
     log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
     log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
     log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
+    log.info(f'  BATTERY_DISCHARGE_START = {BATTERY_DISCHARGE_START}')
     log.info(f'  DISCHARGE_DURING_DAYTIME = {DISCHARGE_DURING_DAYTIME}')
 
     loc = MyLocation()

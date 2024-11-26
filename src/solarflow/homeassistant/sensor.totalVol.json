@@ -1,0 +1,16 @@
+{
+    "name": "Battery {{battery_index}} Voltage",
+    "stat_t": "~totalVol", 
+    "value_template": "{% raw %}{{ (value | float/100 ) | round(1) }}{% endraw %}",
+    "uniq_id": "{{ device_id }}-{{ battery_serial }}-totalVol",
+    "unit_of_meas": "V",
+    "dev_cla": "voltage",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/batteries/{{ battery_serial }}/"
+}
