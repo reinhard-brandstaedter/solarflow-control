@@ -176,6 +176,43 @@ class ShellyEM3(Smartmeter):
             self.client.subscribe(t)
             log.info(f'Shelly3EM subscribing: {t}')
 
+class ShellyEM3Pro(Smartmeter):
+    opts = {"base_topic":str, "rapid_change_diff":int, "zero_offset": int, "watch_phase": str}
+
+    def __init__(self, client: mqtt_client, base_topic:str, rapid_change_diff:int = 500, zero_offset:int = 0, callback = Smartmeter.default_calllback):
+        self.client = client
+        self.base_topic = base_topic
+        self.power = TimewindowBuffer(minutes=1)
+        self.phase_values = {}
+        self.rapid_change_diff = rapid_change_diff
+        self.zero_offset = zero_offset
+        self.last_trigger_value = 0
+        self.trigger_callback = callback
+        self.scaling_factor = 1
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}')
+
+    def subscribe(self):
+        log.info(f'Shelly3EM PRO subscription')
+        topics = [f'{self.base_topic}']
+        for t in topics:
+            self.client.subscribe(t)
+            log.info(f'Shelly3EM PRO subscribing: {t}')
+
+    def handleMsg(self, msg):
+        if msg.topic.startswith(self.base_topic) and msg.payload:
+            payload = json.loads(msg.payload.decode())
+
+            if type(payload) is dict:
+                try: 
+                    value = payload['a_act_power', 'b_act_power', 'c_act_power']
+                except:
+                    log.error(f'Could not get value from topic payload: {sys.exc_info()}')
+
+                if value:
+                    self.phase_values.update({msg.topic:value})
+                    self.updPower()
+            log.info(f'Shelly3EM Pro subscribing: {t}')
+
 class VZLogger(Smartmeter):
     opts = {"cur_usage_topic":str, "rapid_change_diff":int, "zero_offset": int}
 
