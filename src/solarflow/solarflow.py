@@ -237,11 +237,11 @@ class Solarflow:
         return False
 
     def updBatteryTargetSoCMax(self, value: int):
-        self.batteryTargetSoCMax = value / 10
+        self.batteryTargetSoCMax = int(value/10)
         self.processRequestedChargeThrough()
 
     def updBatteryTargetSoCMin(self, value: int):
-        self.batteryTargetSoCMin = value / 10
+        self.batteryTargetSoCMin = int(value/10)
         self.processRequestedChargeThrough()
 
     def updOutputPack(self, value:int):
@@ -431,8 +431,10 @@ class Solarflow:
                     self.updBatterySoC(sn=sn, value=int(value))
                 case "minSoc":
                     self.updMinSoC(int(value))
+                    self.updBatteryTargetSoCMin(int(value))
                 case "socSet":
                     self.updSocSet(int(value))
+                    self.updBatteryTargetSoCMax(int(value))
                 case "totalVol":
                     sn = msg.topic.split('/')[-2]
                     self.updBatteryVol(sn=sn, value=int(value))
@@ -456,10 +458,6 @@ class Solarflow:
                     self.updByPass(int(value))
                 case "passMode":
                     self.updByPassMode(int(value))
-                case "socSet":
-                    self.updBatteryTargetSoCMax(int(value))
-                case "minSoc":
-                    self.updBatteryTargetSoCMin(int(value))
                 case "chargeThroughState":
                     pass
                 case _:
