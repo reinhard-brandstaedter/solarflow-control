@@ -22,11 +22,12 @@ class DTU:
     def default_calllback(self):
         log.info("default callback")
 
-    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:[]=[], ac_limit:int=800, callback = default_calllback):
+    def __init__(self, client: mqtt_client, base_topic:str, sf_inverter_channels:[]=[], ac_limit:int=800, min_limit:int=10, callback = default_calllback):
         self.client = client
         self.base_topic = base_topic
         self.acPower = TimewindowBuffer(minutes=1)
         self.acLimit = ac_limit
+        self.minLimit = min_limit
         self.dcPower = TimewindowBuffer(minutes=1)
         self.channelsDCPower = []
         self.sf_inverter_channels = sf_inverter_channels
@@ -215,8 +216,13 @@ class DTU:
         # Avoid setting limit higher than 150% of inverter capacity
         inv_limit = self.maxPower*1.125 if (inv_limit > self.maxPower*1.125 and self.maxPower > 0) else inv_limit
 
-        # it could be that maxPower has not yet been detected resulting in a zero limit
-        inv_limit = 10 if inv_limit < 10 else int(inv_limit)
+        # Ensure that inverter limit is not below minimum inverter limit from config file
+        if inv_limit < self.minLimit:
+            log.info(f'Using minimum inverter limit {self.minLimit} instead of calculated limit {inv_limit}')
+            inv_limit = self.minLimit 
+        else:
+            inv_limit = int(inv_limit)
+        
 
         withinRange = 6
         # failsafe: ensure that the inverter's AC output doesn't exceed acceptable legal limits
@@ -267,11 +273,11 @@ class OpenDTU(DTU):
     limit_topic = "cmd/limit_nonpersistent_absolute"
     limit_unit = ""
 
-    def __init__(self, client: mqtt_client, base_topic:str, inverter_serial:str, sf_inverter_channels:[]=[], ac_limit:int=800, callback = DTU.default_calllback):
-        super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels, ac_limit=ac_limit, callback=callback)
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_serial:str, sf_inverter_channels:[]=[], ac_limit:int=800,  min_limit:int=10, callback = DTU.default_calllback):
+        super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels, ac_limit=ac_limit, min_limit=min_limit, callback=callback)
         self.base_topic = f'{base_topic}/{inverter_serial}'
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}'
-        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}, AC Limit: {self.acLimit}')
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}, AC Limit: {self.acLimit}, Min Limit: {self.minLimit}')
 
     def subscribe(self):
         topics = [
@@ -316,13 +322,13 @@ class AhoyDTU(DTU):
     limit_topic = "ctrl/limit"
     limit_unit = "W"
 
-    def __init__(self, client: mqtt_client, base_topic:str, inverter_name:str, inverter_id:str, inverter_max_power:int, sf_inverter_channels:[]=[], ac_limit:int=800, callback = DTU.default_calllback):
-        super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels,ac_limit=ac_limit, callback=callback)
+    def __init__(self, client: mqtt_client, base_topic:str, inverter_name:str, inverter_id:str, inverter_max_power:int, sf_inverter_channels:[]=[], ac_limit:int=800, min_limit:int=10, callback = DTU.default_calllback):
+        super().__init__(client=client,base_topic=base_topic, sf_inverter_channels=sf_inverter_channels,ac_limit=ac_limit, min_limit=min_limit, callback=callback)
         self.base_topic = f'{base_topic}'
         self.inverter_name = inverter_name
         self.inverter_max_power = self.maxPower = inverter_max_power
         self.limit_nonpersistent_absolute = f'{self.base_topic}/{self.limit_topic}/{inverter_id}'
-        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}')
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}, , Min Limit: {self.minLimit}')
 
     def subscribe(self):
         topics = [
