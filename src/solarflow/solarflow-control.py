@@ -66,10 +66,8 @@ MIN_CHARGE_POWER = None     #config.getint('control', 'min_charge_power', fallba
 MAX_DISCHARGE_POWER = None  #config.getint('control', 'max_discharge_power', fallback=None) or int(os.environ.get('MAX_DISCHARGE_POWER',145))
 
 # battery SoC levels to consider the battery full or empty
-BATTERY_LOW =           config.getint('control', 'battery_low', fallback=None) \
-                        or int(os.environ.get('BATTERY_LOW',0)) 
-BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) \
-                        or int(os.environ.get('BATTERY_HIGH',100))
+BATTERY_LOW = None      #config.getint('control', 'battery_low', fallback=None) or int(os.environ.get('BATTERY_LOW',0)) 
+BATTERY_HIGH = None     #config.getint('control', 'battery_high', fallback=None) or int(os.environ.get('BATTERY_HIGH',100))
 
 # the SoC that is required before discharging of the battery would start. To allow a bit of charging first in the morning.
 BATTERY_DISCHARGE_START = config.getint('control', 'battery_discharge_start', fallback=None) \
@@ -502,6 +500,18 @@ def updateConfigParams(client):
         MAX_DISCHARGE_POWER = config.getint('control', 'max_discharge_power', fallback=None) or int(os.environ.get('MAX_DISCHARGE_POWER',145))
         log.info(f'Updating MAX_DISCHARGE_POWER from config file to {MAX_DISCHARGE_POWER}W')
         client.publish(f'solarflow-hub/{sf_device_id}/control/maxDischargePower',MAX_DISCHARGE_POWER,retain=True)
+
+    if BATTERY_LOW == None:
+        BATTERY_LOW = config.getint('control', 'battery_low', fallback=None) or int(os.environ.get('BATTERY_LOW',2)) 
+        log.info(f'Updating BATTERY_LOW from config file to {BATTERY_LOW}%')
+        client.publish(f'solarflow-hub/{sf_device_id}/control/batteryTargetSoCMin',BATTERY_LOW,retain=True)
+
+    if BATTERY_HIGH == None:
+        BATTERY_HIGH = config.getint('control', 'battery_low', fallback=None) or int(os.environ.get('BATTERY_HIGH',98)) 
+        log.info(f'Updating BATTERY_HIGH from config file to {BATTERY_HIGH}%')
+        client.publish(f'solarflow-hub/{sf_device_id}/control/batteryTargetSoCMin',BATTERY_HIGH,retain=True)
+
+
 
 def run():
     client = connect_mqtt()
