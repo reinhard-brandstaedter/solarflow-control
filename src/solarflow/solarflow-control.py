@@ -130,7 +130,7 @@ class MyLocation:
         return (lat,lon)
 
 def on_message(client, userdata, msg):
-    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME
+    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME,BATTERY_LOW,BATTERY_HIGH
     #delegate message handling to hub,smartmeter, dtu
     smartmeter = userdata["smartmeter"]
     smartmeter.handleMsg(msg)
@@ -152,13 +152,20 @@ def on_message(client, userdata, msg):
                 log.info(f'Updating SUNSET_OFFSET to {SUNSET_OFFSET} minutes')
             case "minChargePower":
                 MIN_CHARGE_POWER = int(value)
-                log.info(f'Updating MIN_CHARGE_POWER to {MIN_CHARGE_POWER} W')
+                log.info(f'Updating MIN_CHARGE_POWER to {MIN_CHARGE_POWER}W')
             case "maxDischargePower":
                 MAX_DISCHARGE_POWER = int(value)
-                log.info(f'Updating MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER} W')
+                log.info(f'Updating MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER}W')
             case "dischargeDuringDaytime":
                 DISCHARGE_DURING_DAYTIME = str2bool(value)
                 log.info(f'Updating DISCHARGE_DURING_DAYTIME to {DISCHARGE_DURING_DAYTIME}')
+            case "batteryTargetSoCMin":
+                BATTERY_LOW = int(value)
+                log.info(f'Updating BATTERY_LOW to {BATTERY_LOW}%')
+            case "batteryTargetSoCMax":
+                BATTERY_LOW = int(value)
+                log.info(f'Updating BATTERY_HIGH to {BATTERY_HIGH}%')
+        
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -530,8 +537,8 @@ def run():
 
     infotimer = RepeatedTimer(120, deviceInfo, client)
 
-    #client.loop_start()
-    client.loop_forever()
+    client.loop_start()
+    #client.loop_forever()
     updateConfigParams(client)
     hub.setBatteryHighSoC(BATTERY_HIGH)
     hub.setBatteryLowSoC(BATTERY_LOW)
