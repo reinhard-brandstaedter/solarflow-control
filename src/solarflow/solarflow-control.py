@@ -539,11 +539,11 @@ def run():
 
     infotimer = RepeatedTimer(120, deviceInfo, client)
 
-    #client.loop_start()
-    client.loop_forever()
+    client.loop_read(20)
     updateConfigParams(client)
     hub.setBatteryHighSoC(BATTERY_HIGH)
     hub.setBatteryLowSoC(BATTERY_LOW)
+    client.loop_forever()
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
