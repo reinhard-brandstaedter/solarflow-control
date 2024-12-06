@@ -237,10 +237,10 @@ class Solarflow:
         return False
 
     def updBatteryTargetSoCMax(self, value: int):
-        self.batteryTargetSoCMax = int(value/10)
+        self.batteryTargetSoCMax = int(value)
 
     def updBatteryTargetSoCMin(self, value: int):
-        self.batteryTargetSoCMin = int(value/10)
+        self.batteryTargetSoCMin = int(value)
 
     def updOutputPack(self, value:int):
         self.outputPackPower = value
