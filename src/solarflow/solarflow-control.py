@@ -169,8 +169,6 @@ def on_connect(client, userdata, flags, rc):
         hub.setBuzzer(False)
         hub.setPvBrand(1)
         hub.setInverseMaxPower(MAX_INVERTER_INPUT)
-        hub.setBatteryHighSoC(BATTERY_HIGH)
-        hub.setBatteryLowSoC(BATTERY_LOW)
         hub.setACMode()
         
         if hub.control_bypass:
@@ -473,7 +471,7 @@ def deviceInfo(client:mqtt_client):
     limitHomeInput(client)
 
 def updateConfigParams(client):
-    global config, DISCHARGE_DURING_DAYTIME, SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER
+    global config, DISCHARGE_DURING_DAYTIME, SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, BATTERY_HIGH, BATTERY_LOW
 
     # only update if configparameters haven't been updated/read from MQTT
     if DISCHARGE_DURING_DAYTIME == None:
@@ -514,6 +512,7 @@ def updateConfigParams(client):
 
 
 def run():
+    global BATTERY_HIGH, BATTERY_LOW
     client = connect_mqtt()
     hub_opts = getOpts(solarflow.Solarflow)
     hub = solarflow.Solarflow(client=client,callback=limit_callback,**hub_opts)
@@ -534,6 +533,8 @@ def run():
     #client.loop_start()
     client.loop_forever()
     updateConfigParams(client)
+    hub.setBatteryHighSoC(BATTERY_HIGH)
+    hub.setBatteryLowSoC(BATTERY_LOW)
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
