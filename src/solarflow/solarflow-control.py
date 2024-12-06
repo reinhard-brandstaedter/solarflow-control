@@ -514,7 +514,7 @@ def updateConfigParams(client):
     if BATTERY_HIGH == None:
         BATTERY_HIGH = config.getint('control', 'battery_low', fallback=None) or int(os.environ.get('BATTERY_HIGH',98)) 
         log.info(f'Updating BATTERY_HIGH from config file to {BATTERY_HIGH}%')
-        client.publish(f'solarflow-hub/{sf_device_id}/control/batteryTargetSoCMin',BATTERY_HIGH,retain=True)
+        client.publish(f'solarflow-hub/{sf_device_id}/control/batteryTargetSoCMax',BATTERY_HIGH,retain=True)
 
 
 
