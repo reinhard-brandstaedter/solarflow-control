@@ -163,7 +163,7 @@ def on_message(client, userdata, msg):
                 BATTERY_LOW = int(value)
                 log.info(f'Updating BATTERY_LOW to {BATTERY_LOW}%')
             case "batteryTargetSoCMax":
-                BATTERY_LOW = int(value)
+                BATTERY_HIGH = int(value)
                 log.info(f'Updating BATTERY_HIGH to {BATTERY_HIGH}%')
         
 
