@@ -165,6 +165,7 @@ def on_message(client, userdata, msg):
             case "batteryTargetSoCMax":
                 BATTERY_HIGH = int(value)
                 log.info(f'Updating BATTERY_HIGH to {BATTERY_HIGH}%')
+                hub.setBatteryTarget
         
 
 def on_connect(client, userdata, flags, rc):
@@ -512,7 +513,7 @@ def updateConfigParams(client):
         client.publish(f'solarflow-hub/{sf_device_id}/control/batteryTargetSoCMin',BATTERY_LOW,retain=True)
 
     if BATTERY_HIGH == None:
-        BATTERY_HIGH = config.getint('control', 'battery_low', fallback=None) or int(os.environ.get('BATTERY_HIGH',98)) 
+        BATTERY_HIGH = config.getint('control', 'battery_high', fallback=None) or int(os.environ.get('BATTERY_HIGH',98)) 
         log.info(f'Updating BATTERY_HIGH from config file to {BATTERY_HIGH}%')
         client.publish(f'solarflow-hub/{sf_device_id}/control/batteryTargetSoCMax',BATTERY_HIGH,retain=True)
 
@@ -537,8 +538,8 @@ def run():
 
     infotimer = RepeatedTimer(120, deviceInfo, client)
 
-    client.loop_start()
-    #client.loop_forever()
+    #client.loop_start()
+    client.loop_forever()
     updateConfigParams(client)
     hub.setBatteryHighSoC(BATTERY_HIGH)
     hub.setBatteryLowSoC(BATTERY_LOW)
