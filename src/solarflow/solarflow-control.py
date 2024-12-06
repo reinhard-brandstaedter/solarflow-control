@@ -162,10 +162,11 @@ def on_message(client, userdata, msg):
             case "batteryTargetSoCMin":
                 BATTERY_LOW = int(value)
                 log.info(f'Updating BATTERY_LOW to {BATTERY_LOW}%')
+                hub.updBatteryTargetSoCMin(BATTERY_LOW)
             case "batteryTargetSoCMax":
                 BATTERY_HIGH = int(value)
                 log.info(f'Updating BATTERY_HIGH to {BATTERY_HIGH}%')
-                hub.setBatteryTarget
+                hub.updBatteryTargetSoCMax(BATTERY_HIGH)
         
 
 def on_connect(client, userdata, flags, rc):
