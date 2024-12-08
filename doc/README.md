@@ -75,6 +75,7 @@ Known properties (taken from Hub1200 reverse engineering) and their function:
 | smartMode | read/write | [int] | ? maybe a setting to turn smart matchin on/off or which smart mode is used, not tested |
 | smartPower | read/write | [int] W | ? maybe a setting to turn smart matchin on/off or which smart mode is used, not tested |
 | passMode | read/write | [int] 1-2 | Which bypass mode is used currenlty 0=auto, 1=off, 2=on |
+| acMode | read/write | [int] (0?) 1-2 | Seems to control the AC modus (input or output) of the hub that do support charging via AC (Hyper?). This has to be set to 2 for output on all other hubs otherwise no output to home happens |
 | autoRecover | read/write | [int] | wether to automatically recover from bypass |
 | heatState | read/write | [int] | likely the status of the battery heating for models which support it, not tested |
 
