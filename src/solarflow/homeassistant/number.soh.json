@@ -1,0 +1,15 @@
+{
+    "name": "Battery {{battery_index}} State of Health",
+    "stat_t": "~soh", 
+    "value_template": "{% raw %}{{ (value | float/10 ) | round(1) }}{% endraw %}",
+    "uniq_id": "{{ device_id }}-{{ battery_serial }}-soh",
+    "unit_of_meas": "%",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/batteries/{{ battery_serial }}/"
+}
