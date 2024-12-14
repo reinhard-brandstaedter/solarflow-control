@@ -148,7 +148,7 @@ class Solarflow:
             template = environment.get_template(hatemplate.name)
             cfg_type = hatemplate.name.split(".")[0]
             cfg_name = hatemplate.name.split(".")[1]
-            if cfg_name == "maxTemp" or cfg_name == "totalVol":
+            if cfg_name == "maxTemp" or cfg_name == "totalVol" or cfg_name == "soh":
                 for index, (serial,v) in enumerate(self.batteriesVol.items()):
                     hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion, battery_serial=serial, battery_index=index+1)
                     if serial != "none":
@@ -237,12 +237,10 @@ class Solarflow:
         return False
 
     def updBatteryTargetSoCMax(self, value: int):
-        self.batteryTargetSoCMax = int(value/10)
-        self.processRequestedChargeThrough()
+        self.batteryTargetSoCMax = int(value)
 
     def updBatteryTargetSoCMin(self, value: int):
-        self.batteryTargetSoCMin = int(value/10)
-        self.processRequestedChargeThrough()
+        self.batteryTargetSoCMin = int(value)
 
     def updOutputPack(self, value:int):
         self.outputPackPower = value
@@ -265,9 +263,11 @@ class Solarflow:
 
     def updMinSoC(self,value:int):
         self.batteryLow=int(value/10)
+        self.processRequestedChargeThrough()
 
     def updSocSet(self,value:int):
         self.batteryHigh=int(value/10)
+        self.processRequestedChargeThrough()
 
     def updBatteryVol(self, sn:str, value:int):
         self.batteriesVol.pop("none",None)
@@ -338,8 +338,8 @@ class Solarflow:
             return
         
         log.info(f'Updating charge through stage: {self.chargeThroughStage} => {stage}')
-        batteryHigh = 100 if stage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING] else self.batteryHigh
-        batteryLow = 0 if stage == BATTERY_TARGET_DISCHARGING and self.allowFullCycle else self.batteryLow
+        batteryHigh = 100 if stage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING] else self.batteryTargetSoCMax
+        batteryLow = 0 if stage == BATTERY_TARGET_DISCHARGING and self.allowFullCycle else self.batteryTargetSoCMin
         self.client.publish(f'solarflow-hub/{self.deviceId}/control/chargeThroughState', stage,retain=True)
         self.setBatteryHighSoC(batteryHigh, True)
         self.setBatteryLowSoC(batteryLow, True)
@@ -431,9 +431,11 @@ class Solarflow:
                     self.updBatterySoC(sn=sn, value=int(value))
                 case "minSoc":
                     self.updMinSoC(int(value))
+                case "batteryTargetSoCMin":
                     self.updBatteryTargetSoCMin(int(value))
                 case "socSet":
                     self.updSocSet(int(value))
+                case "batteryTargetSoCMax":
                     self.updBatteryTargetSoCMax(int(value))
                 case "totalVol":
                     sn = msg.topic.split('/')[-2]

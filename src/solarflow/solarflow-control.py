@@ -66,10 +66,8 @@ MIN_CHARGE_POWER = None     #config.getint('control', 'min_charge_power', fallba
 MAX_DISCHARGE_POWER = None  #config.getint('control', 'max_discharge_power', fallback=None) or int(os.environ.get('MAX_DISCHARGE_POWER',145))
 
 # battery SoC levels to consider the battery full or empty
-BATTERY_LOW =           config.getint('control', 'battery_low', fallback=None) \
-                        or int(os.environ.get('BATTERY_LOW',0)) 
-BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) \
-                        or int(os.environ.get('BATTERY_HIGH',100))
+BATTERY_LOW = None      #config.getint('control', 'battery_low', fallback=None) or int(os.environ.get('BATTERY_LOW',0)) 
+BATTERY_HIGH = None     #config.getint('control', 'battery_high', fallback=None) or int(os.environ.get('BATTERY_HIGH',100))
 
 # the SoC that is required before discharging of the battery would start. To allow a bit of charging first in the morning.
 BATTERY_DISCHARGE_START = config.getint('control', 'battery_discharge_start', fallback=None) \
@@ -132,7 +130,7 @@ class MyLocation:
         return (lat,lon)
 
 def on_message(client, userdata, msg):
-    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME
+    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME,BATTERY_LOW,BATTERY_HIGH
     #delegate message handling to hub,smartmeter, dtu
     smartmeter = userdata["smartmeter"]
     smartmeter.handleMsg(msg)
@@ -154,13 +152,22 @@ def on_message(client, userdata, msg):
                 log.info(f'Updating SUNSET_OFFSET to {SUNSET_OFFSET} minutes')
             case "minChargePower":
                 MIN_CHARGE_POWER = int(value)
-                log.info(f'Updating MIN_CHARGE_POWER to {MIN_CHARGE_POWER} W')
+                log.info(f'Updating MIN_CHARGE_POWER to {MIN_CHARGE_POWER}W')
             case "maxDischargePower":
                 MAX_DISCHARGE_POWER = int(value)
-                log.info(f'Updating MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER} W')
+                log.info(f'Updating MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER}W')
             case "dischargeDuringDaytime":
                 DISCHARGE_DURING_DAYTIME = str2bool(value)
                 log.info(f'Updating DISCHARGE_DURING_DAYTIME to {DISCHARGE_DURING_DAYTIME}')
+            case "batteryTargetSoCMin":
+                BATTERY_LOW = int(value)
+                log.info(f'Updating BATTERY_LOW to {BATTERY_LOW}%')
+                hub.updBatteryTargetSoCMin(BATTERY_LOW)
+            case "batteryTargetSoCMax":
+                BATTERY_HIGH = int(value)
+                log.info(f'Updating BATTERY_HIGH to {BATTERY_HIGH}%')
+                hub.updBatteryTargetSoCMax(BATTERY_HIGH)
+        
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -171,8 +178,6 @@ def on_connect(client, userdata, flags, rc):
         hub.setBuzzer(False)
         hub.setPvBrand(1)
         hub.setInverseMaxPower(MAX_INVERTER_INPUT)
-        hub.setBatteryHighSoC(BATTERY_HIGH)
-        hub.setBatteryLowSoC(BATTERY_LOW)
         hub.setACMode()
         
         if hub.control_bypass:
@@ -475,7 +480,7 @@ def deviceInfo(client:mqtt_client):
     limitHomeInput(client)
 
 def updateConfigParams(client):
-    global config, DISCHARGE_DURING_DAYTIME, SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER
+    global config, DISCHARGE_DURING_DAYTIME, SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, BATTERY_HIGH, BATTERY_LOW
 
     # only update if configparameters haven't been updated/read from MQTT
     if DISCHARGE_DURING_DAYTIME == None:
@@ -503,7 +508,20 @@ def updateConfigParams(client):
         log.info(f'Updating MAX_DISCHARGE_POWER from config file to {MAX_DISCHARGE_POWER}W')
         client.publish(f'solarflow-hub/{sf_device_id}/control/maxDischargePower',MAX_DISCHARGE_POWER,retain=True)
 
+    if BATTERY_LOW == None:
+        BATTERY_LOW = config.getint('control', 'battery_low', fallback=None) or int(os.environ.get('BATTERY_LOW',2)) 
+        log.info(f'Updating BATTERY_LOW from config file to {BATTERY_LOW}%')
+        client.publish(f'solarflow-hub/{sf_device_id}/control/batteryTargetSoCMin',BATTERY_LOW,retain=True)
+
+    if BATTERY_HIGH == None:
+        BATTERY_HIGH = config.getint('control', 'battery_high', fallback=None) or int(os.environ.get('BATTERY_HIGH',98)) 
+        log.info(f'Updating BATTERY_HIGH from config file to {BATTERY_HIGH}%')
+        client.publish(f'solarflow-hub/{sf_device_id}/control/batteryTargetSoCMax',BATTERY_HIGH,retain=True)
+
+
+
 def run():
+    global BATTERY_HIGH, BATTERY_LOW
     client = connect_mqtt()
     hub_opts = getOpts(solarflow.Solarflow)
     hub = solarflow.Solarflow(client=client,callback=limit_callback,**hub_opts)
@@ -521,9 +539,11 @@ def run():
 
     infotimer = RepeatedTimer(120, deviceInfo, client)
 
-    #client.loop_start()
-    client.loop_forever()
+    client.loop_read(20)
     updateConfigParams(client)
+    hub.setBatteryHighSoC(BATTERY_HIGH)
+    hub.setBatteryLowSoC(BATTERY_LOW)
+    client.loop_forever()
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
