@@ -156,6 +156,12 @@ def on_message(client, userdata, msg):
             case "maxDischargePower":
                 MAX_DISCHARGE_POWER = int(value)
                 log.info(f'Updating MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER}W')
+            case "controlBypass":
+                log.info(f'Updating control bypass to {value}')
+                hub.setControlBypass(value)
+            case "fullChargeInterval":
+                log.info(f'Updating full charge interval to {int(value)}hrs')
+                hub.updFullChargeInterval(int(value))
             case "dischargeDuringDaytime":
                 DISCHARGE_DURING_DAYTIME = str2bool(value)
                 log.info(f'Updating DISCHARGE_DURING_DAYTIME to {DISCHARGE_DURING_DAYTIME}')
@@ -172,6 +178,7 @@ def on_message(client, userdata, msg):
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         log.info("Connected to MQTT Broker!")
+        subscribe()
         hub = client._userdata['hub']
 
         hub.subscribe()
@@ -206,13 +213,12 @@ def connect_mqtt() -> mqtt_client:
     return client
 
 def subscribe(client: mqtt_client):
-    client.on_message = on_message
     topics = [
             f'solarflow-hub/+/control/#'
     ]
     for t in topics:
         client.subscribe(t)
-        log.info(f'SFControl subscribing: {t}')
+        log.info(f'SF Control subscribing: {t}')
 
 def limitedRise(x) -> int:
     rise = MAX_INVERTER_LIMIT-(MAX_INVERTER_LIMIT-INVERTER_START_LIMIT)*math.exp(-MAX_INVERTER_LIMIT/100000*x)
@@ -539,8 +545,13 @@ def run():
 
     infotimer = RepeatedTimer(120, deviceInfo, client)
 
-    client.loop_read(20)
+    client.loop_start()
+    log.info("Waiting for config settings retained in MQTT...")
+    time.sleep(5)
+    client.loop_stop()
+    # if no config setting were found in MQTT (retained) then update config from config file
     updateConfigParams(client)
+
     hub.setBatteryHighSoC(BATTERY_HIGH)
     hub.setBatteryLowSoC(BATTERY_LOW)
     client.loop_forever()
