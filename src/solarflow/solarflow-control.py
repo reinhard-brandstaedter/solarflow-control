@@ -129,6 +129,36 @@ class MyLocation:
 
         return (lat,lon)
 
+def on_config_message(client, userdata, msg):
+    global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME,BATTERY_LOW,BATTERY_HIGH
+    # handle own messages (control parameters)
+    if msg.topic.startswith('solarflow-hub') and "control" in msg.topic and msg.payload:
+        parameter = msg.topic.split('/')[-1]
+        value = msg.payload.decode()
+        match parameter:
+            case "sunriseOffset":
+                SUNRISE_OFFSET = int(value)
+                log.info(f'Found control/sunriseOffset, set SUNRISE_OFFSET to {SUNRISE_OFFSET} minutes')
+            case "sunsetOffset":
+                SUNSET_OFFSET = int(value)
+                log.info(f'Found control/sunsetOffset, set SUNSET_OFFSET to {SUNSET_OFFSET} minutes')
+            case "minChargePower":
+                MIN_CHARGE_POWER = int(value)
+                log.info(f'Found control/minChargePower, set MIN_CHARGE_POWER to {MIN_CHARGE_POWER}W')
+            case "maxDischargePower":
+                MAX_DISCHARGE_POWER = int(value)
+                log.info(f'Found control/maxDiscahrgePiwer, set MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER}W')
+            case "dischargeDuringDaytime":
+                DISCHARGE_DURING_DAYTIME = str2bool(value)
+                log.info(f'Found control/dischargeDuringDaytime, set DISCHARGE_DURING_DAYTIME to {DISCHARGE_DURING_DAYTIME}')
+            case "batteryTargetSoCMin":
+                BATTERY_LOW = int(value)
+                log.info(f'Found control/batteryTargetSoCMin, set BATTERY_LOW to {BATTERY_LOW}%')
+            case "batteryTargetSoCMax":
+                BATTERY_HIGH = int(value)
+                log.info(f'Found control/batteryTargetSoCMax, set BATTERY_HIGH to {BATTERY_HIGH}%')
+    
+
 def on_message(client, userdata, msg):
     global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME,BATTERY_LOW,BATTERY_HIGH
     #delegate message handling to hub,smartmeter, dtu
@@ -178,22 +208,6 @@ def on_message(client, userdata, msg):
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         log.info("Connected to MQTT Broker!")
-        subscribe()
-        hub = client._userdata['hub']
-
-        hub.subscribe()
-        hub.setBuzzer(False)
-        hub.setPvBrand(1)
-        hub.setInverseMaxPower(MAX_INVERTER_INPUT)
-        hub.setACMode()
-        
-        if hub.control_bypass:
-            hub.setBypass(False)
-            hub.setAutorecover(False)
-        inv = client._userdata['dtu']
-        inv.subscribe()
-        smt = client._userdata['smartmeter']
-        smt.subscribe()
     else:
         log.error("Failed to connect, return code %d\n", rc)
 
@@ -209,12 +223,13 @@ def connect_mqtt() -> mqtt_client:
         client.username_pw_set(mqtt_user, mqtt_pwd)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
+    client.on_message = on_config_message
     client.connect(mqtt_host, mqtt_port)
     return client
 
 def subscribe(client: mqtt_client):
     topics = [
-            f'solarflow-hub/+/control/#'
+            f'solarflow-hub/{sf_device_id}/control/#'
     ]
     for t in topics:
         client.subscribe(t)
@@ -527,17 +542,35 @@ def updateConfigParams(client):
 
 
 def run():
-    global BATTERY_HIGH, BATTERY_LOW
-    client = connect_mqtt()
     hub_opts = getOpts(solarflow.Solarflow)
-    hub = solarflow.Solarflow(client=client,callback=limit_callback,**hub_opts)
-
     dtuType = getattr(dtus, DTU_TYPE)
     dtu_opts = getOpts(dtuType)
-    dtu = dtuType(client=client,ac_limit=MAX_INVERTER_LIMIT,callback=limit_callback,**dtu_opts)
-
     smtType = getattr(smartmeters, SMT_TYPE)
     smt_opts = getOpts(smtType)
+
+    client = connect_mqtt()
+    subscribe(client=client)
+
+    log.info("Waiting for config settings retained in MQTT...")
+    client.loop_start()
+    time.sleep(10)
+    log.info("...done")
+    log.info("Control Parameters:")
+    log.info(f'  MIN_CHARGE_POWER = {MIN_CHARGE_POWER}')
+    log.info(f'  MAX_DISCHARGE_LEVEL = {MAX_DISCHARGE_POWER}')
+    log.info(f'  MAX_INVERTER_LIMIT = {MAX_INVERTER_LIMIT}')
+    log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
+    log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
+    log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
+    log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
+    log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
+    log.info(f'  BATTERY_DISCHARGE_START = {BATTERY_DISCHARGE_START}')
+    log.info(f'  DISCHARGE_DURING_DAYTIME = {DISCHARGE_DURING_DAYTIME}')
+
+    # if no config setting were found in MQTT (retained) then update config from config file
+    updateConfigParams(client)
+    hub = solarflow.Solarflow(client=client,callback=limit_callback,**hub_opts)
+    dtu = dtuType(client=client,ac_limit=MAX_INVERTER_LIMIT,callback=limit_callback,**dtu_opts)
     smt = smtType(client=client,callback=limit_callback, **smt_opts)
 
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
@@ -545,16 +578,12 @@ def run():
 
     infotimer = RepeatedTimer(120, deviceInfo, client)
 
-    client.loop_start()
-    log.info("Waiting for config settings retained in MQTT...")
-    time.sleep(5)
-    client.loop_stop()
-    # if no config setting were found in MQTT (retained) then update config from config file
-    updateConfigParams(client)
+    hub.subscribe()
+    dtu.subscribe()
+    smt.subscribe()
 
     hub.setBatteryHighSoC(BATTERY_HIGH)
     hub.setBatteryLowSoC(BATTERY_LOW)
-    client.loop_forever()
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
@@ -595,18 +624,6 @@ def main(argv):
         log.info(f'Solarflow Hub: {sf_product_id}/{sf_device_id}')
 
     log.info(f'Limit via inverter: {limit_inverter}')
-
-    log.info("Control Parameters:")
-    log.info(f'  MIN_CHARGE_POWER = {MIN_CHARGE_POWER}')
-    log.info(f'  MAX_DISCHARGE_LEVEL = {MAX_DISCHARGE_POWER}')
-    log.info(f'  MAX_INVERTER_LIMIT = {MAX_INVERTER_LIMIT}')
-    log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
-    log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
-    log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
-    log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
-    log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
-    log.info(f'  BATTERY_DISCHARGE_START = {BATTERY_DISCHARGE_START}')
-    log.info(f'  DISCHARGE_DURING_DAYTIME = {DISCHARGE_DURING_DAYTIME}')
 
     loc = MyLocation()
     if not LNG and not LAT:
