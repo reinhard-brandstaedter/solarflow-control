@@ -218,7 +218,7 @@ def on_disconnect(client, userdata, rc):
 
 def connect_mqtt() -> mqtt_client:
     client_id = f'solarflow-ctrl-{random.randint(0, 100)}'
-    client = mqtt_client.Client(client_id)
+    client = mqtt_client.Client(client_id=client_id, clean_session=False)
     if mqtt_user is not None and mqtt_pwd is not None:
         client.username_pw_set(mqtt_user, mqtt_pwd)
     client.on_connect = on_connect
