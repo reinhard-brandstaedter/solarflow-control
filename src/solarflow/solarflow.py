@@ -431,12 +431,8 @@ class Solarflow:
                     self.updBatterySoC(sn=sn, value=int(value))
                 case "minSoc":
                     self.updMinSoC(int(value))
-                case "batteryTargetSoCMin":
-                    self.updBatteryTargetSoCMin(int(value))
                 case "socSet":
                     self.updSocSet(int(value))
-                case "batteryTargetSoCMax":
-                    self.updBatteryTargetSoCMax(int(value))
                 case "totalVol":
                     sn = msg.topic.split('/')[-2]
                     self.updBatteryVol(sn=sn, value=int(value))
@@ -444,10 +440,6 @@ class Solarflow:
                     self.updMasterSoftVersion(value=int(value))
                 case "chargeThrough":
                     self.setChargeThrough(value)
-                case "controlBypass":
-                    self.setControlBypass(value)
-                case "fullChargeInterval":
-                    self.updFullChargeInterval(int(value))
                 case "dryRun":
                     self.setDryRun(value)
                 case "lastFullTimestamp":
