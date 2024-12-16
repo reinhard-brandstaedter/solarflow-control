@@ -125,6 +125,8 @@ class MyLocation:
         return (lat,lon)
 
 def on_config_message(client, userdata, msg):
+    '''The MQTT client callback function for intial connects - mainly retained messages, where we are not yet fully up and running but still read potential config parameters from MQTT'''
+
     global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME,BATTERY_LOW,BATTERY_HIGH
     # handle own messages (control parameters)
     if msg.topic.startswith('solarflow-hub') and "control" in msg.topic and msg.payload:
@@ -155,6 +157,8 @@ def on_config_message(client, userdata, msg):
     
 
 def on_message(client, userdata, msg):
+    '''The MQTT client callback function for continous oepration, messages are delegated to hub, dtu and smartmeter handlers as well as own control parameter updates'''
+
     global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME,BATTERY_LOW,BATTERY_HIGH
     #delegate message handling to hub,smartmeter, dtu
     smartmeter = userdata["smartmeter"]
@@ -463,6 +467,7 @@ def limitHomeInput(client: mqtt_client):
              Hub Limit: {hub_limit:.1f}W'.split()))
 
 def getOpts(configtype) -> dict:
+    '''Get the configuration options for a specific section from the global config.ini'''
     global config
     opts = {}
     for opt,opt_type in configtype.opts.items():
@@ -574,16 +579,31 @@ def run():
     smt = smtType(client=client,callback=limit_callback, **smt_opts)
 
     client.user_data_set({"hub":hub, "dtu":dtu, "smartmeter":smt})
+
+    # switch the callback function for received MQTT messages to the delegating function
     client.on_message = on_message
 
     infotimer = RepeatedTimer(120, deviceInfo, client)
 
+    # subscribe Hub, DTU and Smartmeter so that they can react on received messages
     hub.subscribe()
     dtu.subscribe()
     smt.subscribe()
 
+    # ensure that the hubs min/max battery levels are set upon startup according to configuration, adjustments will be done if required by CT mode
     hub.setBatteryHighSoC(BATTERY_HIGH)
     hub.setBatteryLowSoC(BATTERY_LOW)
+
+    # turn off the hub's buzzer (audio feedback for config settings change)
+    hub.setBuzzer(False)
+    # ensure hub's maximum inverter feed power is set according to configuration
+    hub.setInverseMaxPower(MAX_INVERTER_INPUT)
+    # ensure hub is in AC output mode
+    hub.setACMode()
+    # initially turn off bypass and disable auto-recover from bypass
+    if hub.control_bypass:
+        hub.setBypass(False)
+        hub.setAutorecover(False)
 
 def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
