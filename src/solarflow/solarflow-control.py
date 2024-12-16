@@ -548,8 +548,8 @@ def run():
     subscribe(client=client)
 
     log.info("Reading retained config settings from MQTT...")
-    log.info("Note: Solarflow Control persists initial configuration settings in your MQTT broker and will use those first (if found) to allow on-the-fly updates! \
-             If you want to override these values from your config.ini you need to clear those retained topics in your broker first!")
+    log.info("Note: Solarflow Control persists initial configuration settings in your MQTT broker and will use those first (if found) to allow on-the-fly updates!")
+    log.info("If you want to override these values from your config.ini you need to clear those retained topics in your broker first!")
     client.loop_start()
     time.sleep(10)
   
