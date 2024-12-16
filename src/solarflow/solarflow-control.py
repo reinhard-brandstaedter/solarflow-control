@@ -158,7 +158,6 @@ def on_config_message(client, userdata, msg):
 
 def on_message(client, userdata, msg):
     '''The MQTT client callback function for continous oepration, messages are delegated to hub, dtu and smartmeter handlers as well as own control parameter updates'''
-
     global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME,BATTERY_LOW,BATTERY_HIGH
     #delegate message handling to hub,smartmeter, dtu
     smartmeter = userdata["smartmeter"]
