@@ -173,16 +173,16 @@ def on_message(client, userdata, msg):
         value = msg.payload.decode()
         match parameter:
             case "sunriseOffset":
-                log.info(f'Updating SUNRISE_OFFSET to {SUNRISE_OFFSET} minutes') if SUNRISE_OFFSET != int(value) else None
+                log.info(f'Updating SUNRISE_OFFSET to {int(value)} minutes') if SUNRISE_OFFSET != int(value) else None
                 SUNRISE_OFFSET = int(value)
             case "sunsetOffset":
-                log.info(f'Updating SUNSET_OFFSET to {SUNSET_OFFSET} minutes') if SUNSET_OFFSET != int(value) else None
+                log.info(f'Updating SUNSET_OFFSET to {int(value)} minutes') if SUNSET_OFFSET != int(value) else None
                 SUNSET_OFFSET = int(value)
             case "minChargePower":
-                log.info(f'Updating MIN_CHARGE_POWER to {MIN_CHARGE_POWER}W') if MIN_CHARGE_POWER != int(value) else None
+                log.info(f'Updating MIN_CHARGE_POWER to {int(value)}W') if MIN_CHARGE_POWER != int(value) else None
                 MIN_CHARGE_POWER = int(value)
             case "maxDischargePower":
-                log.info(f'Updating MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER}W') if MAX_DISCHARGE_POWER != int(value) else None
+                log.info(f'Updating MAX_DISCHARGE_POWER to {int(value)}W') if MAX_DISCHARGE_POWER != int(value) else None
                 MAX_DISCHARGE_POWER = int(value) 
             case "controlBypass":
                 log.info(f'Updating control bypass to {value}')
@@ -191,14 +191,14 @@ def on_message(client, userdata, msg):
                 log.info(f'Updating full charge interval to {int(value)}hrs')
                 hub.updFullChargeInterval(int(value))
             case "dischargeDuringDaytime":
-                log.info(f'Updating DISCHARGE_DURING_DAYTIME to {DISCHARGE_DURING_DAYTIME}') if DISCHARGE_DURING_DAYTIME != str2bool(value) else None
+                log.info(f'Updating DISCHARGE_DURING_DAYTIME to {str2bool(value)}') if DISCHARGE_DURING_DAYTIME != str2bool(value) else None
                 DISCHARGE_DURING_DAYTIME = str2bool(value)
             case "batteryTargetSoCMin":
-                log.info(f'Updating BATTERY_LOW to {BATTERY_LOW}%') if BATTERY_LOW != int(value) else None
+                log.info(f'Updating BATTERY_LOW to {int(value)}%') if BATTERY_LOW != int(value) else None
                 BATTERY_LOW = int(value)
                 hub.updBatteryTargetSoCMin(BATTERY_LOW)
             case "batteryTargetSoCMax":
-                log.info(f'Updating BATTERY_HIGH to {BATTERY_HIGH}%') if BATTERY_HIGH != int(value) else None
+                log.info(f'Updating BATTERY_HIGH to {int(value)}%') if BATTERY_HIGH != int(value) else None
                 BATTERY_HIGH = int(value)
                 hub.updBatteryTargetSoCMax(BATTERY_HIGH)
         
