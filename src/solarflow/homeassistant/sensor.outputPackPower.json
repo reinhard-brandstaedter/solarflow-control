@@ -1,5 +1,4 @@
 {
-    "expire_after": 300,
     "name": "Output Pack Power",
     "stat_t": "~outputPackPower",
     "uniq_id": "{{ device_id }}-outputPackPower",
