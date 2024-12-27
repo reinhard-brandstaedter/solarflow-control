@@ -1,12 +1,12 @@
 {
     "expire_after": 300,
-    "name": "Battery Maximal Voltage CO4HLMEMA802003",
-    "stat_t": "~batteries/CO4HLMEMA802003/maxVol",
-    "uniq_id": "{{ device_id }}-batteries-CO4HLMEMA802003maxVol",
+    "name": "Battery {{battery_index}} Maximal Voltage",
+    "stat_t": "~maxVol",
+    "value_template": "{% raw %}{% if value | int > 0 %}{{ value | multiply(0.01) |round(3)| float }}{% else %}{% endif %}{% endraw %}",
+    "uniq_id": "{{ device_id }}-{{ battery_serial }}-maxVol",
+    "unit_of_meas": "V",
     "dev_cla": "voltage",
     "state_class": "measurement",
-    "value_template": "{% raw %}{% if value | int > 0 %}{{ value | multiply(0.01) |round(3)| float }}{% else %}{% endif %}{% endraw %}",
-    "unit_of_meas": "V",
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",
@@ -14,5 +14,5 @@
       "name": "Solarflow Hub",
       "sw_version": "{{ fw_version }}"
     },
-    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+    "~": "solarflow-hub/{{ device_id }}/telemetry/batteries/{{ battery_serial }}/"
 }

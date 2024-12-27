@@ -1,12 +1,12 @@
 {
     "expire_after": 300,
-    "name": "Battery Minimal Voltage CO4HLMEMA802003",
-    "stat_t": "~batteries/CO4HLMEMA802003/minVol",
-    "uniq_id": "{{ device_id }}-batteries-CO4HLMEMA802003minVol",
+    "name": "Battery {{battery_index}} Minimal Voltage",
+    "stat_t": "~minVol",
+    "value_template": "{% raw %}{% if value | int > 0 %}{{ value | multiply(0.01) |round(3)| float }}{% else %}{% endif %}{% endraw %}",
+    "uniq_id": "{{ device_id }}-{{ battery_serial }}-minVol",
+    "unit_of_meas": "V",
     "dev_cla": "voltage",
     "state_class": "measurement",
-    "value_template": "{% raw %}{% if value | int > 0 %}{{ value | multiply(0.01) |round(3)| float }}{% else %}{% endif %}{% endraw %}",
-    "unit_of_meas": "V",
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",
@@ -14,5 +14,5 @@
       "name": "Solarflow Hub",
       "sw_version": "{{ fw_version }}"
     },
-    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+    "~": "solarflow-hub/{{ device_id }}/telemetry/batteries/{{ battery_serial }}/"
 }
