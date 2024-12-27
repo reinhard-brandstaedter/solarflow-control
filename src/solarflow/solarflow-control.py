@@ -129,7 +129,7 @@ def on_config_message(client, userdata, msg):
 
     global SUNRISE_OFFSET, SUNSET_OFFSET, MIN_CHARGE_POWER, MAX_DISCHARGE_POWER, DISCHARGE_DURING_DAYTIME,BATTERY_LOW,BATTERY_HIGH
     # handle own messages (control parameters)
-    if msg.topic.startswith('solarflow-hub') and "control" in msg.topic and msg.payload:
+    if msg.topic.startswith('solarflow-hub') and "/control/" in msg.topic and msg.payload:
         parameter = msg.topic.split('/')[-1]
         value = msg.payload.decode()
         match parameter:
@@ -154,6 +154,8 @@ def on_config_message(client, userdata, msg):
             case "batteryTargetSoCMax":
                 BATTERY_HIGH = int(value)
                 log.info(f'Found control/batteryTargetSoCMax, set BATTERY_HIGH to {BATTERY_HIGH}%')
+            case _:
+                log.info(f"Unknown config: {parameter}={value}")
     
 
 def on_message(client, userdata, msg):
@@ -530,7 +532,8 @@ def updateConfigParams(client):
         client.publish(f'solarflow-hub/{sf_device_id}/control/maxDischargePower',MAX_DISCHARGE_POWER,retain=True)
 
     if BATTERY_LOW == None:
-        BATTERY_LOW = config.getint('control', 'battery_low', fallback=None) or int(os.environ.get('BATTERY_LOW',2)) 
+        BATTERY_LOW = config.getint('control', 'battery_low', fallback=None) 
+        #or int(os.environ.get('BATTERY_LOW',2)) 
         log.info(f'Updating BATTERY_LOW from config file to {BATTERY_LOW}%')
         client.publish(f'solarflow-hub/{sf_device_id}/control/batteryTargetSoCMin',BATTERY_LOW,retain=True)
 

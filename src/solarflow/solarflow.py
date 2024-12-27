@@ -82,7 +82,7 @@ class Solarflow:
         client.publish(f'solarflow-hub/{self.deviceId}/control/fullChargeInterval',self.fullChargeInterval,retain=True)
 
         updater = RepeatedTimer(60, self.update)
-        haconfig = RepeatedTimer(600, self.pushHomeassistantConfig)
+        haconfig = RepeatedTimer(180, self.pushHomeassistantConfig)
         self.pushHomeassistantConfig()
         self.update()
 
