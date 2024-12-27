@@ -1,5 +1,5 @@
 {
-    "name": "Bypass Mode upstream",
+    "name": "Bypass Mode",
     "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
     "cmd_tpl": "{\"properties\": {\"passMode\": {% raw %}{{ 0 if value=='Auto' else (1 if value=='Off' else (2 if value=='On')) }}{% endraw %} }}",
     "stat_t": "~passMode",
