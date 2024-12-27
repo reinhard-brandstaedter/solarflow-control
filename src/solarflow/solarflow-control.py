@@ -154,9 +154,7 @@ def on_config_message(client, userdata, msg):
             case "batteryTargetSoCMax":
                 BATTERY_HIGH = int(value)
                 log.info(f'Found control/batteryTargetSoCMax, set BATTERY_HIGH to {BATTERY_HIGH}%')
-            case _:
-                log.info(f"Unknown config: {parameter}={value}")
-    
+
 
 def on_message(client, userdata, msg):
     '''The MQTT client callback function for continous oepration, messages are delegated to hub, dtu and smartmeter handlers as well as own control parameter updates'''
