@@ -384,19 +384,25 @@ class Solarflow:
         # transform the original messages sent by the SF hub into a better readable format
         if self.productId in msg.topic:
             device_id = msg.topic.split('/')[2]
-            payload = json.loads(msg.payload.decode())
-            if "properties" in payload:
-                props = payload["properties"]
-                for prop, val in props.items():
-                    self.client.publish(f'solarflow-hub/{device_id}/telemetry/{prop}',val)
+            try:
+                payload = json.loads(msg.payload.decode())
+                if "properties" in payload:
+                    props = payload["properties"]
+                    for prop, val in props.items():
+                        self.client.publish(f'solarflow-hub/{device_id}/telemetry/{prop}',val)
 
-            if "packData" in payload:
-                packdata = payload["packData"]
-                if len(packdata) > 0:
-                    for pack in packdata:
-                        sn = pack.pop('sn')
-                        for prop, val in pack.items():
-                            self.client.publish(f'solarflow-hub/{device_id}/telemetry/batteries/{sn}/{prop}',val)
+                if "packData" in payload:
+                    packdata = payload["packData"]
+                    if len(packdata) > 0:
+                        for pack in packdata:
+                            sn = pack.pop('sn')
+                            for prop, val in pack.items():
+                                self.client.publish(f'solarflow-hub/{device_id}/telemetry/batteries/{sn}/{prop}',val)
+            except json.JSONDecodeError as e:
+                log.error(f'Failed to decode JSON from payload {msg.payload.decode()} at {msg.topic}: {e}')
+            except Exception as e:
+                log.error(f'An unexpected error occurred while decoding message from MQTT {msg.payload.decode()} at {msg.topic}: {e}')
+
 
         if msg.topic.startswith('solarflow-hub') and msg.payload:
             # check if we got regular updates on solarInputPower
