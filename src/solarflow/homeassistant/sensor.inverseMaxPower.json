@@ -1,4 +1,5 @@
 {
+    "expire_after": 300,
     "name": "Max Inverter Output Power",
     "stat_t": "~inverseMaxPower",
     "uniq_id": "{{ device_id }}-inverseMaxPower",

@@ -82,7 +82,7 @@ class Solarflow:
         client.publish(f'solarflow-hub/{self.deviceId}/control/fullChargeInterval',self.fullChargeInterval,retain=True)
 
         updater = RepeatedTimer(60, self.update)
-        haconfig = RepeatedTimer(600, self.pushHomeassistantConfig)
+        haconfig = RepeatedTimer(180, self.pushHomeassistantConfig)
         self.pushHomeassistantConfig()
         self.update()
 
@@ -148,10 +148,11 @@ class Solarflow:
             template = environment.get_template(hatemplate.name)
             cfg_type = hatemplate.name.split(".")[0]
             cfg_name = hatemplate.name.split(".")[1]
-            if cfg_name == "maxTemp" or cfg_name == "totalVol" or cfg_name == "soh":
+            if "battery_" in cfg_name: # any config related to battery gets looped over all batteries
+                cfg_name=cfg_name[len("battery_"):] # remove prefix for compability
                 for index, (serial,v) in enumerate(self.batteriesVol.items()):
                     hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion, battery_serial=serial, battery_index=index+1)
-                    if serial != "none":
+                    if serial != "none": # at start we dont know the serial
                         self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{serial}-{cfg_name}/config',hacfg,retain=True)
             else:
                 hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion)
@@ -440,6 +441,8 @@ class Solarflow:
                     self.updMasterSoftVersion(value=int(value))
                 case "chargeThrough":
                     self.setChargeThrough(value)
+                case "controlBypass":
+                    self.setControlBypass(value)
                 case "dryRun":
                     self.setDryRun(value)
                 case "lastFullTimestamp":
