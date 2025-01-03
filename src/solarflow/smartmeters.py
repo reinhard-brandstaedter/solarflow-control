@@ -89,20 +89,26 @@ class Smartmeter:
 
     def handleMsg(self, msg):
         if msg.topic.startswith(self.base_topic) and msg.payload:
-            payload = json.loads(msg.payload.decode())
+            try:
+                payload = json.loads(msg.payload.decode())
 
-            if type(payload) is float or type(payload) is int:
-                self.phase_values.update({msg.topic:payload * self.scaling_factor})
-                self.updPower()
-            if type(payload) is dict:
-                try: 
-                    value = deep_get(payload,self.cur_accessor)
-                except:
-                    log.error(f'Could not get value from topic payload: {sys.exc_info()}')
-
-                if value:
-                    self.phase_values.update({msg.topic:value * self.scaling_factor})
+                if type(payload) is float or type(payload) is int:
+                    self.phase_values.update({msg.topic:payload * self.scaling_factor})
                     self.updPower()
+                if type(payload) is dict:
+                    try: 
+                        value = deep_get(payload,self.cur_accessor)
+                    except:
+                        log.error(f'Could not get value from topic payload: {sys.exc_info()}')
+
+                    if value:
+                        self.phase_values.update({msg.topic:value * self.scaling_factor})
+                        self.updPower()
+            except json.JSONDecodeError as e:
+                log.error(f'Failed to decode JSON from payload {msg.payload.decode()} at {msg.topic}: {e}')
+            except Exception as e:
+                log.error(f'An unexpected error occurred while decoding message from MQTT {msg.payload.decode()} at {msg.topic}: {e}')
+
 
     def getPower(self):
         return self.power.last()
