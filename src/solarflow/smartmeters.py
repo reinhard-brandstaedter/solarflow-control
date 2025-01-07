@@ -17,7 +17,14 @@ log = logging.getLogger("")
 
 
 class Smartmeter:
-    opts = {"base_topic": str, "cur_accessor": str, "total_accessor": str, "rapid_change_diff": int, "zero_offset": int, "scaling_factor": int}
+    opts = {
+        "base_topic": str,
+        "cur_accessor": str,
+        "total_accessor": str,
+        "rapid_change_diff": int,
+        "zero_offset": int,
+        "scaling_factor": int,
+    }
 
     def default_calllback(self):
         log.info("default callback")
@@ -50,9 +57,7 @@ class Smartmeter:
 
     def __str__(self):
         return " ".join(
-            f"{green}SMT: \
-                        T:{self.__class__.__name__} \
-                        P:{sum(self.phase_values.values()):>3.1f}W {self.power}{reset}".split()
+            f"{green}SMT: T:{self.__class__.__name__} P:{sum(self.phase_values.values()):>3.1f}W {self.power}{reset}".split()
         )
 
     def subscribe(self):
@@ -86,7 +91,10 @@ class Smartmeter:
         # self.power.add(phase_sum if phase_sum < 1000 else 1000)
         self.power.add(phase_sum)
         self.client.publish("solarflow-hub/smartmeter/homeUsage", int(round(phase_sum)))
-        self.client.publish("solarflow-hub/smartmeter/homeUsageSmoothened", int(round(self.power.last())))
+        self.client.publish(
+            "solarflow-hub/smartmeter/homeUsageSmoothened",
+            int(round(self.power.last())),
+        )
 
         # TODO: experimental, trigger limit calculation only on significant changes of smartmeter
         previous = self.getPreviousPower()
@@ -114,15 +122,23 @@ class Smartmeter:
                     try:
                         value = deep_get(payload, self.cur_accessor)
                     except:
-                        log.error(f"Could not get value from topic payload: {sys.exc_info()}")
+                        log.error(
+                            f"Could not get value from topic payload: {sys.exc_info()}"
+                        )
 
                     if value:
-                        self.phase_values.update({msg.topic: value * self.scaling_factor})
+                        self.phase_values.update(
+                            {msg.topic: value * self.scaling_factor}
+                        )
                         self.updPower()
             except json.JSONDecodeError as e:
-                log.error(f"Failed to decode JSON from payload {msg.payload.decode()} at {msg.topic}: {e}")
+                log.error(
+                    f"Failed to decode JSON from payload {msg.payload.decode()} at {msg.topic}: {e}"
+                )
             except Exception as e:
-                log.error(f"An unexpected error occurred while decoding message from MQTT {msg.payload.decode()} at {msg.topic}: {e}")
+                log.error(
+                    f"An unexpected error occurred while decoding message from MQTT {msg.payload.decode()} at {msg.topic}: {e}"
+                )
 
     def getPower(self):
         return self.power.last()
@@ -133,7 +149,12 @@ class Smartmeter:
 
 class Poweropti(Smartmeter):
     POWEROPTI_API = "https://backend.powerfox.energy/api/2.0/my/main/current"
-    opts = {"poweropti_user": str, "poweropti_password": str, "rapid_change_diff": int, "zero_offset": int}
+    opts = {
+        "poweropti_user": str,
+        "poweropti_password": str,
+        "rapid_change_diff": int,
+        "zero_offset": int,
+    }
 
     def __init__(
         self,
@@ -183,7 +204,14 @@ class Poweropti(Smartmeter):
 class ShellyEM3(Smartmeter):
     opts = {"base_topic": str, "rapid_change_diff": int, "zero_offset": int}
 
-    def __init__(self, client: mqtt_client, base_topic: str, rapid_change_diff: int = 500, zero_offset: int = 0, callback=Smartmeter.default_calllback):
+    def __init__(
+        self,
+        client: mqtt_client,
+        base_topic: str,
+        rapid_change_diff: int = 500,
+        zero_offset: int = 0,
+        callback=Smartmeter.default_calllback,
+    ):
         self.client = client
         self.base_topic = base_topic
         self.power = TimewindowBuffer(minutes=1)
@@ -196,7 +224,11 @@ class ShellyEM3(Smartmeter):
         log.info(f"Using {type(self).__name__}: Base topic: {self.base_topic}")
 
     def subscribe(self):
-        topics = [f"{self.base_topic}/emeter/0/power", f"{self.base_topic}/emeter/1/power", f"{self.base_topic}/emeter/2/power"]
+        topics = [
+            f"{self.base_topic}/emeter/0/power",
+            f"{self.base_topic}/emeter/1/power",
+            f"{self.base_topic}/emeter/2/power",
+        ]
         for t in topics:
             self.client.subscribe(t)
             log.info(f"Shelly3EM subscribing: {t}")
@@ -205,7 +237,14 @@ class ShellyEM3(Smartmeter):
 class VZLogger(Smartmeter):
     opts = {"cur_usage_topic": str, "rapid_change_diff": int, "zero_offset": int}
 
-    def __init__(self, client: mqtt_client, cur_usage_topic: str, rapid_change_diff: int = 500, zero_offset: int = 0, callback=Smartmeter.default_calllback):
+    def __init__(
+        self,
+        client: mqtt_client,
+        cur_usage_topic: str,
+        rapid_change_diff: int = 500,
+        zero_offset: int = 0,
+        callback=Smartmeter.default_calllback,
+    ):
         self.client = client
         self.base_topic = cur_usage_topic
         self.power = TimewindowBuffer(minutes=1)
