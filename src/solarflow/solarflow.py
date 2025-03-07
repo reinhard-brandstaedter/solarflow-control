@@ -223,8 +223,8 @@ class Solarflow:
                 log.info(f'Bypass control, turning on bypass!')
                 self.setBypass(True)
                 self.allow_bypass = False
-
-            self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',batteryTarget,retain=True)
+            
+            self.publishBatteryTarget(batteryTarget)
 
         self.electricLevel = value
 
@@ -625,6 +625,9 @@ class Solarflow:
         self.inverseMaxPower = value
         return value
     
+    def publishBatteryTarget(self, batteryTarget:str):
+        self.client.publish(f'solarflow-hub/{self.deviceId}/control/batteryTarget',batteryTarget,retain=True)
+
     def setPvBrand(self, brand:int = 1):
         brand_str = INVERTER_BRAND.get(brand,f'Unkown [{brand}]')
         payload = {"properties": { "pvBrand": brand }}

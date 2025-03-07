@@ -315,6 +315,7 @@ def getSFPowerLimit(hub, demand) -> int:
         ts = int(time.time())
         log.info(f'Syncing time of solarflow hub (UTC): {datetime.fromtimestamp(ts).strftime("%Y-%m-%d, %H:%M:%S")}')
         hub.timesync(ts)
+        hub.publishBatteryTarget(solarflow.BATTERY_TARGET_CHARGING)
 
         # sometimes bypass resets to default (auto)
         if hub.control_bypass:
