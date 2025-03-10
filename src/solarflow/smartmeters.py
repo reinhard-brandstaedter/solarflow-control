@@ -176,6 +176,29 @@ class ShellyEM3(Smartmeter):
             self.client.subscribe(t)
             log.info(f'Shelly3EM subscribing: {t}')
 
+class ShellyPro3EM(Smartmeter):
+    opts = {"base_topic":str, "rapid_change_diff":int, "zero_offset": int, "cur_accessor":str}
+
+    def __init__(self, client: mqtt_client, base_topic:str, cur_accessor:str, rapid_change_diff:int = 500, zero_offset:int = 0, callback = Smartmeter.default_calllback):
+        self.client = client
+        self.base_topic = base_topic
+        self.power = TimewindowBuffer(minutes=1)
+        self.phase_values = {}
+        self.rapid_change_diff = rapid_change_diff
+        self.zero_offset = zero_offset
+        self.last_trigger_value = 0
+        self.trigger_callback = callback
+        self.scaling_factor = 1
+        self.cur_accessor = cur_accessor
+
+        log.info(f'Using {type(self).__name__}: Base topic: {self.base_topic}')
+
+    def subscribe(self):
+        topics = [f'{self.base_topic}/status/em:0']
+        for t in topics:
+            self.client.subscribe(t)
+            log.info(f'ShellyPro3EM subscribing: {t}')
+
 class VZLogger(Smartmeter):
     opts = {"cur_usage_topic":str, "rapid_change_diff":int, "zero_offset": int}
 
