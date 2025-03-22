@@ -6,7 +6,9 @@
   "unit_of_meas": "%",
   "dev_cla": "battery",
   "dev": {
-    "identifiers": ["{{ device_id }}"],
+    "identifiers": [
+      "{{ device_id }}"
+    ],
     "manufacturer": "Zendure",
     "model": "Solarflow",
     "name": "Solarflow Hub",

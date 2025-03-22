@@ -1,20 +1,22 @@
 {
-    "expire_after": 300,
-    "name": "Battery {{battery_index}} Maximal Voltage",
-    "stat_t": "~maxVol",
-    "value_template": "{% raw %}{% if value | int > 0 %}{{ value | multiply(0.01) |round(3)| float }}{% else %}{% endif %}{% endraw %}",
-    "uniq_id": "{{ device_id }}-{{ battery_serial }}-maxVol",
-    "unit_of_meas": "V",
-    "suggested_display_precision": 2,
-    "icon": "mdi:battery-arrow-up-outline",
-    "dev_cla": "voltage",
-    "state_class": "measurement",
-    "dev": {
-      "identifiers": ["{{ device_id }}"],
-      "manufacturer": "Zendure",
-      "model": "Solarflow",
-      "name": "Solarflow Hub",
-      "sw_version": "{{ fw_version }}"
-    },
-    "~": "solarflow-hub/{{ device_id }}/telemetry/batteries/{{ battery_serial }}/"
+  "expire_after": 300,
+  "name": "Battery {{battery_index}} Maximal Voltage",
+  "stat_t": "~maxVol",
+  "value_template": "{% raw %}{% if value | int > 0 %}{{ value | multiply(0.01) |round(3)| float }}{% else %}{% endif %}{% endraw %}",
+  "uniq_id": "{{ device_id }}-{{ battery_serial }}-maxVol",
+  "unit_of_meas": "V",
+  "suggested_display_precision": 2,
+  "icon": "mdi:battery-arrow-up-outline",
+  "dev_cla": "voltage",
+  "state_class": "measurement",
+  "dev": {
+    "identifiers": [
+      "{{ device_id }}"
+    ],
+    "manufacturer": "Zendure",
+    "model": "Solarflow",
+    "name": "Solarflow Hub",
+    "sw_version": "{{ fw_version }}"
+  },
+  "~": "solarflow-hub/{{ device_id }}/telemetry/batteries/{{ battery_serial }}/"
 }
