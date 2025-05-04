@@ -489,8 +489,8 @@ def limit_callback(client: mqtt_client,force=False):
         elapsed = now - lastTriggerTS
         # ensure the limit function is not called too often (avoid flooding DTUs)
         if elapsed.total_seconds() >= steering_interval or force:
-            if force and not dtu.hasPendingUpdate():
-                log.info(f'Force update of inverter limit, last update was {lastTriggerTS.strftime("%Y-%m-%d %H:%M:%S")}')
+            if force and dtu.hasPendingUpdate():
+                log.info(f'Force update blocked due to pending DTU update!')
                 return False  
             
             lastTriggerTS = now
