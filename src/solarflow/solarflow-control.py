@@ -315,6 +315,7 @@ def getSFPowerLimit(hub, demand) -> int:
         ts = int(time.time())
         log.info(f'Syncing time of solarflow hub (UTC): {datetime.fromtimestamp(ts).strftime("%Y-%m-%d, %H:%M:%S")}')
         hub.timesync(ts)
+        hub.publishBatteryTarget(solarflow.BATTERY_TARGET_CHARGING)
 
         # sometimes bypass resets to default (auto)
         if hub.control_bypass:
@@ -346,7 +347,7 @@ def limitHomeInput(client: mqtt_client):
     # ensure we have data to work on
     if not(hub.ready() and inv.ready() and smt.ready()):
         return
-
+    
     inv_limit = inv.getLimit()
     hub_limit = hub.getLimit()
     direct_limit = None
@@ -481,15 +482,21 @@ def getOpts(configtype) -> dict:
 
 def limit_callback(client: mqtt_client,force=False):
     global lastTriggerTS
+    dtu = client._userdata['dtu']
     #log.info("Smartmeter Callback!")
     now = datetime.now()
     if lastTriggerTS:
         elapsed = now - lastTriggerTS
         # ensure the limit function is not called too often (avoid flooding DTUs)
         if elapsed.total_seconds() >= steering_interval or force:
+            if force and dtu.hasPendingUpdate():
+                log.info(f'Force update blocked due to pending DTU update!')
+                return False  
+            
             lastTriggerTS = now
             limitHomeInput(client)
             return True
+
         else:
             return False
     else:
