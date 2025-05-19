@@ -1,5 +1,6 @@
 from paho.mqtt import client as mqtt_client
 from functools import reduce
+from datetime import datetime
 import logging
 import math
 import sys
@@ -50,7 +51,9 @@ class DTU:
         self.trigger_callback = callback
         self.last_trigger_value = 0
         self.efficiency = 95.0
-
+        self.acUpdateTS = datetime.min
+        self.lastLimitTimestamp = datetime.min
+    
     def __str__(self):
         chPower = "|".join([f"{v:>3.1f}" for v in self.channelsDCPower][1:])
         return " ".join(
@@ -75,6 +78,7 @@ class DTU:
             self.channelsDCPower.append(value)
         if len(self.channelsDCPower) > channel:
             if channel == 0:
+                self.acUpdateTS = datetime.now()
                 self.acPower.add(value)
             self.channelsDCPower[channel] = value
 
@@ -215,10 +219,11 @@ class DTU:
                 (self.acLimit / self.getNrDirectChannels()) * self.getNrTotalChannels()
             )
         else:
-            return int(
-                (self.acLimit / self.getNrProducingChannels())
-                * self.getNrTotalChannels()
-            )
+            return int((self.acLimit/self.getNrProducingChannels()) * self.getNrTotalChannels())
+    
+    def hasPendingUpdate(self) -> bool:
+        log.info(f'Pending Update: {self.lastLimitTimestamp > self.acUpdateTS} - Last limit update: {self.lastLimitTimestamp}, AC update: {self.acUpdateTS}')
+        return self.lastLimitTimestamp > self.acUpdateTS
 
     def setLimit(self, limit: int):
         # failsafe, never set the inverter limit to 0, keep a minimum
@@ -281,22 +286,14 @@ class DTU:
             # only increase inverter limit a little bit
             inv_limit = self.limitAbsolute + 2
             withinRange = 0
-            log.info(
-                f"Current inverter AC output ({self.getCurrentACPower():.0f}W) is close to the configured AC output limit ({self.acLimit:.0f}W), slow limit increase to {inv_limit:.0f}W"
-            )
-
-        # if self.limitAbsolute != inv_limit and self.reachable:
-        if (
-            not self.isWithin(inv_limit, self.limitAbsolute, withinRange)
-            and self.reachable
-        ):
-            (not self.dryrun) and self.client.publish(
-                self.limit_nonpersistent_absolute, f"{inv_limit}{self.limit_unit}"
-            )
-            # log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
-            log.info(
-                f"{'[DRYRUN] ' if self.dryrun else ''}Setting inverter output limit to {inv_limit}W (1 min moving average of {limit}W x {len(self.channelsDCPower) - 1})"
-            )
+            log.info(f'Current inverter AC output ({self.getCurrentACPower():.0f}W) is close to the configured AC output limit ({self.acLimit:.0f}W), slow limit increase to {inv_limit:.0f}W') 
+        
+        #if self.limitAbsolute != inv_limit and self.reachable:
+        if not self.isWithin(inv_limit,self.limitAbsolute,withinRange) and self.reachable:
+            self.lastLimitTimestamp = datetime.now()
+            (not self.dryrun) and self.client.publish(self.limit_nonpersistent_absolute,f'{inv_limit}{self.limit_unit}')
+            #log.info(f'Setting inverter output limit to {inv_limit} W ({limit} x 1 / ({len(self.sf_inverter_channels)}/{len(self.channelsDCPower)-1})')
+            log.info(f'{"[DRYRUN] " if self.dryrun else ""}Setting inverter output limit to {inv_limit}W (1 min moving average of {limit}W x {len(self.channelsDCPower)-1})')
         else:
             not self.reachable and log.info(
                 f"{'[DRYRUN] ' if self.dryrun else ''}Inverter is not reachable/down. Can't set limit"
