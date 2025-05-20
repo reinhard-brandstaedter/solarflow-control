@@ -12,6 +12,9 @@ import dtus
 import smartmeters
 from utils import RepeatedTimer, str2bool
 
+blue = "\x1b[34;20m"
+reset = "\x1b[0m"
+
 FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
 logging.basicConfig(stream=sys.stdout, level="INFO", format=FORMAT)
 log = logging.getLogger("")
@@ -290,14 +293,14 @@ def getSFPowerLimit(hub, demand) -> int:
             path += "2."
             if ((now < (sunrise + sunrise_off) or now > sunset - sunset_off) or DISCHARGE_DURING_DAYTIME): 
                 path += "1."
-                # FEAT: we should not allow discharging in the sunrise window if battery is still below a certain threshold
+                # FEAT: we should not allow discharging in the sunrise window if battery has not yet charged a certain amount
                 # e.g. if the battery has just started charging do not discharge it again immediately
-                if (sunrise < now < (sunrise + sunrise_off)) and hub_electricLevel <= BATTERY_DISCHARGE_START and hub.batteryTarget != solarflow.BATTERY_TARGET_DISCHARGING:
-                    path += "1."
-                    limit = 0
-                else:
+                if (hub_electricLevel > hub.batteryLow or hub.daySoCIncrease >= BATTERY_DISCHARGE_START) and hub.batteryTarget != solarflow.BATTERY_TARGET_DISCHARGING:
                     path += "2."
                     limit = min(demand,MAX_DISCHARGE_POWER)
+                else:
+                    path += "1."
+                    limit = 0
             else:
                 path += "2."  
                 #limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 and hub.getElectricLevel() < 100 else hub_solarpower - MIN_CHARGE_POWER                                   
@@ -343,6 +346,7 @@ def limitHomeInput(client: mqtt_client):
     log.info(f'{inv}')
     smt = client._userdata['smartmeter']
     log.info(f'{smt}')
+    log.info(f'{blue}SFC: BatteryTarget: {hub.batteryTarget}, SoC at sunrise: {hub.sunriseSoC}, SoC increase: {hub.daySoCIncrease}{reset}')
 
     # ensure we have data to work on
     if not(hub.ready() and inv.ready() and smt.ready()):

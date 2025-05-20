@@ -71,8 +71,9 @@ class Solarflow:
         self.chargeThrough = False
         self.chargeThroughStage = BATTERY_TARGET_IDLE
         self.dryrun = False
-        self.sunriseSoC = None
-        self.sunsetSoC = None
+        self.sunriseSoC = 0
+        self.sunsetSoC = 0
+        self.daySoCIncrease = 0
         self.nightConsumption = 100
         self.trigger_callback = callback
 
@@ -91,7 +92,7 @@ class Solarflow:
         batteries_vol = "|".join([f'{v:2.1f}' for v in self.batteriesVol.values()])
         return ' '.join(f'{red}HUB: \
                         S:{self.solarInputPower:>3.1f}W {self.solarInputValues}, \
-                        B:{self.electricLevel:>3}% ({batteries_soc}) low: {self.batteryLow} high: {self.batteryHigh}, \
+                        B:{self.electricLevel:>3}% ({batteries_soc}) low: {self.batteryLow} high: {self.batteryHigh} target: {self.batteryTarget}, \
                         V:{(sum(self.batteriesVol.values()) / len(self.batteriesVol)):2.1f}V ({batteries_vol}), \
                         C:{self.outputPackPower-self.packInputPower:>4}W, \
                         P:{self.getBypass()} ({"auto" if self.bypass_mode == 0 else "manual"}, {"possible" if self.allow_bypass else "not possible"}), \
@@ -227,6 +228,8 @@ class Solarflow:
             self.publishBatteryTarget(batteryTarget)
 
         self.electricLevel = value
+        if self.electricLevel > self.sunriseSoC:
+            self.daySoCIncrease = max(self.daySoCIncrease,self.electricLevel-self.sunriseSoC)
 
     def processRequestedChargeThrough(self) -> bool:
         if self.chargeThroughRequested and self.batteryTargetSoCMax >= 0 and self.batteryTargetSoCMin >= 0:
