@@ -295,7 +295,7 @@ def getSFPowerLimit(hub, demand) -> int:
                 path += "1."
                 # FEAT: we should not allow discharging in the sunrise window if battery has not yet charged a certain amount
                 # e.g. if the battery has just started charging do not discharge it again immediately
-                if (hub_electricLevel > hub.batteryLow or hub.daySoCIncrease >= BATTERY_DISCHARGE_START) and hub.batteryTarget != solarflow.BATTERY_TARGET_DISCHARGING:
+                if (hub_electricLevel > hub.batteryLow or hub.daySoCIncrease >= BATTERY_DISCHARGE_START):
                     path += "3."
                     limit = min(demand,MAX_DISCHARGE_POWER)
                 elif now > sunset - sunset_off:
@@ -335,6 +335,9 @@ def getSFPowerLimit(hub, demand) -> int:
 
         # check if we should run a full charge cycle today
         hub.checkChargeThrough(daylight)
+
+        # reset the dayly SoC increase
+        hub.resetSocIncrease()
 
     log.info(f'Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.getBypass()}), hub could contribute {limit:4.1f}W - Decision path: {path}')
     return int(limit)

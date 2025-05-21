@@ -379,6 +379,9 @@ class Solarflow:
     def setSunsetSoC(self, soc:int):
         self.sunsetSoC = soc
 
+    def resetSocIncrease(self):
+        self.daySoCIncrease = 0
+
     def getNightConsumption(self):
         return self.nightConsumption
 
