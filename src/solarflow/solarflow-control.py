@@ -298,7 +298,7 @@ def getSFPowerLimit(hub, demand) -> int:
                 if (hub_electricLevel > hub.batteryLow and hub.daySoCIncrease >= BATTERY_DISCHARGE_START):
                     path += "3."
                     limit = min(demand,MAX_DISCHARGE_POWER)
-                if now > sunset - sunset_off:
+                elif now > sunset - sunset_off:
                     path += "2."
                     limit = min(demand,MAX_DISCHARGE_POWER)
                 else:
