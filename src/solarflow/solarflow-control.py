@@ -291,23 +291,22 @@ def getSFPowerLimit(hub, demand) -> int:
                 limit = min(demand,hub_solarpower - MIN_CHARGE_POWER)
         if hub_solarpower - demand <= MIN_CHARGE_POWER:  
             path += "2."
-            if ((now < (sunrise + sunrise_off) or now > sunset - sunset_off) or DISCHARGE_DURING_DAYTIME): 
+            # ensure the hub has at least charged a bit today already before considering discharge
+            if hub_electricLevel > hub.batteryLow and hub.daySoCIncrease >= BATTERY_DISCHARGE_START:
                 path += "1."
-                # FEAT: we should not allow discharging in the sunrise window if battery has not yet charged a certain amount
-                # e.g. if the battery has just started charging do not discharge it again immediately
-                if (hub_electricLevel > hub.batteryLow and hub.daySoCIncrease >= BATTERY_DISCHARGE_START):
-                    path += "3."
-                    limit = min(demand,MAX_DISCHARGE_POWER)
-                elif now > sunset - sunset_off:
-                    path += "2."
-                    limit = min(demand,MAX_DISCHARGE_POWER)
-                else:
+                limit = 0
+                if DISCHARGE_DURING_DAYTIME:
                     path += "1."
-                    limit = 0
+                    limit = min(demand,MAX_DISCHARGE_POWER)
+                # night time
+                if now < (sunrise + sunrise_off) or now > (sunset - sunset_off):
+                    path += "1."
+                    limit = min(demand,MAX_DISCHARGE_POWER)
+            # battery has not yet charged today
             else:
-                path += "2."  
-                #limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 and hub.getElectricLevel() < 100 else hub_solarpower - MIN_CHARGE_POWER                                   
-                limit = 0 if hub_solarpower - MIN_CHARGE_POWER < 0 else hub_solarpower - MIN_CHARGE_POWER
+                path += "2."
+                limit = 0
+
         if demand < 0:
             limit = 0
 
