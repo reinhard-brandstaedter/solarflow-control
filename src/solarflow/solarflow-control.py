@@ -281,31 +281,23 @@ def getSFPowerLimit(hub, demand) -> int:
             limit = hub.getInverseMaxPower()
 
     if not hub.getBypass():
+        path += "1." 
+        limit = min(demand,MAX_DISCHARGE_POWER)
         if hub_solarpower - demand > MIN_CHARGE_POWER:
-            path += "1." 
             if hub_solarpower - MIN_CHARGE_POWER < MAX_DISCHARGE_POWER:
-                path += "1."
-                limit = min(demand,MAX_DISCHARGE_POWER)
+                path += "1. (enough power to cover demand and minimum charge power)"
+                #limit = min(demand,MAX_DISCHARGE_POWER)
             else:
                 path += "2."
                 limit = min(demand,hub_solarpower - MIN_CHARGE_POWER)
         if hub_solarpower - demand <= MIN_CHARGE_POWER:  
             path += "2."
-            # ensure the hub has at least charged a bit today already before considering discharge
-            if hub_electricLevel > hub.batteryLow and hub.daySoCIncrease >= BATTERY_DISCHARGE_START:
-                path += "1."
-                limit = 0
-                if DISCHARGE_DURING_DAYTIME:
-                    path += "1."
-                    limit = min(demand,MAX_DISCHARGE_POWER)
-                # night time
-                if now < (sunrise + sunrise_off) or now > (sunset - sunset_off):
-                    path += "1."
-                    limit = min(demand,MAX_DISCHARGE_POWER)
-            # battery has not yet charged today
-            else:
-                path += "2."
-                limit = 0
+            if not DISCHARGE_DURING_DAYTIME:
+                if (now > (sunrise + sunrise_off) or now < (sunset - sunset_off)):
+                    path += "1. (not enough power to cover demand and minimum charge power during day)"
+                    limit = 0
+                else:
+                    path += "2. (not enough power to cover demand and minimum charge power during night/dusk/dawn)"
 
         if demand < 0:
             limit = 0
