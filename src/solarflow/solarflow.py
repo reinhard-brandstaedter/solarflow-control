@@ -374,7 +374,9 @@ class Solarflow:
         build = value & 0x00FF
         self.fwVersion = f"{major}.{minor}.{build}"
 
-    def updByPass(self, value: int):
+        self.pushHomeassistantConfig()
+
+    def updByPass(self, value:int):
         self.bypass = bool(value)
 
     def updByPassMode(self, value: int):
