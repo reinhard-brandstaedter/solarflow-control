@@ -348,10 +348,12 @@ class Solarflow:
         return False
 
     def updBatteryTargetSoCMax(self, value: int):
-        self.batteryTargetSoCMax = int(value)
+        self.batteryTargetSoCMax = value / 10
+        self.processRequestedChargeThrough()
 
     def updBatteryTargetSoCMin(self, value: int):
-        self.batteryTargetSoCMin = int(value)
+        self.batteryTargetSoCMin = value / 10
+        self.processRequestedChargeThrough()
 
     def updOutputPack(self, value: int):
         self.outputPackPower = value
@@ -414,36 +416,25 @@ class Solarflow:
     def setChargeThrough(self, value):
         chargeThrough = str2bool(value)
 
-        # chargeThrough can only be used if control_soc is enabled via configuration
-        # **OR**
-        # chargeThrough can only be used if control_soc is enabled via configuration
-        # **OR**
+        # chargeThrough can only be used if control_soc is enabled via configuration 
+        # **OR** 
         # if SoC levels configured in battery are correct
-        log.info(
-            f"Received charge-through control: {value}, Control SoC: {self.control_soc}, SocMax: {self.batteryTargetSoCMax}%, SocMin: {self.batteryTargetSoCMin}%"
-        )
-        if chargeThrough and not self.chargeThrough and self.control_soc:
+        if chargeThrough and not self.control_soc:
             # if no levels have not been read, wait for then and redo evaluation
             if self.batteryTargetSoCMax < 0 or self.batteryTargetSoCMin < 0:
-                log.info(
-                    f"We can control SoC levels but the SoC boundaries read from hub are not available yet. Waiting for update to re-check conditions"
-                )
+                log.info(f'We are not allowed to control SoC levels and the values read from battery are not available, yet. Waiting for update to re-check conditions')
                 self.chargeThroughRequested = True
                 return
 
             # batteryTargetSoCMax has to be setup correctly
             if self.batteryTargetSoCMax < 100:
-                log.info(
-                    f"To turn on charge-through we need to adjust the max SoC from {self.batteryTargetSoCMax}% to 100%!"
-                )
-                self.setBatteryHighSoC(100, True)
+                log.info(f'Impossible to set charge through! We are not permitted to change maximum target SoC and solarflow has limit configured to {self.batteryTargetSoCMax}% but we expected 100%!')
+                return
 
             # if we shall do a full cycle, batteryTargetSoCMin has to be setup correctly
             if self.allowFullCycle and self.batteryTargetSoCMin > 0:
-                log.info(
-                    f"To turn on charge-through with a full-cycle we need to adjust the min SoC from {self.batteryTargetSoCMin}% to 0%!"
-                )
-                self.setBatteryLowSoC(0, True)
+                log.info(f'Impossible to do full charge through cycle! We are not permitted to change minimum target SoC and solarflow has limit configured to {self.batteryTargetSoCMin}% but we expect 0%!')
+                return
 
         # in case of setups with no direct panels connected to inverter it is necessary to turn on the inverter as it is likely offline now
         inv = self.client._userdata["dtu"]
