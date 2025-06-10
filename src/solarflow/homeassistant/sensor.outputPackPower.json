@@ -1,17 +1,17 @@
 {
-    "name": "Output Pack Power",
-    "stat_t": "~outputPackPower",
-    "uniq_id": "{{ device_id }}-outputPackPower",
-    "dev_cla": "power",
-    "unit_of_meas": "W",
-    "state_class": "measurement",
-    "dev": {
-      "identifiers": ["{{ device_id }}"],
-      "manufacturer": "Zendure",
-      "model": "Solarflow",
-      "name": "Solarflow Hub",
-      "sw_version": "{{ fw_version }}"
-    },
-    "expire_after": 300,
-    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+  "name": "Output Pack Power",
+  "stat_t": "~outputPackPower",
+  "uniq_id": "{{ device_id }}-outputPackPower",
+  "dev_cla": "power",
+  "unit_of_meas": "W",
+  "state_class": "measurement",
+  "dev": {
+    "identifiers": ["{{ device_id }}"],
+    "manufacturer": "Zendure",
+    "model": "Solarflow",
+    "name": "Solarflow Hub",
+    "sw_version": "{{ fw_version }}"
+  },
+  "expire_after": 300,
+  "~": "solarflow-hub/{{ device_id }}/telemetry/"
 }

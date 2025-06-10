@@ -1,17 +1,17 @@
 {
-    "expire_after": 300,
-    "name": "Solar2 Input Power",
-    "stat_t": "~solarPower2",
-    "uniq_id": "{{ device_id }}-solarPower2",
-    "dev_cla": "power",
-    "state_class": "measurement",
-    "unit_of_meas": "W",
-    "dev": {
-      "identifiers": ["{{ device_id }}"],
-      "manufacturer": "Zendure",
-      "model": "Solarflow",
-      "name": "Solarflow Hub",
-      "sw_version": "{{ fw_version }}"
-    },
-    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+  "expire_after": 300,
+  "name": "Solar2 Input Power",
+  "stat_t": "~solarPower2",
+  "uniq_id": "{{ device_id }}-solarPower2",
+  "dev_cla": "power",
+  "state_class": "measurement",
+  "unit_of_meas": "W",
+  "dev": {
+    "identifiers": ["{{ device_id }}"],
+    "manufacturer": "Zendure",
+    "model": "Solarflow",
+    "name": "Solarflow Hub",
+    "sw_version": "{{ fw_version }}"
+  },
+  "~": "solarflow-hub/{{ device_id }}/telemetry/"
 }

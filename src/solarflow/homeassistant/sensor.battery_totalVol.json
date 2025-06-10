@@ -7,7 +7,9 @@
   "dev_cla": "voltage",
   "state_class": "measurement",
   "dev": {
-    "identifiers": ["{{ device_id }}"],
+    "identifiers": [
+      "{{ device_id }}"
+    ],
     "manufacturer": "Zendure",
     "model": "Solarflow",
     "name": "Solarflow Hub",

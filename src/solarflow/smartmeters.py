@@ -106,9 +106,9 @@ class Smartmeter:
             )
             self.last_trigger_value = self.getPower()
 
-        # agressively try to avoid feed-in (below 0 W) if it comes from hub - but also honor the zero offset
-        if ( self.getPower() - self.zero_offset ) < 0 and self.getPreviousPower() < 0:
-            hub = self.client._userdata['hub']
+        # agressively try to avoid feed-in (below 0 W) if it comes from hub
+        if self.getPower() < 0 and self.getPreviousPower() < 0:
+            hub = self.client._userdata["hub"]
             if hub.getDischargePower() > 0:
                 self.trigger_callback(self.client)
 

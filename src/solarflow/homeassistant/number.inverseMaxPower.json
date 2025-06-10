@@ -1,22 +1,22 @@
 {
-    "name": "Inverter Limit",
-    "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
-    "cmd_tpl": "{\"properties\": {\"inverseMaxPower\": {{ value }} }}",
-    "stat_t": "~inverseMaxPower",
-    "uniq_id": "{{ device_id }}-inverseMaxPower",
-    "dev_cla": "power",
-    "unit_of_meas": "W",
-    "max": 2400,
-    "min": 0,
-    "step": 1,
-    "mode": "box",
-    "expire_after": 300,
-    "dev": {
-      "identifiers": ["{{ device_id }}"],
-      "manufacturer": "Zendure",
-      "model": "Solarflow",
-      "name": "Solarflow Hub",
-      "sw_version": "{{ fw_version }}"
-    },
-    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+  "name": "Inverter Limit",
+  "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
+  "cmd_tpl": "{\"properties\": {\"inverseMaxPower\": {{ value }} }}",
+  "stat_t": "~inverseMaxPower",
+  "uniq_id": "{{ device_id }}-inverseMaxPower",
+  "dev_cla": "power",
+  "unit_of_meas": "W",
+  "max": 2400,
+  "min": 0,
+  "step": 1,
+  "mode": "box",
+  "expire_after": 300,
+  "dev": {
+    "identifiers": ["{{ device_id }}"],
+    "manufacturer": "Zendure",
+    "model": "Solarflow",
+    "name": "Solarflow Hub",
+    "sw_version": "{{ fw_version }}"
+  },
+  "~": "solarflow-hub/{{ device_id }}/telemetry/"
 }

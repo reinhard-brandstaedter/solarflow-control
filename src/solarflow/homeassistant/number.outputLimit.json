@@ -1,21 +1,21 @@
 {
-    "expire_after": 300,
-    "name": "Output Power Limit",
-    "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
-    "cmd_tpl": "{\"properties\": {\"outputLimit\": {{ value }} }}",
-    "stat_t": "~outputLimit",
-    "uniq_id": "{{ device_id }}-outputLimit",
-    "dev_cla": "power",
-    "unit_of_meas": "W",
-    "max": 1200,
-    "min": 0,
-    "step": 1,
-    "dev": {
-      "identifiers": ["{{ device_id }}"],
-      "manufacturer": "Zendure",
-      "model": "Solarflow",
-      "name": "Solarflow Hub",
-      "sw_version": "{{ fw_version }}"
-    },
-    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+  "expire_after": 300,
+  "name": "Output Power Limit",
+  "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
+  "cmd_tpl": "{\"properties\": {\"outputLimit\": {{ value }} }}",
+  "stat_t": "~outputLimit",
+  "uniq_id": "{{ device_id }}-outputLimit",
+  "dev_cla": "power",
+  "unit_of_meas": "W",
+  "max": 1200,
+  "min": 0,
+  "step": 1,
+  "dev": {
+    "identifiers": ["{{ device_id }}"],
+    "manufacturer": "Zendure",
+    "model": "Solarflow",
+    "name": "Solarflow Hub",
+    "sw_version": "{{ fw_version }}"
+  },
+  "~": "solarflow-hub/{{ device_id }}/telemetry/"
 }

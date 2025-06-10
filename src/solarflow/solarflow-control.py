@@ -97,14 +97,13 @@ BATTERY_LOW = None
 BATTERY_HIGH = None
 
 # the SoC that is required before discharging of the battery would start. To allow a bit of charging first in the morning.
-BATTERY_DISCHARGE_START = config.getint('control', 'battery_discharge_start', fallback=None) \
-                        or int(os.environ.get('BATTERY_DISCHARGE_START',10)) 
+BATTERY_DISCHARGE_START = config.getint(
+    "control", "battery_discharge_start", fallback=None
+) or int(os.environ.get("BATTERY_DISCHARGE_START", 10))
 
 # the maximum allowed inverter output
-MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
-                        or int(os.environ.get('MAX_INVERTER_LIMIT',800))
-MAX_INVERTER_INPUT =    config.getint('control', 'max_inverter_input', fallback=None) \
-                        or int(os.environ.get('MAX_INVERTER_INPUT',MAX_INVERTER_LIMIT - MIN_CHARGE_POWER))
+MAX_INVERTER_LIMIT = config.getint("control", "max_inverter_limit", fallback=None) or int(os.environ.get("MAX_INVERTER_LIMIT", 800))
+MAX_INVERTER_INPUT = config.getint("control", "max_inverter_input", fallback=None) or int(os.environ.get("MAX_INVERTER_INPUT", 400))
 
 # this controls the internal calculation of limited growth for setting inverter limits
 INVERTER_START_LIMIT = 5
@@ -147,9 +146,11 @@ class MyLocation:
                 "http://ip-api.com/json/"
             )  # call without IP uses my IP
             response = result.json()
-            log.info(f'IP Address: {response["query"]}')
-            log.info(f'Location: {response["city"]}, {response["regionName"]}, {response["country"]}')
-            log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]}')
+            log.info(f"IP Address: {response['query']}")
+            log.info(
+                f"Location: {response['city']}, {response['regionName']}, {response['country']}"
+            )
+            log.info(f"Coordinates: (Lat: {response['lat']}, Lng: {response['lon']}")
             lat = response["lat"]
             lon = response["lon"]
         except Exception as e:
@@ -242,35 +243,35 @@ def on_message(client, userdata, msg):
         value = msg.payload.decode()
         match parameter:
             case "sunriseOffset":
-                log.info(f'Updating SUNRISE_OFFSET to {SUNRISE_OFFSET} minutes') if SUNRISE_OFFSET != int(value) else None
+                log.info(f'Updating SUNRISE_OFFSET to {int(value)} minutes') if SUNRISE_OFFSET != int(value) else None
                 SUNRISE_OFFSET = int(value)
             case "sunsetOffset":
-                log.info(f'Updating SUNSET_OFFSET to {SUNSET_OFFSET} minutes') if SUNSET_OFFSET != int(value) else None
+                log.info(f'Updating SUNSET_OFFSET to {int(value)} minutes') if SUNSET_OFFSET != int(value) else None
                 SUNSET_OFFSET = int(value)
             case "minChargePower":
-                log.info(f'Updating MIN_CHARGE_POWER to {MIN_CHARGE_POWER}W') if MIN_CHARGE_POWER != int(value) else None
+                log.info(f'Updating MIN_CHARGE_POWER to {int(value)}W') if MIN_CHARGE_POWER != int(value) else None
                 MIN_CHARGE_POWER = int(value)
             case "maxDischargePower":
-                log.info(f'Updating MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER}W') if MAX_DISCHARGE_POWER != int(value) else None
+                log.info(f'Updating MAX_DISCHARGE_POWER to {int(value)}W') if MAX_DISCHARGE_POWER != int(value) else None
                 MAX_DISCHARGE_POWER = int(value) 
             case "controlBypass":
-                log.info(f'Updating control bypass to {value}')
+                log.info(f"Updating control bypass to {value}")
                 hub.setControlBypass(value)
             case "fullChargeInterval":
-                log.info(f'Updating full charge interval to {int(value)}hrs')
+                log.info(f"Updating full charge interval to {int(value)}hrs")
                 hub.updFullChargeInterval(int(value))
             case "dischargeDuringDaytime":
-                log.info(f'Updating DISCHARGE_DURING_DAYTIME to {DISCHARGE_DURING_DAYTIME}') if DISCHARGE_DURING_DAYTIME != str2bool(value) else None
+                log.info(f'Updating DISCHARGE_DURING_DAYTIME to {str2bool(value)}') if DISCHARGE_DURING_DAYTIME != str2bool(value) else None
                 DISCHARGE_DURING_DAYTIME = str2bool(value)
             case "batteryTargetSoCMin":
-                log.info(f'Updating BATTERY_LOW to {BATTERY_LOW}%') if BATTERY_LOW != int(value) else None
+                log.info(f'Updating BATTERY_LOW to {int(value)}%') if BATTERY_LOW != int(value) else None
                 BATTERY_LOW = int(value)
                 hub.updBatteryTargetSoCMin(BATTERY_LOW)
             case "batteryTargetSoCMax":
-                log.info(f'Updating BATTERY_HIGH to {BATTERY_HIGH}%') if BATTERY_HIGH != int(value) else None
+                log.info(f'Updating BATTERY_HIGH to {int(value)}%') if BATTERY_HIGH != int(value) else None
                 BATTERY_HIGH = int(value)
                 hub.updBatteryTargetSoCMax(BATTERY_HIGH)
-        
+
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -293,7 +294,7 @@ def connect_mqtt() -> mqtt_client:
         client.username_pw_set(mqtt_user, mqtt_pwd)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
-    client.on_message = on_config_message
+    client.on_config_message = on_config_message
     client.connect(mqtt_host, mqtt_port)
     return client
 
@@ -870,7 +871,7 @@ def main(argv):
         )
         sys.exit()
     else:
-        log.info(f'Solarflow Hub: {sf_product_id}/{sf_device_id}')
+        log.info(f"Solarflow Hub: {sf_product_id}/{sf_device_id}")
 
     loc = MyLocation()
     if not LNG and not LAT:

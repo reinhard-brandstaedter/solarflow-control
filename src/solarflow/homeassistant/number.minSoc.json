@@ -1,22 +1,22 @@
 {
-    "expire_after": 300,
-    "name": "Max Discharge Limit",
-    "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
-    "cmd_tpl": "{\"properties\": {\"minSoc\": {% raw %}{{ value | multiply(10) }}{% endraw %} }}",
-    "stat_t": "~minSoc",
-    "value_template": "{% raw %}{{ value | multiply(0.1) | round(0) | int }} {% endraw %}",
-    "uniq_id": "{{ device_id }}-minSoc",
-    "unit_of_meas": "%",
-    "max": 100,
-    "min": 0,
-    "step": 1,
-    "mode": "box",
-    "dev": {
-      "identifiers": ["{{ device_id }}"],
-      "manufacturer": "Zendure",
-      "model": "Solarflow",
-      "name": "Solarflow Hub",
-      "sw_version": "{{ fw_version }}"
-    },
-    "~": "solarflow-hub/{{ device_id }}/telemetry/"
+  "expire_after": 300,
+  "name": "Max Discharge Limit",
+  "cmd_t": "iot/{{ product_id }}/{{ device_id }}/properties/write",
+  "cmd_tpl": "{\"properties\": {\"minSoc\": {% raw %}{{ value | multiply(10) }}{% endraw %} }}",
+  "stat_t": "~minSoc",
+  "value_template": "{% raw %}{{ value | multiply(0.1) | round(0) | int }} {% endraw %}",
+  "uniq_id": "{{ device_id }}-minSoc",
+  "unit_of_meas": "%",
+  "max": 100,
+  "min": 0,
+  "step": 1,
+  "mode": "box",
+  "dev": {
+    "identifiers": ["{{ device_id }}"],
+    "manufacturer": "Zendure",
+    "model": "Solarflow",
+    "name": "Solarflow Hub",
+    "sw_version": "{{ fw_version }}"
+  },
+  "~": "solarflow-hub/{{ device_id }}/telemetry/"
 }
