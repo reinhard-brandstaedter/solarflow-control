@@ -1,16 +1,14 @@
 {
-  "expire_after": 300,
-  "name": "Batteries",
-  "stat_t": "~packNum",
-  "uniq_id": "{{ device_id }}-packNum",
-  "dev": {
-    "identifiers": [
-      "{{ device_id }}"
-    ],
-    "manufacturer": "Zendure",
-    "model": "Solarflow",
-    "name": "Solarflow Hub",
-    "sw_version": "{{ fw_version }}"
-  },
-  "~": "solarflow-hub/{{ device_id }}/telemetry/"
+    "expire_after": 300,
+    "name": "Batteries",
+    "stat_t": "~packNum",
+    "uniq_id": "{{ device_id }}-packNum",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/"
 }

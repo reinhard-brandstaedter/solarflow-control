@@ -1,10 +1,10 @@
 {
     "expire_after": 300,
-    "name": "Solar2 Input Power",
-    "stat_t": "~solarPower2",
-    "uniq_id": "{{ device_id }}-solarPower2",
+    "name": "Battery Power CO4HLMEMA802003",
+    "stat_t": "~batteries/CO4HLMEMA802003/power",
+    "uniq_id": "{{ device_id }}-batteries-CO4HLMEMA802003power",
     "dev_cla": "power",
-    "state_class": "measurement",
+    "value_template": "{% raw %}{% if value | int < 10000 %}{{ value }}{% else %}{% endif %}{% endraw %}",
     "unit_of_meas": "W",
     "dev": {
       "identifiers": ["{{ device_id }}"],
