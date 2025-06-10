@@ -156,7 +156,8 @@ class Solarflow:
                         P:{self.getBypass()} ({'auto' if self.bypass_mode == 0 else 'manual'}, {'possible' if self.allow_bypass else 'not possible'}), \
                         F:{self.getLastFullBattery():3.1f}h, \
                         E:{self.getLastEmptyBattery():3.1f}h, \
-                        CT:{'ON' if self.chargeThrough else 'OFF'} ({self.fullChargeInterval}hrs) {self.chargeThroughStage}, \
+                        CT:{"ON" if self.chargeThrough else "OFF"} ({self.fullChargeInterval}hrs) {self.chargeThroughStage}, \
+                        CT:{self.fullChargeInterval:>3}h \
                         H:{self.outputHomePower:>3}W, \
                         L:{self.outputLimit:>3}W{reset}".split()
         )
@@ -419,7 +420,7 @@ class Solarflow:
         # chargeThrough can only be used if control_soc is enabled via configuration 
         # **OR** 
         # if SoC levels configured in battery are correct
-        if chargeThrough and not self.control_soc:
+        if chargeThrough and self.control_soc:
             # if no levels have not been read, wait for then and redo evaluation
             if self.batteryTargetSoCMax < 0 or self.batteryTargetSoCMin < 0:
                 log.info(f'We are not allowed to control SoC levels and the values read from battery are not available, yet. Waiting for update to re-check conditions')
