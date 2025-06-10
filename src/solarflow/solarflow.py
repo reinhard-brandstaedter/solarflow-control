@@ -205,24 +205,12 @@ class Solarflow:
             template = environment.get_template(hatemplate.name)
             cfg_type = hatemplate.name.split(".")[0]
             cfg_name = hatemplate.name.split(".")[1]
-            if (
-                "battery_" in cfg_name
-            ):  # any config related to battery gets looped over all batteries
-                cfg_name = cfg_name[len("battery_") :]  # remove prefix for compability
-                for index, (serial, v) in enumerate(self.batteriesVol.items()):
-                    hacfg = template.render(
-                        product_id=self.productId,
-                        device_id=self.deviceId,
-                        fw_version=self.fwVersion,
-                        battery_serial=serial,
-                        battery_index=index + 1,
-                    )
-                    if serial != "none":  # at start we dont know the serial
-                        self.client.publish(
-                            f"homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{serial}-{cfg_name}/config",
-                            hacfg,
-                            retain=True,
-                        )
+            if "battery_" in cfg_name: # any config related to battery gets looped over all batteries
+                cfg_name=cfg_name[len("battery_"):] # remove prefix for compability
+                for index, (serial,v) in enumerate(self.batteriesVol.items()):
+                    hacfg = template.render(product_id=self.productId, device_id=self.deviceId, fw_version=self.fwVersion, battery_serial=serial, battery_index=index+1)
+                    if serial != "none": # at start we dont know the serial
+                        self.client.publish(f'homeassistant/{cfg_type}/solarflow-hub-{self.deviceId}-{serial}-{cfg_name}/config',hacfg,retain=True)
             else:
                 hacfg = template.render(
                     product_id=self.productId,

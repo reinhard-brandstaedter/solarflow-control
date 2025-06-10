@@ -1,20 +1,18 @@
 {
-  "expire_after": 300,
-  "name": "Battery {{battery_index}} Power",
-  "stat_t": "~power",
-  "value_template": "{% raw %}{% if value | int < 10000 %}{{ value }}{% else %}{% endif %}{% endraw %}",
-  "uniq_id": "{{ device_id }}-{{ battery_serial }}-power",
-  "unit_of_meas": "W",
-  "dev_cla": "power",
-  "state_class": "measurement",
-  "dev": {
-    "identifiers": [
-      "{{ device_id }}"
-    ],
-    "manufacturer": "Zendure",
-    "model": "Solarflow",
-    "name": "Solarflow Hub",
-    "sw_version": "{{ fw_version }}"
-  },
-  "~": "solarflow-hub/{{ device_id }}/telemetry/batteries/{{ battery_serial }}/"
+    "expire_after": 300,
+    "name": "Battery {{battery_index}} Power",
+    "stat_t": "~power",
+    "value_template": "{% raw %}{% if value | int < 10000 %}{{ value }}{% else %}{% endif %}{% endraw %}",
+    "uniq_id": "{{ device_id }}-{{ battery_serial }}-power",
+    "unit_of_meas": "W",
+    "dev_cla": "power",
+    "state_class": "measurement",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/batteries/{{ battery_serial }}/"
 }
