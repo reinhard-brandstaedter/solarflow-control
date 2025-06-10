@@ -84,6 +84,14 @@ SMT_TYPE = config.get("global", "smartmeter_type", fallback=None) or os.environ.
 MIN_CHARGE_POWER = None
 
 # The maximum discharge level of the packSoc. Even if there is more demand it will not go beyond that
+MAX_DISCHARGE_POWER =   config.getint('control', 'max_discharge_power', fallback=None) \
+                        or int(os.environ.get('MAX_DISCHARGE_POWER',145))   
+
+# battery SoC levels to consider the battery full or empty
+BATTERY_LOW =           config.getint('control', 'battery_low', fallback=None) \
+                        or int(os.environ.get('BATTERY_LOW',0)) 
+BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) \
+                        or int(os.environ.get('BATTERY_HIGH',100))
 # MQTT config topic: solarflow-hub/control/maxDischargePower
 # config.ini [control] max_discharge_power
 MAX_DISCHARGE_POWER = None
@@ -146,7 +154,7 @@ class MyLocation:
             response = result.json()
             log.info(f'IP Address: {response["query"]}')
             log.info(f'Location: {response["city"]}, {response["regionName"]}, {response["country"]}')
-            log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]}')
+            log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]})')
             lat = response["lat"]
             lon = response["lon"]
         except Exception as e:

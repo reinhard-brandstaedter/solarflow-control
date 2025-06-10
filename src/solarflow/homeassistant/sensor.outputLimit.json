@@ -1,8 +1,7 @@
 {
-    "expire_after": 300,
-    "name": "Output Limit",
+    "name": "Output Limit (obsolet)",
     "stat_t": "~outputLimit",
-    "uniq_id": "{{ device_id }}-outputLimit",
+    "uniq_id": "{{ device_id }}-outputLimit-obsolet",
     "dev_cla": "power",
     "unit_of_meas": "W",
     "dev": {
