@@ -125,8 +125,8 @@ class Solarflow:
             retain=True,
         )
 
-        updater = RepeatedTimer(60, self.update)
-        haconfig = RepeatedTimer(180, self.pushHomeassistantConfig)
+        self.updater = RepeatedTimer(60, self.update)
+        self.haconfig = RepeatedTimer(180, self.pushHomeassistantConfig)
         self.pushHomeassistantConfig()
         self.update()
 
@@ -368,13 +368,14 @@ class Solarflow:
         self.batteriesVol.pop("none", None)
         self.batteriesVol.update({sn: value / 100})
 
-    def updMasterSoftVersion(self, value: int):
-        major = (value & 0xF000) >> 12
-        minor = (value & 0x0F00) >> 8
-        build = value & 0x00FF
-        self.fwVersion = f"{major}.{minor}.{build}"
-
-        self.pushHomeassistantConfig()
+    def updMasterSoftVersion(self, value:int):
+        major = (value & 0xf000) >> 12
+        minor = (value & 0x0f00) >> 8
+        build = (value & 0x00ff)
+        newfwVersion = f'{major}.{minor}.{build}'
+        if self.fwVersion != newfwVersion: # publish ha templates on new version
+            self.fwVersion = newfwVersion
+            self.pushHomeassistantConfig()
 
     def updByPass(self, value:int):
         self.bypass = bool(value)
