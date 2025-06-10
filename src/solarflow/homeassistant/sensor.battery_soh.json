@@ -5,6 +5,7 @@
   "uniq_id": "{{ device_id }}-{{ battery_serial }}-soh",
   "unit_of_meas": "%",
   "dev_cla": "battery",
+  "state_class": "measurement",
   "dev": {
     "identifiers": [
       "{{ device_id }}"
