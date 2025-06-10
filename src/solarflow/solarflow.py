@@ -372,10 +372,10 @@ class Solarflow:
         major = (value & 0xf000) >> 12
         minor = (value & 0x0f00) >> 8
         build = (value & 0x00ff)
-        newfwVersion = f'{major}.{minor}.{build}'
-        if self.fwVersion != newfwVersion: # publish ha templates on new version
-            self.fwVersion = newfwVersion
-            self.pushHomeassistantConfig()
+        self.fwVersion = f'{major}.{minor}.{build}'
+
+        # put into own timer in init
+        # self.pushHomeassistantConfig() # why here? this is not needed every minute
 
     def updByPass(self, value:int):
         self.bypass = bool(value)
@@ -583,6 +583,10 @@ class Solarflow:
                     self.updByPass(int(value))
                 case "passMode":
                     self.updByPassMode(int(value))
+                case "socSet":
+                    self.updBatteryTargetSoCMax(int(value))
+                case "minSoc":
+                    self.updBatteryTargetSoCMin(int(value))
                 case "chargeThroughState":
                     pass
                 case _:

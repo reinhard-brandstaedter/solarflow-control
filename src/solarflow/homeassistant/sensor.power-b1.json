@@ -6,6 +6,7 @@
     "dev_cla": "power",
     "value_template": "{% raw %}{% if value | int < 10000 %}{{ value }}{% else %}{% endif %}{% endraw %}",
     "unit_of_meas": "W",
+    "state_class": "measurement",
     "dev": {
       "identifiers": ["{{ device_id }}"],
       "manufacturer": "Zendure",

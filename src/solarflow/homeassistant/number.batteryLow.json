@@ -1,0 +1,19 @@
+{
+    "name": "Battery Discharging Limit",
+    "cmd_t": "~control/batteryLow",
+    "stat_t": "~control/batteryLow",
+    "uniq_id": "{{ device_id }}-batteryLow",
+    "unit_of_meas": "%",
+    "max": 100,
+    "min": 0,
+    "step": 1,
+    "mode": "box",
+    "dev": {
+      "identifiers": ["solarflow-control"],
+      "manufacturer": "Reinhard Weber",
+      "model": "Solarflow Control",
+      "name": "Solarflow Control",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/"
+}

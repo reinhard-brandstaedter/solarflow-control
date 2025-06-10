@@ -1,16 +1,14 @@
 {
-  "name": "Bypass Mode",
-  "stat_t": "~passMode",
-  "uniq_id": "{{ device_id }}-passMode2",
-  "value_template": "{% raw %}{{ 'Auto' if value=='0' else ('Manual off' if value=='1' else ('Manual on' if value=='2' else 'Unknown')) }}{% endraw %}",
-  "dev": {
-    "identifiers": [
-      "{{ device_id }}"
-    ],
-    "manufacturer": "Zendure",
-    "model": "Solarflow",
-    "name": "Solarflow Hub",
-    "sw_version": "{{ fw_version }}"
-  },
-  "~": "solarflow-hub/{{ device_id }}/telemetry/"
+    "name": "Bypass Mode",
+    "stat_t": "~passMode",
+    "uniq_id": "{{ device_id }}-passMode2",
+    "value_template": "{% raw %}{{ 'Auto' if value=='0' else ('Manual off' if value=='1' else ('Manual on' if value=='2' else 'Unknown')) }}{% endraw %}",
+    "dev": {
+      "identifiers": ["{{ device_id }}"],
+      "manufacturer": "Zendure",
+      "model": "Solarflow",
+      "name": "Solarflow Hub",
+      "sw_version": "{{ fw_version }}"
+    },
+    "~": "solarflow-hub/{{ device_id }}/telemetry/"
 }

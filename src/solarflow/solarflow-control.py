@@ -84,28 +84,20 @@ SMT_TYPE = config.get("global", "smartmeter_type", fallback=None) or os.environ.
 MIN_CHARGE_POWER = None
 
 # The maximum discharge level of the packSoc. Even if there is more demand it will not go beyond that
-# MQTT config topic: solarflow-hub/control/maxDischargePower
-# config.ini [control] max_discharge_power
-MAX_DISCHARGE_POWER = None
+MAX_DISCHARGE_POWER =   config.getint('control', 'max_discharge_power', fallback=None) \
+                        or int(os.environ.get('MAX_DISCHARGE_POWER',145))   
 
-# battery SoC levels for normal operation cycles (when not in charge through mode)
-# MQTT config topic: solarflow-hub/control/batteryTargetSoCMin
-# config.ini [control] battery_low
-BATTERY_LOW = None
-# MQTT config topic: solarflow-hub/control/batteryTargetSoCMax
-# config.ini [control] battery_high
-BATTERY_HIGH = None
-
-# the SoC that is required before discharging of the battery would start. To allow a bit of charging first in the morning.
-BATTERY_DISCHARGE_START = config.getint(
-    "control", "battery_discharge_start", fallback=None
-) or int(os.environ.get("BATTERY_DISCHARGE_START", 10))
+# battery SoC levels to consider the battery full or empty
+BATTERY_LOW =           config.getint('control', 'battery_low', fallback=None) \
+                        or int(os.environ.get('BATTERY_LOW',0)) 
+BATTERY_HIGH =          config.getint('control', 'battery_high', fallback=None) \
+                        or int(os.environ.get('BATTERY_HIGH',100))
 
 # the maximum allowed inverter output
 MAX_INVERTER_LIMIT =    config.getint('control', 'max_inverter_limit', fallback=None) \
                         or int(os.environ.get('MAX_INVERTER_LIMIT',800))
 MAX_INVERTER_INPUT =    config.getint('control', 'max_inverter_input', fallback=None) \
-                        or int(os.environ.get('MAX_INVERTER_INPUT',400))
+                        or int(os.environ.get('MAX_INVERTER_INPUT',MAX_INVERTER_LIMIT - MIN_CHARGE_POWER))
 
 # this controls the internal calculation of limited growth for setting inverter limits
 INVERTER_START_LIMIT = 5
@@ -148,11 +140,9 @@ class MyLocation:
                 "http://ip-api.com/json/"
             )  # call without IP uses my IP
             response = result.json()
-            log.info(f"IP Address: {response['query']}")
-            log.info(
-                f"Location: {response['city']}, {response['regionName']}, {response['country']}"
-            )
-            log.info(f"Coordinates: (Lat: {response['lat']}, Lng: {response['lon']}")
+            log.info(f'IP Address: {response["query"]}')
+            log.info(f'Location: {response["city"]}, {response["regionName"]}, {response["country"]}')
+            log.info(f'Coordinates: (Lat: {response["lat"]}, Lng: {response["lon"]})')
             lat = response["lat"]
             lon = response["lon"]
         except Exception as e:
@@ -248,36 +238,46 @@ def on_message(client, userdata, msg):
                 log.info(f'Updating SUNRISE_OFFSET to {int(value)} minutes') if SUNRISE_OFFSET != int(value) else None
                 SUNRISE_OFFSET = int(value)
             case "sunsetOffset":
-                log.info(f'Updating SUNSET_OFFSET to {int(value)} minutes') if SUNSET_OFFSET != int(value) else None
+                log.info(f'Updating SUNRISE_OFFSET to {SUNRISE_OFFSET} minutes')
                 SUNSET_OFFSET = int(value)
             case "minChargePower":
-                log.info(f'Updating MIN_CHARGE_POWER to {int(value)}W') if MIN_CHARGE_POWER != int(value) else None
+                log.info(f'Updating MIN_CHARGE_POWER to {MIN_CHARGE_POWER} W')
                 MIN_CHARGE_POWER = int(value)
             case "maxDischargePower":
-                log.info(f'Updating MAX_DISCHARGE_POWER to {int(value)}W') if MAX_DISCHARGE_POWER != int(value) else None
-                MAX_DISCHARGE_POWER = int(value) 
-            case "controlBypass":
-                log.info(f"Updating control bypass to {value}")
-                hub.setControlBypass(value)
-            case "fullChargeInterval":
-                log.info(f"Updating full charge interval to {int(value)}hrs")
-                hub.updFullChargeInterval(int(value))
+                log.info(f'Updating MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER} W')
+                MAX_DISCHARGE_POWER = int(value)
             case "dischargeDuringDaytime":
-                log.info(f'Updating DISCHARGE_DURING_DAYTIME to {str2bool(value)}') if DISCHARGE_DURING_DAYTIME != str2bool(value) else None
+                log.info(f'Updating DISCHARGE_DURING_DAYTIME to {DISCHARGE_DURING_DAYTIME}')
                 DISCHARGE_DURING_DAYTIME = str2bool(value)
-            case "batteryTargetSoCMin":
-                log.info(f'Updating BATTERY_LOW to {int(value)}%') if BATTERY_LOW != int(value) else None
-                BATTERY_LOW = int(value)
-                hub.updBatteryTargetSoCMin(BATTERY_LOW)
-            case "batteryTargetSoCMax":
-                log.info(f'Updating BATTERY_HIGH to {int(value)}%') if BATTERY_HIGH != int(value) else None
-                BATTERY_HIGH = int(value)
-                hub.updBatteryTargetSoCMax(BATTERY_HIGH)
-
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         log.info("Connected to MQTT Broker!")
+        hub = client._userdata['hub']
+        
+         # publish current control parameters
+        client.publish(f'solarflow-hub/{sf_device_id}/control/controlBypass',str(hub.control_bypass),retain=True)
+        client.publish(f'solarflow-hub/{sf_device_id}/control/sunriseOffset',SUNRISE_OFFSET,retain=True)
+        client.publish(f'solarflow-hub/{sf_device_id}/control/sunsetOffset',SUNSET_OFFSET,retain=True)
+        client.publish(f'solarflow-hub/{sf_device_id}/control/minChargePower',MIN_CHARGE_POWER,retain=True)
+        client.publish(f'solarflow-hub/{sf_device_id}/control/maxDischargePower',MAX_DISCHARGE_POWER,retain=True)
+        client.publish(f'solarflow-hub/{sf_device_id}/control/dischargeDuringDaytime',str(DISCHARGE_DURING_DAYTIME),retain=True)
+        client.publish(f'solarflow-hub/{sf_device_id}/control/batteryHigh',BATTERY_HIGH,retain=True)
+        client.publish(f'solarflow-hub/{sf_device_id}/control/batteryLow',BATTERY_LOW,retain=True)
+
+        hub.subscribe()
+        hub.setBuzzer(False)
+        hub.setPvBrand(1)
+        hub.setInverseMaxPower(MAX_INVERTER_INPUT)
+        hub.setBatteryHighSoC(BATTERY_HIGH)
+        hub.setBatteryLowSoC(BATTERY_LOW)
+        if hub.control_bypass:
+            hub.setBypass(False)
+            hub.setAutorecover(False)
+        inv = client._userdata['dtu']
+        inv.subscribe()
+        smt = client._userdata['smartmeter']
+        smt.subscribe()
     else:
         log.error("Failed to connect, return code %d\n", rc)
 
@@ -873,7 +873,20 @@ def main(argv):
         )
         sys.exit()
     else:
-        log.info(f"Solarflow Hub: {sf_product_id}/{sf_device_id}")
+        log.info(f'Solarflow Hub: {sf_product_id}/{sf_device_id}')
+
+    log.info(f'Limit via inverter: {limit_inverter}')
+
+    log.info("Control Parameters:")
+    log.info(f'  MIN_CHARGE_POWER = {MIN_CHARGE_POWER}')
+    log.info(f'  MAX_DISCHARGE_LEVEL = {MAX_DISCHARGE_POWER}')
+    log.info(f'  MAX_INVERTER_LIMIT = {MAX_INVERTER_LIMIT}')
+    log.info(f'  MAX_INVERTER_INPUT = {MAX_INVERTER_INPUT}')
+    log.info(f'  SUNRISE_OFFSET = {SUNRISE_OFFSET}')
+    log.info(f'  SUNSET_OFFSET = {SUNSET_OFFSET}')
+    log.info(f'  BATTERY_LOW = {BATTERY_LOW}')
+    log.info(f'  BATTERY_HIGH = {BATTERY_HIGH}')
+    log.info(f'  DISCHARGE_DURING_DAYTIME = {DISCHARGE_DURING_DAYTIME}')
 
     loc = MyLocation()
     if not LNG and not LAT:
