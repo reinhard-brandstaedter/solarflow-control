@@ -54,9 +54,7 @@ class TimewindowBuffer:
         now = datetime.now()
         self.values.append((now, value))
 
-        self.values = list(
-            filter(lambda v: isExpired(v, now, self.minutes * 60), self.values)
-        )
+        self.values = list(filter(lambda v: isExpired(v, now, self.minutes * 60), self.values))
         # self.aggregated_values = list(filter(lambda v: isExpired(v, now, self.minutes*60),self.aggregated_values))
 
         # create moving averages of 10s back from most recent values
@@ -64,12 +62,7 @@ class TimewindowBuffer:
         avg = last_avg = 0
         i = 1
         while True:
-            bucket = list(
-                filter(
-                    lambda v: isExpired(v, now - timedelta(seconds=i * 10), 10),
-                    self.values,
-                )
-            )
+            bucket = list(filter(lambda v: isExpired(v, now - timedelta(seconds=i * 10), 10), self.values))
             avg = reduce(lambda a, b: a + b, [v[1] for v in bucket]) / len(bucket)
             self.aggregated_values.insert(0, avg)
             # log.info(f' Bucket {i}: {[v[1] for v in enumerate(bucket)]}')
@@ -102,29 +95,21 @@ class TimewindowBuffer:
         n = len(self.aggregated_values)
         if n == 0:
             return 0
-        return round(
-            reduce(lambda a, b: a + b, [v[1] for v in self.aggregated_values]) / n, 1
-        )
+        return round(reduce(lambda a, b: a + b, [v[1] for v in self.aggregated_values]) / n, 1)
 
     # weighted moving average
     def wavg(self) -> float:
         n = len(self.aggregated_values)
         if n == 0:
             return 0
-        return round(
-            reduce(lambda a, b: a + b, self.aggregated_values) / ((n * (n + 1)) / 2), 1
-        )
+        return round(reduce(lambda a, b: a + b, self.aggregated_values) / ((n * (n + 1)) / 2), 1)
 
     # n^2 weighted moving average
     def qwavg(self) -> float:
         n = len(self.aggregated_values)
         if n == 0:
             return 0
-        return round(
-            reduce(lambda a, b: a + b, self.aggregated_values)
-            / ((n * (n + 1) * (2 * n + 1)) / 6),
-            1,
-        )
+        return round(reduce(lambda a, b: a + b, self.aggregated_values) / ((n * (n + 1) * (2 * n + 1)) / 6), 1)
 
     def clear(self):
         # self.values = []
@@ -139,11 +124,7 @@ class TimewindowBuffer:
 
 
 def deep_get(dictionary, keys, default=None):
-    return reduce(
-        lambda d, key: d.get(key, default) if isinstance(d, dict) else default,
-        keys.split("."),
-        dictionary,
-    )
+    return reduce(lambda d, key: d.get(key, default) if isinstance(d, dict) else default, keys.split("."), dictionary)
 
 
 def str2bool(val):

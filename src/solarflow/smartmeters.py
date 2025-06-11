@@ -121,9 +121,7 @@ class Smartmeter:
                 try:
                     value = deep_get(payload, self.cur_accessor)
                 except:
-                    log.error(
-                        f"Could not get value from topic payload: {sys.exc_info()}"
-                    )
+                    log.error(f"Could not get value from topic payload: {sys.exc_info()}")
 
                 if value:
                     self.phase_values.update({msg.topic: value * self.scaling_factor})
