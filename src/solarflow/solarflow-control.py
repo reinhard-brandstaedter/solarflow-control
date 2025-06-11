@@ -39,16 +39,12 @@ def stroption(option):
 
 
 def load_config():
-    config = configparser.ConfigParser(
-        converters={"str": stroption, "list": listoption}
-    )
+    config = configparser.ConfigParser(converters={"str": stroption, "list": listoption})
     try:
         with open("config.ini", "r") as cf:
             config.read_file(cf)
     except:
-        log.error(
-            "No configuration file (config.ini) found in execution directory! Using environment variables."
-        )
+        log.error("No configuration file (config.ini) found in execution directory! Using environment variables.")
     return config
 
 
@@ -58,32 +54,16 @@ config = load_config()
 """
 Configuration Options
 """
-sf_device_id = config.get("solarflow", "device_id", fallback=None) or os.environ.get(
-    "SF_DEVICE_ID", None
-)
-sf_product_id = config.get(
-    "solarflow", "product_id", fallback="73bkTV"
-) or os.environ.get("SF_PRODUCT_ID", "73bkTV")
-mqtt_user = config.get("mqtt", "mqtt_user", fallback=None) or os.environ.get(
-    "MQTT_USER", None
-)
-mqtt_pwd = config.get("mqtt", "mqtt_pwd", fallback=None) or os.environ.get(
-    "MQTT_PWD", None
-)
-mqtt_host = config.get("mqtt", "mqtt_host", fallback=None) or os.environ.get(
-    "MQTT_HOST", None
-)
-mqtt_port = config.getint("mqtt", "mqtt_port", fallback=None) or os.environ.get(
-    "MQTT_PORT", 1883
-)
+sf_device_id = config.get("solarflow", "device_id", fallback=None) or os.environ.get("SF_DEVICE_ID", None)
+sf_product_id = config.get("solarflow", "product_id", fallback="73bkTV") or os.environ.get("SF_PRODUCT_ID", "73bkTV")
+mqtt_user = config.get("mqtt", "mqtt_user", fallback=None) or os.environ.get("MQTT_USER", None)
+mqtt_pwd = config.get("mqtt", "mqtt_pwd", fallback=None) or os.environ.get("MQTT_PWD", None)
+mqtt_host = config.get("mqtt", "mqtt_host", fallback=None) or os.environ.get("MQTT_HOST", None)
+mqtt_port = config.getint("mqtt", "mqtt_port", fallback=None) or os.environ.get("MQTT_PORT", 1883)
 
 
-DTU_TYPE = config.get("global", "dtu_type", fallback=None) or os.environ.get(
-    "DTU_TYPE", "OpenDTU"
-)
-SMT_TYPE = config.get("global", "smartmeter_type", fallback=None) or os.environ.get(
-    "SMARTMETER_TYPE", "Smartmeter"
-)
+DTU_TYPE = config.get("global", "dtu_type", fallback=None) or os.environ.get("DTU_TYPE", "OpenDTU")
+SMT_TYPE = config.get("global", "smartmeter_type", fallback=None) or os.environ.get("SMARTMETER_TYPE", "Smartmeter")
 
 # The amount of power that should be always reserved for charging, if available. Nothing will be fed to the house if less is produced
 # MQTT config topic: solarflow-hub/control/minChargePower
@@ -104,17 +84,17 @@ BATTERY_LOW = None
 BATTERY_HIGH = None
 
 # the SoC that is required before discharging of the battery would start. To allow a bit of charging first in the morning.
-BATTERY_DISCHARGE_START = config.getint(
-    "control", "battery_discharge_start", fallback=None
-) or int(os.environ.get("BATTERY_DISCHARGE_START", 10))
+BATTERY_DISCHARGE_START = config.getint("control", "battery_discharge_start", fallback=None) or int(
+    os.environ.get("BATTERY_DISCHARGE_START", 10)
+)
 
 # the maximum allowed inverter output
-MAX_INVERTER_LIMIT = config.getint(
-    "control", "max_inverter_limit", fallback=None
-) or int(os.environ.get("MAX_INVERTER_LIMIT", 800))
-MAX_INVERTER_INPUT = config.getint(
-    "control", "max_inverter_input", fallback=None
-) or int(os.environ.get("MAX_INVERTER_INPUT", 400))
+MAX_INVERTER_LIMIT = config.getint("control", "max_inverter_limit", fallback=None) or int(
+    os.environ.get("MAX_INVERTER_LIMIT", 800)
+)
+MAX_INVERTER_INPUT = config.getint("control", "max_inverter_input", fallback=None) or int(
+    os.environ.get("MAX_INVERTER_INPUT", 400)
+)
 
 # this controls the internal calculation of limited growth for setting inverter limits
 INVERTER_START_LIMIT = 5
@@ -138,12 +118,8 @@ SUNRISE_OFFSET = None
 SUNSET_OFFSET = None
 
 # Location Info
-LAT = config.getfloat("global", "latitude", fallback=None) or float(
-    os.environ.get("LATITUDE", 0)
-)
-LNG = config.getfloat("global", "longitude", fallback=None) or float(
-    os.environ.get("LONGITUDE", 0)
-)
+LAT = config.getfloat("global", "latitude", fallback=None) or float(os.environ.get("LATITUDE", 0))
+LNG = config.getfloat("global", "longitude", fallback=None) or float(os.environ.get("LONGITUDE", 0))
 location: LocationInfo
 
 lastTriggerTS: datetime = None
@@ -153,20 +129,16 @@ class MyLocation:
     def getCoordinates(self) -> tuple:
         lat = lon = 0.0
         try:
-            result = requests.get(
-                "http://ip-api.com/json/"
-            )  # call without IP uses my IP
+            result = requests.get("http://ip-api.com/json/")  # call without IP uses my IP
             response = result.json()
             log.info(f"IP Address: {response['query']}")
-            log.info(
-                f"Location: {response['city']}, {response['regionName']}, {response['country']}"
-            )
+            log.info(f"Location: {response['city']}, {response['regionName']}, {response['country']}")
             log.info(f"Coordinates: (Lat: {response['lat']}, Lng: {response['lon']}")
             lat = response["lat"]
             lon = response["lon"]
         except Exception as e:
             log.error(
-                "Can't determine location from my IP. Location detection failed, no accurate sunrise/sunset detection possible",
+                f"Can't determine location from my IP. Location detection failed, no accurate sunrise/sunset detection possible",
                 e.args,
             )
 
@@ -191,24 +163,16 @@ def on_config_message(client, userdata, msg):
         match parameter:
             case "sunriseOffset":
                 SUNRISE_OFFSET = int(value)
-                log.info(
-                    f"Found control/sunriseOffset, set SUNRISE_OFFSET to {SUNRISE_OFFSET} minutes"
-                )
+                log.info(f"Found control/sunriseOffset, set SUNRISE_OFFSET to {SUNRISE_OFFSET} minutes")
             case "sunsetOffset":
                 SUNSET_OFFSET = int(value)
-                log.info(
-                    f"Found control/sunsetOffset, set SUNSET_OFFSET to {SUNSET_OFFSET} minutes"
-                )
+                log.info(f"Found control/sunsetOffset, set SUNSET_OFFSET to {SUNSET_OFFSET} minutes")
             case "minChargePower":
                 MIN_CHARGE_POWER = int(value)
-                log.info(
-                    f"Found control/minChargePower, set MIN_CHARGE_POWER to {MIN_CHARGE_POWER}W"
-                )
+                log.info(f"Found control/minChargePower, set MIN_CHARGE_POWER to {MIN_CHARGE_POWER}W")
             case "maxDischargePower":
                 MAX_DISCHARGE_POWER = int(value)
-                log.info(
-                    f"Found control/maxDiscahrgePiwer, set MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER}W"
-                )
+                log.info(f"Found control/maxDiscahrgePiwer, set MAX_DISCHARGE_POWER to {MAX_DISCHARGE_POWER}W")
             case "dischargeDuringDaytime":
                 DISCHARGE_DURING_DAYTIME = str2bool(value)
                 log.info(
@@ -216,14 +180,10 @@ def on_config_message(client, userdata, msg):
                 )
             case "batteryTargetSoCMin":
                 BATTERY_LOW = int(value)
-                log.info(
-                    f"Found control/batteryTargetSoCMin, set BATTERY_LOW to {BATTERY_LOW}%"
-                )
+                log.info(f"Found control/batteryTargetSoCMin, set BATTERY_LOW to {BATTERY_LOW}%")
             case "batteryTargetSoCMax":
                 BATTERY_HIGH = int(value)
-                log.info(
-                    f"Found control/batteryTargetSoCMax, set BATTERY_HIGH to {BATTERY_HIGH}%"
-                )
+                log.info(f"Found control/batteryTargetSoCMax, set BATTERY_HIGH to {BATTERY_HIGH}%")
 
 
 def on_message(client, userdata, msg):
@@ -250,24 +210,18 @@ def on_message(client, userdata, msg):
         value = msg.payload.decode()
         match parameter:
             case "sunriseOffset":
-                log.info(
-                    f"Updating SUNRISE_OFFSET to {int(value)} minutes"
-                ) if SUNRISE_OFFSET != int(value) else None
+                log.info(f"Updating SUNRISE_OFFSET to {int(value)} minutes") if SUNRISE_OFFSET != int(value) else None
                 SUNRISE_OFFSET = int(value)
             case "sunsetOffset":
-                log.info(
-                    f"Updating SUNSET_OFFSET to {int(value)} minutes"
-                ) if SUNSET_OFFSET != int(value) else None
+                log.info(f"Updating SUNSET_OFFSET to {int(value)} minutes") if SUNSET_OFFSET != int(value) else None
                 SUNSET_OFFSET = int(value)
             case "minChargePower":
-                log.info(
-                    f"Updating MIN_CHARGE_POWER to {int(value)}W"
-                ) if MIN_CHARGE_POWER != int(value) else None
+                log.info(f"Updating MIN_CHARGE_POWER to {int(value)}W") if MIN_CHARGE_POWER != int(value) else None
                 MIN_CHARGE_POWER = int(value)
             case "maxDischargePower":
-                log.info(
-                    f"Updating MAX_DISCHARGE_POWER to {int(value)}W"
-                ) if MAX_DISCHARGE_POWER != int(value) else None
+                log.info(f"Updating MAX_DISCHARGE_POWER to {int(value)}W") if MAX_DISCHARGE_POWER != int(
+                    value
+                ) else None
                 MAX_DISCHARGE_POWER = int(value)
             case "controlBypass":
                 log.info(f"Updating control bypass to {value}")
@@ -281,15 +235,11 @@ def on_message(client, userdata, msg):
                 ) if DISCHARGE_DURING_DAYTIME != str2bool(value) else None
                 DISCHARGE_DURING_DAYTIME = str2bool(value)
             case "batteryTargetSoCMin":
-                log.info(
-                    f"Updating BATTERY_LOW to {int(value)}%"
-                ) if BATTERY_LOW != int(value) else None
+                log.info(f"Updating BATTERY_LOW to {int(value)}%") if BATTERY_LOW != int(value) else None
                 BATTERY_LOW = int(value)
                 hub.updBatteryTargetSoCMin(BATTERY_LOW)
             case "batteryTargetSoCMax":
-                log.info(
-                    f"Updating BATTERY_HIGH to {int(value)}%"
-                ) if BATTERY_HIGH != int(value) else None
+                log.info(f"Updating BATTERY_HIGH to {int(value)}%") if BATTERY_HIGH != int(value) else None
                 BATTERY_HIGH = int(value)
                 hub.updBatteryTargetSoCMax(BATTERY_HIGH)
 
@@ -328,9 +278,7 @@ def subscribe(client: mqtt_client):
 
 
 def limitedRise(x) -> int:
-    rise = MAX_INVERTER_LIMIT - (MAX_INVERTER_LIMIT - INVERTER_START_LIMIT) * math.exp(
-        -MAX_INVERTER_LIMIT / 100000 * x
-    )
+    rise = MAX_INVERTER_LIMIT - (MAX_INVERTER_LIMIT - INVERTER_START_LIMIT) * math.exp(-MAX_INVERTER_LIMIT / 100000 * x)
     log.info(f"Adjusting inverter limit from {x:.1f}W to {rise:.1f}W")
     return int(rise)
 
@@ -338,9 +286,7 @@ def limitedRise(x) -> int:
 # calculate the safe inverter limit for direct panels, to avoid output over legal limits
 def getDirectPanelLimit(inv, hub, smt) -> int:
     # if hub is in bypass mode we can treat it just like a direct panel
-    direct_panel_power = inv.getDirectACPower() + (
-        inv.getHubACPower() if hub.getBypass() else 0
-    )
+    direct_panel_power = inv.getDirectACPower() + (inv.getHubACPower() if hub.getBypass() else 0)
     if direct_panel_power < MAX_INVERTER_LIMIT:
         dc_values = (
             (inv.getDirectDCPowerValues() + inv.getHubDCPowerValues())
@@ -353,9 +299,7 @@ def getDirectPanelLimit(inv, hub, smt) -> int:
             else limitedRise(max(dc_values) * (inv.getEfficiency() / 100))
         )
     else:
-        return int(
-            MAX_INVERTER_LIMIT * (inv.getNrHubChannels() / inv.getNrProducingChannels())
-        )
+        return int(MAX_INVERTER_LIMIT * (inv.getNrHubChannels() / inv.getNrProducingChannels()))
 
 
 def getSFPowerLimit(hub, demand) -> int:
@@ -402,13 +346,10 @@ def getSFPowerLimit(hub, demand) -> int:
         if hub_solarpower - demand <= MIN_CHARGE_POWER:
             path += "3."
             if (
-                (now < (sunrise + sunrise_off) or now > (sunset - sunset_off))
-                or DISCHARGE_DURING_DAYTIME
+                (now < (sunrise + sunrise_off) or now > (sunset - sunset_off)) or DISCHARGE_DURING_DAYTIME
             ) and hub.daySoCIncrease > BATTERY_DISCHARGE_START:
                 path += "1. (not enough power to cover demand and minimum charge power during night/dusk/dawn)"
-            elif (
-                sunrise < now < sunrise + sunrise_off
-            ) and hub_electricLevel > BATTERY_LOW:
+            elif (sunrise < now < sunrise + sunrise_off) and hub_electricLevel > BATTERY_LOW:
                 path += "2. (enough battery after sunrise to continue discharge)"
             else:
                 path += "3. (not enough power to cover demand and minimum charge power during day)"
@@ -423,13 +364,9 @@ def getSFPowerLimit(hub, demand) -> int:
         hub.setSunsetSoC(hub_electricLevel)
     if now > sunrise and now < sunrise + td:
         hub.setSunriseSoC(hub_electricLevel)
-        log.info(
-            f"Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!"
-        )
+        log.info(f"Good morning! We have consumed {hub.getNightConsumption()}% of the battery tonight!")
         ts = int(time.time())
-        log.info(
-            f"Syncing time of solarflow hub (UTC): {datetime.fromtimestamp(ts).strftime('%Y-%m-%d, %H:%M:%S')}"
-        )
+        log.info(f"Syncing time of solarflow hub (UTC): {datetime.fromtimestamp(ts).strftime('%Y-%m-%d, %H:%M:%S')}")
         hub.timesync(ts)
         hub.publishBatteryTarget(solarflow.BATTERY_TARGET_CHARGING)
 
@@ -496,9 +433,7 @@ def limitHomeInput(client: mqtt_client):
     if direct_panel_power > 0:
         if demand < direct_panel_power:
             # we can conver demand with direct panel power, just use all of it
-            log.info(
-                f"Direct connected panels ({direct_panel_power:.1f}W) can cover demand ({demand:.1f}W)"
-            )
+            log.info(f"Direct connected panels ({direct_panel_power:.1f}W) can cover demand ({demand:.1f}W)")
             # direct_limit = getDirectPanelLimit(inv,hub,smt)
             # keep inverter limit where it is, no need to change
             direct_limit = getDirectPanelLimit(inv, hub, smt)
@@ -533,11 +468,7 @@ def limitHomeInput(client: mqtt_client):
                     sf_contribution = getSFPowerLimit(hub, hub_contribution_ask)
 
                     # would the hub's contribution plus direct panel power cross the AC limit? If yes only contribute up to the limit
-                    if (
-                        sf_contribution * (inv.getEfficiency() / 100)
-                        + direct_panel_power
-                        > inv.acLimit
-                    ):
+                    if sf_contribution * (inv.getEfficiency() / 100) + direct_panel_power > inv.acLimit:
                         log.info(
                             f"Hub could contribute {sf_contribution:.1f}W, but this would exceed the configured AC limit ({inv.acLimit}W), so only asking for {inv.acLimit - direct_panel_power:.1f}W"
                         )
@@ -545,24 +476,18 @@ def limitHomeInput(client: mqtt_client):
 
                     # if the hub's contribution (per channel) is larger than what the direct panels max is delivering (night, low light)
                     # then we can open the hub to max limit and use the inverter to limit it's output (more precise)
-                    if sf_contribution / inv.getNrHubChannels() >= max(
-                        inv.getDirectDCPowerValues()
-                    ) * (inv.getEfficiency() / 100):
+                    if sf_contribution / inv.getNrHubChannels() >= max(inv.getDirectDCPowerValues()) * (
+                        inv.getEfficiency() / 100
+                    ):
                         log.info(
                             f"Hub should contribute more ({sf_contribution:.1f}W) than what we currently get max from panels ({max(inv.getDirectDCPowerValues()) * (inv.getEfficiency() / 100):.1f}W), we will use the inverter for fast/precise limiting!"
                         )
                         hub_limit = (
-                            hub.setOutputLimit(0)
-                            if hub.getBypass()
-                            else hub.setOutputLimit(hub.getInverseMaxPower())
+                            hub.setOutputLimit(0) if hub.getBypass() else hub.setOutputLimit(hub.getInverseMaxPower())
                         )
                         direct_limit = sf_contribution / inv.getNrHubChannels()
                     else:
-                        hub_limit = (
-                            hub.setOutputLimit(0)
-                            if hub.getBypass()
-                            else hub.setOutputLimit(sf_contribution)
-                        )
+                        hub_limit = hub.setOutputLimit(0) if hub.getBypass() else hub.setOutputLimit(sf_contribution)
                         log.info(
                             f"Hub is willing to contribute {min(hub_limit, hub_contribution_ask):.1f}W of the requested {hub_contribution_ask:.1f}!"
                         )
@@ -597,19 +522,9 @@ def limitHomeInput(client: mqtt_client):
         if direct_panel_power == 0 and hub_power > 0 and hub.getDischargePower() > 0:
             source = f"battery: {-grid_power:.1f}W"
         # since we usually set the inverter limit not to zero there is always a little bit drawn from the hub (10-15W)
-        if (
-            direct_panel_power == 0
-            and hub_power > 15
-            and hub.getDischargePower() == 0
-            and not hub.getBypass()
-        ):
+        if direct_panel_power == 0 and hub_power > 15 and hub.getDischargePower() == 0 and not hub.getBypass():
             source = f"hub solarpower: {-grid_power:.1f}W"
-        if (
-            direct_panel_power > 0
-            and hub_power > 15
-            and hub.getDischargePower() == 0
-            and hub.getBypass()
-        ):
+        if direct_panel_power > 0 and hub_power > 15 and hub.getDischargePower() == 0 and hub.getBypass():
             source = f"hub bypass: {-grid_power:.1f}W"
         if direct_panel_power > 0 and hub_power < 15:
             source = f"panels connected directly to inverter: {-remainder:.1f}"
@@ -648,9 +563,7 @@ def getOpts(configtype) -> dict:
             converter = getattr(config, f"get{t}")
             opts.update({opt: opt_type(converter(configtype.__name__.lower(), opt))})
         except configparser.NoOptionError:
-            log.info(
-                f'No config setting found for option "{opt}" in section {configtype.__name__.lower()}!'
-            )
+            log.info(f'No config setting found for option "{opt}" in section {configtype.__name__.lower()}!')
     return opts
 
 
@@ -664,7 +577,7 @@ def limit_callback(client: mqtt_client, force=False):
         # ensure the limit function is not called too often (avoid flooding DTUs)
         if elapsed.total_seconds() >= steering_interval or force:
             if force and dtu.hasPendingUpdate():
-                log.info("Force update blocked due to pending DTU update!")
+                log.info(f"Force update blocked due to pending DTU update!")
                 return False
 
             lastTriggerTS = now
@@ -696,12 +609,10 @@ def updateConfigParams(client):
 
     # only update if configparameters haven't been updated/read from MQTT
     if DISCHARGE_DURING_DAYTIME == None:
-        DISCHARGE_DURING_DAYTIME = config.getboolean(
-            "control", "discharge_during_daytime", fallback=None
-        ) or bool(os.environ.get("DISCHARGE_DURING_DAYTIME", False))
-        log.info(
-            f"Updating DISCHARGE_DURING_DAYTIME from config file to {DISCHARGE_DURING_DAYTIME}"
+        DISCHARGE_DURING_DAYTIME = config.getboolean("control", "discharge_during_daytime", fallback=None) or bool(
+            os.environ.get("DISCHARGE_DURING_DAYTIME", False)
         )
+        log.info(f"Updating DISCHARGE_DURING_DAYTIME from config file to {DISCHARGE_DURING_DAYTIME}")
         client.publish(
             f"solarflow-hub/{sf_device_id}/control/dischargeDuringDaytime",
             str(DISCHARGE_DURING_DAYTIME),
@@ -712,9 +623,7 @@ def updateConfigParams(client):
         SUNRISE_OFFSET = config.getint("control", "sunrise_offset", fallback=60) or int(
             os.environ.get("SUNRISE_OFFSET", 60)
         )
-        log.info(
-            f"Updating SUNRISE_OFFSET from config file to {SUNRISE_OFFSET} minutes"
-        )
+        log.info(f"Updating SUNRISE_OFFSET from config file to {SUNRISE_OFFSET} minutes")
         client.publish(
             f"solarflow-hub/{sf_device_id}/control/sunriseOffset",
             SUNRISE_OFFSET,
@@ -733,9 +642,9 @@ def updateConfigParams(client):
         )
 
     if MIN_CHARGE_POWER == None:
-        MIN_CHARGE_POWER = config.getint(
-            "control", "min_charge_power", fallback=None
-        ) or int(os.environ.get("MIN_CHARGE_POWER", 0))
+        MIN_CHARGE_POWER = config.getint("control", "min_charge_power", fallback=None) or int(
+            os.environ.get("MIN_CHARGE_POWER", 0)
+        )
         log.info(f"Updating MIN_CHARGE_POWER from config file to {MIN_CHARGE_POWER}W")
         client.publish(
             f"solarflow-hub/{sf_device_id}/control/minChargePower",
@@ -744,12 +653,10 @@ def updateConfigParams(client):
         )
 
     if MAX_DISCHARGE_POWER == None:
-        MAX_DISCHARGE_POWER = config.getint(
-            "control", "max_discharge_power", fallback=None
-        ) or int(os.environ.get("MAX_DISCHARGE_POWER", 145))
-        log.info(
-            f"Updating MAX_DISCHARGE_POWER from config file to {MAX_DISCHARGE_POWER}W"
+        MAX_DISCHARGE_POWER = config.getint("control", "max_discharge_power", fallback=None) or int(
+            os.environ.get("MAX_DISCHARGE_POWER", 145)
         )
+        log.info(f"Updating MAX_DISCHARGE_POWER from config file to {MAX_DISCHARGE_POWER}W")
         client.publish(
             f"solarflow-hub/{sf_device_id}/control/maxDischargePower",
             MAX_DISCHARGE_POWER,
@@ -757,9 +664,7 @@ def updateConfigParams(client):
         )
 
     if BATTERY_LOW == None:
-        BATTERY_LOW = config.getint("control", "battery_low", fallback=None) or int(
-            os.environ.get("BATTERY_LOW", 2)
-        )
+        BATTERY_LOW = config.getint("control", "battery_low", fallback=None) or int(os.environ.get("BATTERY_LOW", 2))
         log.info(f"Updating BATTERY_LOW from config file to {BATTERY_LOW}%")
         client.publish(
             f"solarflow-hub/{sf_device_id}/control/batteryTargetSoCMin",
@@ -815,9 +720,7 @@ def run():
     log.info(f"  DISCHARGE_DURING_DAYTIME = {DISCHARGE_DURING_DAYTIME}")
 
     hub = solarflow.Solarflow(client=client, callback=limit_callback, **hub_opts)
-    dtu = dtuType(
-        client=client, ac_limit=MAX_INVERTER_LIMIT, callback=limit_callback, **dtu_opts
-    )
+    dtu = dtuType(client=client, ac_limit=MAX_INVERTER_LIMIT, callback=limit_callback, **dtu_opts)
     smt = smtType(client=client, callback=limit_callback, **smt_opts)
 
     client.user_data_set({"hub": hub, "dtu": dtu, "smartmeter": smt})
@@ -852,9 +755,7 @@ def main(argv):
     global mqtt_host, mqtt_port, mqtt_user, mqtt_pwd
     global sf_device_id
     global location
-    opts, args = getopt.getopt(
-        argv, "hb:p:u:s:d:", ["broker=", "port=", "user=", "password="]
-    )
+    opts, args = getopt.getopt(argv, "hb:p:u:s:d:", ["broker=", "port=", "user=", "password="])
     for opt, arg in opts:
         if opt == "-h":
             log.info("solarflow-control.py -b <MQTT Broker Host> -p <MQTT Broker Port>")
@@ -871,22 +772,19 @@ def main(argv):
             sf_device_id = arg
 
     if mqtt_host is None:
-        log.error(
-            "You need to provide a local MQTT broker (environment variable MQTT_HOST or option --broker)!"
-        )
+        log.error("You need to provide a local MQTT broker (environment variable MQTT_HOST or option --broker)!")
         sys.exit(0)
     else:
         log.info(f"MQTT Host: {mqtt_host}:{mqtt_port}")
 
     if mqtt_user is None or mqtt_pwd is None:
-        log.info("MQTT User is not set, assuming authentication not needed")
+        log.info(f"MQTT User is not set, assuming authentication not needed")
     else:
+        log.info(f"MQTT User: {mqtt_user}/{mqtt_pwd}")
         log.info(f"MQTT User: {mqtt_user}/{mqtt_pwd}")
 
     if sf_device_id is None:
-        log.error(
-            "You need to provide a SF_DEVICE_ID (environment variable SF_DEVICE_ID or option --device)!"
-        )
+        log.error(f"You need to provide a SF_DEVICE_ID (environment variable SF_DEVICE_ID or option --device)!")
         sys.exit()
     else:
         log.info(f"Solarflow Hub: {sf_product_id}/{sf_device_id}")
@@ -901,9 +799,7 @@ def main(argv):
         coordinates = (LAT, LNG)
 
     # location info for determining sunrise/sunset
-    location = LocationInfo(
-        timezone="Europe/Berlin", latitude=coordinates[0], longitude=coordinates[1]
-    )
+    location = LocationInfo(timezone="Europe/Berlin", latitude=coordinates[0], longitude=coordinates[1])
 
     run()
 

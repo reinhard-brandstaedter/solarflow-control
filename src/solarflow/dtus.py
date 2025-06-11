@@ -63,7 +63,7 @@ class DTU:
         )
 
     def subscribe(self, topics):
-        topics.append("solarflow-hub/+/control/dryRun")
+        topics.append(f"solarflow-hub/+/control/dryRun")
         for t in topics:
             self.client.subscribe(t)
             log.info(f"DTU subscribing: {t}")
@@ -107,9 +107,7 @@ class DTU:
             if len(self.maxPowerValues) < 5:
                 self.maxPowerValues.append(power)
 
-            avg = (reduce(lambda x, y: x + y, self.maxPowerValues)) / len(
-                self.maxPowerValues
-            )
+            avg = (reduce(lambda x, y: x + y, self.maxPowerValues)) / len(self.maxPowerValues)
             if len(self.maxPowerValues) >= 5:
                 if avg != self.maxPowerValues[0]:  # not stable yet, remove one
                     self.maxPowerValues.pop(0)
@@ -125,7 +123,7 @@ class DTU:
         self.reachable = bool(value)
 
     def handleMsg(self, msg):
-        if msg.topic.startswith("solarflow-hub") and msg.topic and msg.payload:
+        if msg.topic.startswith(f"solarflow-hub") and msg.topic and msg.payload:
             metric = msg.topic.split("/")[-1]
             value = msg.payload.decode()
             match metric:
@@ -214,14 +212,9 @@ class DTU:
         )
 
         if self.getHubACPower() == 0:
-            return int(
-                (self.acLimit / self.getNrDirectChannels()) * self.getNrTotalChannels()
-            )
+            return int((self.acLimit / self.getNrDirectChannels()) * self.getNrTotalChannels())
         else:
-            return int(
-                (self.acLimit / self.getNrProducingChannels())
-                * self.getNrTotalChannels()
-            )
+            return int((self.acLimit / self.getNrProducingChannels()) * self.getNrTotalChannels())
 
     def hasPendingUpdate(self) -> bool:
         log.info(
@@ -243,11 +236,7 @@ class DTU:
         #### inv_limit = int(math.ceil(self.limitAbsoluteBuffer.qwavg() / 2.) * 2)
 
         # Avoid setting limit higher than 150% of inverter capacity
-        inv_limit = (
-            self.maxPower * 1.125
-            if (inv_limit > self.maxPower * 1.125 and self.maxPower > 0)
-            else inv_limit
-        )
+        inv_limit = self.maxPower * 1.125 if (inv_limit > self.maxPower * 1.125 and self.maxPower > 0) else inv_limit
 
         # it could be that maxPower has not yet been detected resulting in a zero limit
         inv_limit = 10 if inv_limit < 10 else int(inv_limit)
@@ -257,9 +246,7 @@ class DTU:
         # note this could mean that the inverter limit is still higher but it ensures that not too much power is generated
 
         # acceptable overage on AC power, keep limit where it is
-        if self.getCurrentACPower() > self.acLimit and self.isWithin(
-            self.getCurrentACPower(), self.acLimit, 20
-        ):
+        if self.getCurrentACPower() > self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
             smt = self.client._userdata["smartmeter"]
             # hub = self.client._userdata['hub']
             smt_power = smt.getPower() - smt.zero_offset
@@ -272,9 +259,7 @@ class DTU:
                 f"Current inverter AC output ({self.getCurrentACPower():.0f}W) is within acceptable overage ({self.acLimit:.0f}W +/- 20W), {'keeping limit at' if smt_power > 0 else 'but less demand, setting limit to'} {inv_limit:.0f}W"
             )
 
-        if self.getCurrentACPower() > self.acLimit and not self.isWithin(
-            self.getCurrentACPower(), self.acLimit, 20
-        ):
+        if self.getCurrentACPower() > self.acLimit and not self.isWithin(self.getCurrentACPower(), self.acLimit, 20):
             # decrease inverter limit slowly
             # inv_limit = self.limitAbsolute - 8
             inv_limit = self.getACLimit()
@@ -284,9 +269,7 @@ class DTU:
             )
 
         # failsafe: if the current AC output is close to the AC limit do not increase the invert limit too much
-        if self.getCurrentACPower() < self.acLimit and self.isWithin(
-            self.getCurrentACPower(), self.acLimit, 10
-        ):
+        if self.getCurrentACPower() < self.acLimit and self.isWithin(self.getCurrentACPower(), self.acLimit, 10):
             # only increase inverter limit a little bit
             inv_limit = self.limitAbsolute + 2
             withinRange = 0
@@ -295,10 +278,7 @@ class DTU:
             )
 
         # if self.limitAbsolute != inv_limit and self.reachable:
-        if (
-            not self.isWithin(inv_limit, self.limitAbsolute, withinRange)
-            and self.reachable
-        ):
+        if not self.isWithin(inv_limit, self.limitAbsolute, withinRange) and self.reachable:
             self.lastLimitTimestamp = datetime.now()
             (not self.dryrun) and self.client.publish(
                 self.limit_nonpersistent_absolute, f"{inv_limit}{self.limit_unit}"
@@ -311,9 +291,7 @@ class DTU:
             not self.reachable and log.info(
                 f"{'[DRYRUN] ' if self.dryrun else ''}Inverter is not reachable/down. Can't set limit"
             )
-            self.reachable and log.info(
-                "Not setting inverter output limit as it is identical to current limit!"
-            )
+            self.reachable and log.info(f"Not setting inverter output limit as it is identical to current limit!")
 
         return inv_limit
 
@@ -416,9 +394,7 @@ class AhoyDTU(DTU):
         self.base_topic = f"{base_topic}"
         self.inverter_name = inverter_name
         self.inverter_max_power = self.maxPower = inverter_max_power
-        self.limit_nonpersistent_absolute = (
-            f"{self.base_topic}/{self.limit_topic}/{inverter_id}"
-        )
+        self.limit_nonpersistent_absolute = f"{self.base_topic}/{self.limit_topic}/{inverter_id}"
         log.info(
             f"Using {type(self).__name__}: Base topic: {self.base_topic}, Limit topic: {self.limit_nonpersistent_absolute}, SF Channels: {self.sf_inverter_channels}"
         )
