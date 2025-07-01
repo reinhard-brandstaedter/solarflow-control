@@ -96,6 +96,7 @@ class Solarflow:
         self.property_topic = f"iot/{self.productId}/{self.deviceId}/properties/write"
         self.chargeThrough = False
         self.chargeThroughStage = BATTERY_TARGET_IDLE
+        self.force_drain = False
         self.dryrun = False
         self.sunriseSoC = 0
         self.sunsetSoC = 0
@@ -127,7 +128,7 @@ class Solarflow:
                         P:{self.getBypass()} ({'auto' if self.bypass_mode == 0 else 'manual'}, {'possible' if self.allow_bypass else 'not possible'}), \
                         F:{self.getLastFullBattery():3.1f}h, \
                         E:{self.getLastEmptyBattery():3.1f}h, \
-                        CT:{'ON' if self.chargeThrough else 'OFF'} ({self.fullChargeInterval}hrs) {self.chargeThroughStage}, \
+                        CT:{'ON' if self.chargeThrough else 'OFF'} ({self.fullChargeInterval}hrs) stage: {self.chargeThroughStage} force_drain: {self.force_drain} , \
                         H:{self.outputHomePower:>3}W, \
                         L:{self.outputLimit:>3}W{reset}".split()
         )
@@ -352,6 +353,9 @@ class Solarflow:
     def allowBypass(self, allow):
         self.allow_bypass = allow
 
+    def setForceDrain(self, allow):
+        self.force_drain = allow
+
     def setChargeThrough(self, value):
         chargeThrough = str2bool(value)
 
@@ -404,9 +408,7 @@ class Solarflow:
             return
 
         log.info(f"Updating charge through stage: {self.chargeThroughStage} => {stage}")
-        batteryHigh = (
-            100 if stage in [BATTERY_TARGET_CHARGING, BATTERY_TARGET_DISCHARGING] else self.batteryTargetSoCMax
-        )
+        batteryHigh = 100 if stage == BATTERY_TARGET_CHARGING else self.batteryTargetSoCMax
         batteryLow = 0 if stage == BATTERY_TARGET_DISCHARGING and self.allowFullCycle else self.batteryTargetSoCMin
         self.client.publish(f"solarflow-hub/{self.deviceId}/control/chargeThroughState", stage, retain=True)
         self.setBatteryHighSoC(batteryHigh, True)
@@ -624,7 +626,7 @@ class Solarflow:
         else:
             return -1
 
-    # return how much time has passed since last full charge (in hours)
+    # return how much time has passed since last empty battery (in hours)
     def getLastEmptyBattery(self) -> int:
         if self.lastEmptyTS:
             diff = datetime.now() - self.lastEmptyTS
@@ -699,6 +701,13 @@ class Solarflow:
                 f"Battery hasn't fully charged for {fullage:.1f} hours! To ensure it is fully charged at least every {self.fullChargeInterval}hrs, not discharging until it's fully charged!"
             )
             self.setChargeThrough(True)
+        emptyage = self.getLastEmptyBattery()
+        # if battery never emptied after the last 100% stage we still need to reach 0 at some point, maybe force discharging at a good point in time soon
+        if emptyage > fullage:
+            log.info(
+                f"Battery never got completely emptied after reaching 100% during charge-through, we should force drain it soon!"
+            )
+            self.setForceDrain(True)
 
         return self.chargeThrough
 

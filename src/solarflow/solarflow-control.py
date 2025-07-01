@@ -351,6 +351,10 @@ def getSFPowerLimit(hub, demand) -> int:
                 path += "1. (not enough power to cover demand and minimum charge power during night/dusk/dawn)"
             elif (sunrise < now < sunrise + sunrise_off) and hub_electricLevel > BATTERY_LOW:
                 path += "2. (enough battery after sunrise to continue discharge)"
+                if hub.force_drain:
+                    log.info(
+                        f"We are trying to reach a full-cycle discharge due to charge-through, we should force draining the battery of the remaining {hub_electricLevel}"
+                    )
             else:
                 path += "3. (not enough power to cover demand and minimum charge power during day)"
                 limit = 0
