@@ -195,7 +195,8 @@ def on_message(client, userdata, msg):
         MAX_DISCHARGE_POWER, \
         DISCHARGE_DURING_DAYTIME, \
         BATTERY_LOW, \
-        BATTERY_HIGH
+        BATTERY_HIGH, \
+        BATTERY_DISCHARGE_START
     # delegate message handling to hub,smartmeter, dtu
     smartmeter = userdata["smartmeter"]
     smartmeter.handleMsg(msg)
@@ -234,6 +235,11 @@ def on_message(client, userdata, msg):
                     f"Updating DISCHARGE_DURING_DAYTIME to {str2bool(value)}"
                 ) if DISCHARGE_DURING_DAYTIME != str2bool(value) else None
                 DISCHARGE_DURING_DAYTIME = str2bool(value)
+            case "batteryDischargeStart":
+                log.info(f"Updating BATTERY_DISCHARGE_START to {int(value)}W") if BATTERY_DISCHARGE_START != int(
+                    value
+                ) else None
+                BATTERY_DISCHARGE_START = int(value)
             case "batteryTargetSoCMin":
                 log.info(f"Updating BATTERY_LOW to {int(value)}%") if BATTERY_LOW != int(value) else None
                 BATTERY_LOW = int(value)
@@ -345,9 +351,10 @@ def getSFPowerLimit(hub, demand) -> int:
                 limit = min(demand, hub_solarpower - MIN_CHARGE_POWER)
         if hub_solarpower - demand <= MIN_CHARGE_POWER:
             path += "3."
-            if (
-                (now < (sunrise + sunrise_off) or now > (sunset - sunset_off)) or DISCHARGE_DURING_DAYTIME
-            ) and hub.daySoCIncrease > BATTERY_DISCHARGE_START:
+            if ((now < (sunrise + sunrise_off) or now > (sunset - sunset_off)) or DISCHARGE_DURING_DAYTIME) and (
+                hub.daySoCIncrease > BATTERY_DISCHARGE_START
+                or hub_electricLevel > hub.batteryHigh - BATTERY_DISCHARGE_START
+            ):
                 path += "1. (not enough power to cover demand and minimum charge power during night/dusk/dawn)"
             elif (sunrise < now < sunrise + sunrise_off) and hub_electricLevel > hub.batteryLow:
                 path += "2. (enough battery after sunrise to continue discharge)"
