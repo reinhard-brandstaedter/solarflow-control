@@ -400,15 +400,17 @@ def getSFPowerLimit(hub, demand) -> int:
         diff = sunset - sunrise
         daylight = diff.total_seconds() / 3600
 
-        # check if we should run a full charge cycle today
-        hub.checkChargeThrough(daylight)
-
         # reset the dayly SoC increase
         hub.resetSocIncrease()
 
     log.info(
         f"Based on time, solarpower ({hub_solarpower:4.1f}W) minimum charge power ({MIN_CHARGE_POWER}W) and bypass state ({hub.getBypass()}), hub could contribute {limit:4.1f}W - Decision path: {path}"
     )
+
+    if now > sunrise + sunrise_off and now < sunrise + sunrise_off + td:
+        # check if we should run a full charge cycle today
+        hub.checkChargeThrough(daylight)
+
     return int(limit)
 
 
