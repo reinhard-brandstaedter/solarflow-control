@@ -396,10 +396,6 @@ def getSFPowerLimit(hub, demand) -> int:
             hub.setBypass(False)
             hub.setAutorecover(False)
 
-        # calculate expected daylight in hours
-        diff = sunset - sunrise
-        daylight = diff.total_seconds() / 3600
-
         # reset the dayly SoC increase
         hub.resetSocIncrease()
 
@@ -408,6 +404,9 @@ def getSFPowerLimit(hub, demand) -> int:
     )
 
     if now > sunrise + sunrise_off and now < sunrise + sunrise_off + td:
+        # calculate expected daylight in hours
+        diff = sunset - sunrise
+        daylight = diff.total_seconds() / 3600
         # check if we should run a full charge cycle today
         hub.checkChargeThrough(daylight)
 
